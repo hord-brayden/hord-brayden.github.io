@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RNG Testing Kit</title>
+</head>
+<header-component></header-component>
+<body>
+    <div class="container">
+        <div class="rng-options">
+        <h1>RNG Testing Kit</h1>
+        <p>Select an RNG method:</p>
+        <select id="rngSelect">
+            <option value="mathRandom">Math.random()</option>
+            <option value="xorShift">XORShift</option>
+            <option value="lcg">LCG</option>
+            <option value="cryptoRandomValues">crypto.getRandomValues</option>
+            <!-- Add more options for different RNG methods here -->
+        </select>        
+        <input type="file" id="jsonFile" accept=".json">
+        <button id="runTestsButton">Run Tests</button>
+    </div>
+        <h2>Results:</h2>
+        <code id="results"></code>
+    </div>
+    <div class="dark-mode-toggle">
+        <label class="switch">
+            <input type="checkbox" id="dark-mode-toggle-btn">
+            <span class="slider round"></span>
+        </label>
+        </div>
+        <footer-component></footer-component>
+</body>
+<script type="module" src="js/rng-test.js"></script>
+<script src="js/dark_mode_toggle.js"></script>   
+<script src="js/page-components.js"></script>
+</html>
