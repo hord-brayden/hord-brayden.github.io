@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reaction Time Game</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@500&family=Sofia+Sans+Condensed:ital,wght@0,100;0,500;0,600;0,700;1,1;1,500&display=swap');
+</style>
+<style>
+  
+  html {
+    background-color:darkgray;
+    color: #fff;
+    font-family: 'Roboto', sans-serif;
+    font-weight:bold;
+  }
+  body {
+    display: block;
+    text-align: center;
+    padding-top: 11em !important;
+  }
+  .light {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: inline-block;
+    margin: 5px;
+    background-color: grey;
+  }
+  #message {
+    font-size: 20px;
+  }
+  .high-score {
+    font-size: 18px;
+    color: blue;
+  }
+</style>
+</head>
+<body>
+<div id="lights">
+  <div class="light"></div>
+  <div class="light"></div>
+  <div class="light"></div>
+  <div class="light"></div>
+</div>
+<div id="message">Touch/click or press any button to start.</div>
+<div class="high-score"></div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const lights = Array.from(document.querySelectorAll('.light'));
+  let highScore = sessionStorage.getItem('highScore') || Infinity;
+  let reactionTimeStart;
+  let gameActive = false;
+  let gameStarted = false;
+  let lightInterval;
+
+  const messageDiv = document.getElementById('message');
+  const highScoreDiv = document.querySelector('.high-score');
+
+  function updateHighScoreDisplay() {
+    highScoreDiv.textContent = highScore !== Infinity ? `High score: ${highScore}ms` : '';
+  }
+
+  function resetLights() {
+    lights.forEach(light => light.style.backgroundColor = 'grey');
+  }
+
+  function startGame() {
+    resetLights();
+    gameStarted = true;
+    gameActive = false;
+    reactionTimeStart = undefined;
+    lightSequence();
+  }
+
+  function lightSequence() {
+    let i = 0;
+    messageDiv.textContent = 'Game has started! Wait for all lights to go off!';
+    lightInterval = setInterval(() => {
+      if (i < lights.length) {
+        lights[i].style.backgroundColor = 'red';
+        i++;
+      } else {
+        clearInterval(lightInterval);
+        setTimeout(turnOffLights, Math.random() * 2000 + 1000); // Random 
+      }
+    }, 1000);
+  }
+
+  function turnOffLights() {
+    resetLights();
+    reactionTimeStart = Date.now();
+    gameActive = true;
+  }
+
+  function measureReaction() {
+    if (!gameActive) return;
+    const reactionTime = Date.now() - reactionTimeStart;
+    gameActive = false;
+    if (reactionTime < highScore) {
+      highScore = reactionTime;
+      sessionStorage.setItem('highScore', highScore);
+      updateHighScoreDisplay();
+    }
+    messageDiv.textContent = `Your reaction time: ${reactionTime}ms. Touch/click or press any button to restart.`;
+    gameStarted = false; // resrt
+  }
+
+  function failGame() {
+    clearInterval(lightInterval);
+    resetLights();
+    messageDiv.textContent = 'Too soon! Interact to restart.';
+    gameActive = false;
+    gameStarted = false; // resrt
+  }
+
+  function handleInteraction() {
+    if (gameActive) {
+      measureReaction();
+    } else if (!gameStarted) {
+      startGame();
+    } else {
+      failGame();
+    }
+  }
+
+  document.addEventListener('keydown', handleInteraction);
+  ['click', 'touchstart'].forEach(eventType => {
+    document.addEventListener(eventType, handleInteraction);
+  });
+
+  updateHighScoreDisplay();
+});
+</script>
+</body>
+</html>
