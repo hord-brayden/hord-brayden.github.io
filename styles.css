@@ -342,6 +342,14 @@ h2.main-label {
   margin-right: auto;
 }
 
+@media only screen and (min-width: 769px) {
+  nav ul {
+    flex-direction: row;
+    justify-content: space-evenly;
+    width: 75%;
+  }
+}
+
 @media only screen and (max-width: 768px) {
   .hamburger-menu {
     display: flex; 
@@ -349,6 +357,9 @@ h2.main-label {
 
   nav ul {
     display: none; 
+  }
+  nav ul li {
+    text-align: center;
   }
 }
 
