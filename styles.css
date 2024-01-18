@@ -3,22 +3,40 @@ body {
   background-color: #f0f0f0;
 }
 
-
 /* start header.js */
 header {
   background-color: #333;
   padding: 1rem;
 }
 
+.hamburger-menu {
+  cursor: pointer;
+  display: none; 
+  flex-direction: column;
+  justify-content: space-around;
+  width: 30px;
+  height: 25px;
+}
+
+.hamburger-menu .bar {
+  height: 3px;
+  width: 100%;
+  background-color: #fff;
+  border-radius: 10px;
+}
+
 nav ul {
   display: flex;
-  list-style-type: none;
-  margin: 0;
+  flex-direction: column; 
+  align-items: center;
   padding: 0;
+  height: 0;
+  overflow: hidden;
+  transition: height 0.3s ease;
 }
 
 nav ul li {
-  margin-right: 1rem;
+  margin: 10px 0;
 }
 
 nav ul li a {
@@ -319,6 +337,16 @@ h2.main-label {
 .results-container .standard-chi-results, .results-container .benfords-chi-results {
   margin-left: auto;
   margin-right: auto;
+}
+
+@media only screen and (max-width: 768px) {
+  .hamburger-menu {
+    display: flex; 
+  }
+
+  nav ul {
+    display: none; 
+  }
 }
 
 @media only screen and (max-width: 1200px)  {
