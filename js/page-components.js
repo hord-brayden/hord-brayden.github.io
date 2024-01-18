@@ -4,35 +4,35 @@ class HeaderComponent extends HTMLElement {
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <link rel="stylesheet" href="styles.css">
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js" integrity="sha384-AIDWnTcQ7I+9t0vGh3K07kkvhO5cgCZ93pdp4gKtIcEY3XnUR6mXkC5Vf7h5wHb6" crossorigin="anonymous"></script>
         <header>
-  <nav>
-    <div class="hamburger-menu">
-      <div class="bar"></div>
-      <div class="bar"></div>
-      <div class="bar"></div>
-    </div>
-    <ul>
-      <li><a href="index.html">Home</a></li>
-      <li><a href="testing-kit.html">NIST Style Testing Kit</a></li>
-      <li><a href="privacy.html">Privacy</a></li>
-      <li><a href="https://github.com/hord-brayden/">My Full Github</a></li>
-    </ul>
-  </nav>
-</header>
+          <nav>
+            <div class="hamburger-menu">
+              <div class="bar"></div>
+              <div class="bar"></div>
+              <div class="bar"></div>
+            </div>
+            <ul>
+              <li><a href="index.html">Home</a></li>
+              <li><a href="testing-kit.html">NIST Style Testing Kit</a></li>
+              <li><a href="privacy.html">Privacy</a></li>
+              <li><a href="https://github.com/hord-brayden/">My Full Github</a></li>
+            </ul>
+          </nav>
+        </header>
       `;this.MathJaxconfigLoad();}
-    MathJaxconfigLoad() {
-        // Configure MathJax
-        window.MathJax = {
-            tex: {inlineMath: [['$', '$'], ['\\(', '\\)']]},
-            svg: {fontCache: 'global'}
-        };
-        const script = document.createElement('script');
-        script.src = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js";
-        script.integrity = "sha384-AIDWnTcQ7I+9t0vGh3K07kkvhO5cgCZ93pdp4gKtIcEY3XnUR6mXkC5Vf7h5wHb6";
-        script.crossOrigin = "anonymous";
-        document.head.appendChild(script);
-    }
+   MathJaxconfigLoad() {
+    // Configure MathJax
+    window.MathJax = {
+        tex: {inlineMath: [['$', '$'], ['\\(', '\\)']]},
+        svg: {fontCache: 'global'}
+    };
+    const script = document.createElement('script');
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js";
+    // need a new hash
+    // script.integrity = "new-correct-hash"; 
+    script.crossOrigin = "anonymous";
+    document.head.appendChild(script);
+}
 }
 
   class FooterComponent extends HTMLElement {
