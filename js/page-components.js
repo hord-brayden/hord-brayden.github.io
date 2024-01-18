@@ -24,23 +24,37 @@ class HeaderComponent extends HTMLElement {
   }
 
   class FooterComponent extends HTMLElement {
-    connectedCallback() {
-      this.innerHTML = `
+  connectedCallback() {
+    this.innerHTML = `
       <footer>
-      <div class="privacy-block footer-content">
-        <a href="privacy.html">Privacy Policy</a>
-      </div> 
-        <script src="js/canvi-resize.js"></script>
-        <script src="js/hamburgesa.js"></script>
-        <script src="js/xorshift_rng.js"></script>
-        <script src="js/plot_random_numbers.js"></script>
-        <script src="js/password_generator.js"></script>
-        <script src="js/dark_mode_toggle.js"></script>   
-        <script src="js/page-components.js"></script> 
+        <div class="privacy-block footer-content">
+            <a href="privacy.html">Privacy Policy</a>
+        </div> 
       </footer>
-      `;
-    }
+    `;
+
+    this.loadScript("js/page-components.js", () => {
+      this.loadScript("js/dark_mode_toggle.js", () => {
+        this.loadScript("js/hamburgesa.js", () => {
+          this.loadScript("js/plot_random_numbers.js", () => {
+            this.loadScript("js/password_generator.js", () => {
+              this.loadScript("js/xorshift_rng.js", () => {
+                  this.loadScript("js/canvi-resize.js");
+              });
+            });
+          });
+        });
+      });
+    });
   }
-  
+
+  loadScript(src, callback) {
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = src;
+    script.onload = callback;
+    document.head.appendChild(script);
+  }
+}
 customElements.define('header-component', HeaderComponent);
 customElements.define('footer-component', FooterComponent);  
