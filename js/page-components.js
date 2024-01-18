@@ -5,15 +5,20 @@ class HeaderComponent extends HTMLElement {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <link rel="stylesheet" href="styles.css">
         <header>
-          <nav>
-            <ul>
-              <li><a href="index.html">Home</a></li>
-              <li><a href="testing-kit.html">NIST Style Testing Kit</a></li>
-              <li><a href="privacy.html">Privacy</a></li>
-              <li><a href="https://github.com/hord-brayden/">My Full Github</a></li>
-            </ul>
-          </nav>
-        </header>
+  <nav>
+    <div class="hamburger-menu">
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+    </div>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="testing-kit.html">NIST Style Testing Kit</a></li>
+      <li><a href="privacy.html">Privacy</a></li>
+      <li><a href="https://github.com/hord-brayden/">My Full Github</a></li>
+    </ul>
+  </nav>
+</header>
       `;
     }
   }
