@@ -233,7 +233,7 @@ input:checked + .slider:before {
   border-radius: 50%;
 }
 
-body.dark-mode {
+.dark-mode body {
   background-color: #1c1c1c !important;
   color: #f1f1f1 !important;
   transition: 2s;
