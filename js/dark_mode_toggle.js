@@ -1,10 +1,10 @@
 
 function toggleDarkMode() {
   if (darkModeToggle.checked) {
-    document.body.classList.add('dark-mode');
+    document.documentElement.classList.add('dark-mode');
     localStorage.setItem('darkMode', 'enabled');
   } else {
-    document.body.classList.remove('dark-mode');
+    document.documentElement.classList.remove('dark-mode');
     localStorage.setItem('darkMode', null);
   }
 }
@@ -15,7 +15,7 @@ const isOsDarkMode = window.matchMedia && window.matchMedia('(prefers-color-sche
 
 // Set dark mode based on OS/user preference
 if (isOsDarkMode || darkMode === 'enabled') {
-    document.body.classList.add('dark-mode');
+    document.documentElement.classList.add('dark-mode');
     darkModeToggle.checked = true;
 }
 
