@@ -45,8 +45,6 @@ class HeaderComponent extends HTMLElement {
         </div> 
       </footer>
     `;
-
-    this.loadScript("js/page-components.js", () => {
       this.loadScript("js/dark_mode_toggle.js", () => {
         this.loadScript("js/hamburgesa.js", () => {
           this.loadScript("js/plot_random_numbers.js", () => {
@@ -58,8 +56,7 @@ class HeaderComponent extends HTMLElement {
           });
         });
       });
-    });
-  }
+    }
 
   loadScript(src, callback) {
     const script = document.createElement('script');
