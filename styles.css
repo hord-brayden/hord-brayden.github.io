@@ -4,7 +4,7 @@ body {
 }
 
 /* start header.js */
-header {
+head {
   background-color: #333;
   padding: 1rem;
 }
@@ -148,7 +148,7 @@ input[type="text"] {
 }
 
 /* Dark Mode Toggle */
-.dark-mode header {
+.dark-mode head {
   background-color: seagreen;
 }
 
