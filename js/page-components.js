@@ -30,8 +30,13 @@ class HeaderComponent extends HTMLElement {
       <div class="privacy-block footer-content">
         <a href="privacy.html">Privacy Policy</a>
       </div> 
-      <script src="canvi-resize.js"></script>
-      <script src="hamburgesa.js"></script>
+        <script src="canvi-resize.js"></script>
+        <script src="hamburgesa.js"></script>
+        <script src="js/xorshift_rng.js"></script>
+        <script src="js/plot_random_numbers.js"></script>
+        <script src="js/password_generator.js"></script>
+        <script src="js/dark_mode_toggle.js"></script>   
+        <script src="js/page-components.js"></script> 
       </footer>
       `;
     }
