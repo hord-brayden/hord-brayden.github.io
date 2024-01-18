@@ -31,6 +31,7 @@ class HeaderComponent extends HTMLElement {
         <a href="privacy.html">Privacy Policy</a>
       </div> 
       <script src="canvi-resize.js"></script>
+      <script src="hamburgesa.js"></script>
       </footer>
       `;
     }
