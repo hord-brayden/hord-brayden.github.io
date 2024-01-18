@@ -1,10 +1,11 @@
 class HeaderComponent extends HTMLElement {
     connectedCallback() {
       this.innerHTML = `
+      <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <link rel="stylesheet" href="styles.css">
-        <header>
+          <title>Random Password Generator</title>
           <nav>
             <div class="hamburger-menu">
               <div class="bar"></div>
@@ -18,7 +19,7 @@ class HeaderComponent extends HTMLElement {
               <li><a href="https://github.com/hord-brayden/">My Full Github</a></li>
             </ul>
           </nav>
-        </header>
+        </head>
       `;this.MathJaxconfigLoad();}
    MathJaxconfigLoad() {
     // Configure MathJax
