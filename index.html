@@ -30,7 +30,9 @@
   </div>
   <div class="container">
     <div class="container mathJax">
-      <p> This is built using the native Math.js Math.random method. It is a crude, PRNG scheme that requires little compute time,  and suitable for simple tasks. At scale, it runs in  $\mathcal{O}(1)$</p>
+      <p> This is built using the native Math.js <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random"><code>Math.<span class="token function">random</span>()</code></a> method. It is a crude, PRNG scheme that requires little compute time,  and suitable for simple tasks. At scale, it runs in  $\mathcal{O}(1)$</p>
+      <p> Engaging with the button below will run a prescribed set of <code>Math.<span class="token function">random</span>()</code> values, return their values below the plot, and provide a sum of the amount of values found within each of the 4 planes of the plot.</p>
+      <p> For use with business critical functions, or a security prescription utilization of the alternative <a href="https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues"></a><code>window.crypto.<span class="token function">getRandomValues</span>()</code></p>
     </div>
     <h1>Random Password Generator</h1>
     <div class="options">
