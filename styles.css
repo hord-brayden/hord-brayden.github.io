@@ -25,10 +25,6 @@ head {
   border-radius: 10px;
 }
 
-.dark-mode .hamburger-menu .bar {
-  background-color: #000 !important;
-}
-
 nav ul {
   display: flex;
   flex-direction: column; 
@@ -156,6 +152,9 @@ input[type="text"] {
   background-color: seagreen;
 }
 
+.dark-mode .hamburger-menu .bar {
+  background-color: #000 !important;
+}
 
 .dark-mode-toggle {
   position: fixed;
