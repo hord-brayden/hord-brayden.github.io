@@ -29,11 +29,11 @@
     \[ \int_0^\infty e^{-x^2} dx=\frac{\sqrt{\pi}}{2} \]
   </div>
   <div class="container">
+    <h1>Random Password Generator</h1>
     <div class="container mathJax">
       <p> This is built using the native Math.js <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random"><code>Math.<span class="token function">random</span>()</code></a> method. It is a crude, PRNG scheme that requires little compute time,  and suitable for simple tasks. At scale, it runs in  $\mathcal{O}(1)$</p>
       <p> For use with business critical functions, or a security prescription utilization of the alternative <a href="https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues"><code>window.crypto.<span class="token function">getRandomValues</span>()</code></a></p>
     </div>
-    <h1>Random Password Generator</h1>
     <div class="options">
       <label>
         Password Length:
@@ -62,11 +62,11 @@
 
   <div class="randomRunner">
     <div class="container">
+      <h1>Random Rand() plot</h1>
       <div class="container mathJax">
         <p> The plot below is also built using the native Math.js <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random"><code>Math.<span class="token function">random</span>()</code></a> method. As a demonstrattion, engaging with the button below will run a prescribed set of <code>Math.<span class="token function">random</span>()</code> values, return their values below the plot, and provide a sum of the amount of values found within each of the 4 planes of the plot.</p>
         <p> The presentation of this data plot, laid out on a cartesian plot of $\mathbb{R}$, given the sum of the distribution iniside of each plane, it can be made apparent that the distrbituion of these random numbers is not uniform when in a relatively small order of magnitude.</p>
       </div>
-        <h1>Random Rand() plot</h1>
         <canvas id="randomNumberPlot" width="500" height="500"></canvas>
         <div id="randomValues" class="random-values"></div>
         <div id="sectorCounts" class="sector-counts"></div>
@@ -79,10 +79,10 @@
         <button id="plotButton">Generate Rand() Password</button>
     </div>
     <div class="container">
+      <h1>Better Random XORshift() plot</h1>
       <div class="container mathJax">
         <p> This plot, using the same display as the prior, is built using an XOR shift across $\mathbb{R}$, and is evenly distributed.</p>
       </div>
-        <h1>Better Random XORshift() plot</h1>
         <canvas id="randomNumberPlot2" width="500" height="500"></canvas>
         <div id="randomValues2" class="random-values"></div>
         <div id="sectorCounts2" class="sector-counts"></div>
