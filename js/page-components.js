@@ -29,6 +29,12 @@ class HeaderComponent extends HTMLElement {
     };
     const script = document.createElement('script');
     script.src = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js";
+    ;(function () {
+    var src = '//cdn.jsdelivr.net/npm/eruda';
+    if (!/eruda=true/.test(window.location) && localStorage.getItem('active-eruda') != 'true') return;
+    document.write('<script src="' + src + '"></script>');
+    document.write('<script>eruda.init();</script>');
+})();
     // need a new hash
     // script.integrity = "new-correct-hash"; 
     script.crossOrigin = "anonymous";
@@ -45,19 +51,17 @@ class HeaderComponent extends HTMLElement {
         </div> 
       </footer>
     `;
-      this.loadScript("js/dark_mode_toggle.js", () => {
+    this.loadScript("js/dark_mode_toggle.js", () => {
         this.loadScript("js/hamburgesa.js", () => {
-          this.loadScript("js/plot_random_numbers.js", () => {
-            this.loadScript("js/password_generator.js", () => {
-            this.loadScript("js/xorshift_rng.js", () => {
-this.loadScript("cdn.jsdelivr.net/npm/eruda", () => {
-            this.loadScript("js/canvi-resize.js");
-              });
+            this.loadScript("js/plot_random_numbers.js", () => {
+                this.loadScript("js/password_generator.js", () => {
+                    this.loadScript("js/xorshift_rng.js", () => {
+                            this.loadScript("js/canvi-resize.js");
+                        });
+                    });
+                });
             });
-            });
-          });
         });
-      });
     }
 
   loadScript(src, callback) {
