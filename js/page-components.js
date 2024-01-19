@@ -49,9 +49,11 @@ class HeaderComponent extends HTMLElement {
         this.loadScript("js/hamburgesa.js", () => {
           this.loadScript("js/plot_random_numbers.js", () => {
             this.loadScript("js/password_generator.js", () => {
-              this.loadScript("js/xorshift_rng.js", () => {
-                  this.loadScript("js/canvi-resize.js");
+            this.loadScript("js/xorshift_rng.js", () => {
+this.loadScript("cdn.jsdelivr.net/npm/eruda", () => {
+            this.loadScript("js/canvi-resize.js");
               });
+            });
             });
           });
         });
@@ -64,6 +66,7 @@ class HeaderComponent extends HTMLElement {
     script.src = src;
     script.onload = callback;
     document.head.appendChild(script);
+eruda.init();
   }
 }
 customElements.define('header-component', HeaderComponent);
