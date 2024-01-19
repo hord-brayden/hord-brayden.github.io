@@ -153,8 +153,9 @@ input[type="text"] {
 }
 
 .dark-mode .hamburger-menu .bar {
-  background-color: #000;
+  background-color: #000 !important;
 }
+
 
 .dark-mode nav ul li a {
   color: #fff;
