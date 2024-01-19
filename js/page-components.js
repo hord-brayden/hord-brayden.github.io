@@ -70,7 +70,6 @@ class HeaderComponent extends HTMLElement {
     script.src = src;
     script.onload = callback;
     document.head.appendChild(script);
-eruda.init();
   }
 }
 customElements.define('header-component', HeaderComponent);
