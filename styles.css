@@ -148,6 +148,10 @@ input[type="text"] {
   text-align: center;
 }
 
+code {
+  color: #A9A9A9;
+}
+
 /* Dark Mode Toggle */
 .dark-mode head {
   background-color: seagreen;
