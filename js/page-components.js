@@ -12,8 +12,9 @@ class HeaderComponent extends HTMLElement {
             <ul>
               <li><a href="index.html">Home</a></li>
               <li><a href="testing-kit.html">NIST Style Testing Kit</a></li>
-              <li><a href="privacy.html">Privacy</a></li>
+              <li><a href="f1-timer.html">Reaction Timer Game</a></li>
               <li><a href="https://github.com/hord-brayden/">My Full Github</a></li>
+            <li><a href="privacy.html">Privacy</a></li>
             </ul>
           </nav>
       `;this.MathJaxconfigLoad();}
