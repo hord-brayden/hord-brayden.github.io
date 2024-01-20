@@ -235,12 +235,11 @@ input:checked + .slider:before {
   -ms-transform: translateX(26px);
   transform: translateX(26px);
 }
-code {
-    color: beige;
-    padding: 4px;
-}
+
 .dark-mode code {
     background: #333;
+    color: beige;
+    padding: 4px;
 }
 
 .function {
