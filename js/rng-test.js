@@ -44,7 +44,7 @@ async function runTests() {
   <div class="results-container">
   <div class="standard-chi-results">
   <h2 class="main-label">Frequency Test:</h2>
-  <p class="main-label">Chi-Squared: ${frequencyTestResults.chiSquared}</p>
+  <p class="main-label">&chi;<sup>2</sup>: ${frequencyTestResults.chiSquared}</p>
   <p class="main-label" id="freqTestElement">Pass: ${frequencyTestResults.pass}</p>
   <div class="bin-counts">
     <p>Bin Counts:</p>
@@ -53,7 +53,7 @@ async function runTests() {
   </div>
   <div class="benfords-chi-results">
   <h2 class="main-label">Benford's Law Test:</h2>
-  <p class="main-label">Chi-Squared: ${benfordsLawTestResults.chiSquared}</p>
+  <p class="main-label">&chi;<sup>2</sup>: ${benfordsLawTestResults.chiSquared}</p>
   <p class="main-label" id="benfordTestElement">Pass: ${benfordsLawTestResults.pass}</p>
   <div class="digit-counts">
     <p>Digit Counts:</p>
