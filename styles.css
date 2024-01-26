@@ -250,7 +250,7 @@ input:checked + .slider:before {
     color: orange;
 }
 
-.mathJax {
+.mathJax, .head-container {
   margin:auto;
 }
 
