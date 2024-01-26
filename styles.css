@@ -249,6 +249,11 @@ input:checked + .slider:before {
 .function {
     color: orange;
 }
+
+.mathJax {
+  margin:auto;
+}
+
 /* Rounded sliders */
 .slider.round {
   border-radius: 34px;
