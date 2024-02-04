@@ -435,6 +435,9 @@ h2.main-label {
   .container {
     margin: 50px auto !important;
   }
+  .RNG-Arrayizer .container {
+    margin: 0px !important;
+  }
   .randomRunner {
     display: block;
   }
