@@ -106,6 +106,35 @@ input[type="text"] {
   border-radius: 5px;
 }
 
+input[type="number"] {
+    width: 80%;
+    margin-left: auto !important;
+    text-align: center;
+    margin-right: auto !important;
+    display: block;
+    padding: 8px;
+    margin: 10px 0;
+}
+
+#arrayOutput {
+    width: 80% !important;
+    margin: auto;
+    display: flex;
+    min-height: 8em;
+}
+
+#arrayInput {
+    width: 90%;
+    display: flex;
+    margin: auto;
+}
+
+#passwordLength {
+    width: unset;
+    display: inline-block;
+}
+
+
 .random-values {
   font-size: 12px;
   white-space: pre-wrap;
@@ -279,7 +308,7 @@ input:checked + .slider:before {
   transition: 2s;
 }
 
-.dark-mode input[type="text"] {
+.dark-mode input[type="text"], .dark-mode input[type="number"] {
   background-color: #2b2b2b !important;
   color: #f1f1f1 !important;
   border: 1px solid #444444 !important;
