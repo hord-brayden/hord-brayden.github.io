@@ -89,6 +89,21 @@ border: 1px solid #ccc;
 border-radius: 5px;
 }
 
+input[type="number"] {
+    width: 80%;
+    margin-left: auto !important;
+    text-align: center;
+    margin-right: auto !important;
+    display: block;
+    padding: 8px;
+    margin: 10px 0;
+}
+
+#passwordLength {
+    width: unset;
+    display: inline-block;
+}
+
 /* Results Styles */
 .random-values,
 .sector-counts {
@@ -215,7 +230,7 @@ color: #f1f1f1 !important;
 transition: 2s;
 }
 
-.dark-mode input[type="text"] {
+.dark-mode input[type="text"], .dark-mode input[type="number"] {
 background-color: #2b2b2b !important;
 color: #f1f1f1 !important;
 border: 1px solid #444444 !important;
