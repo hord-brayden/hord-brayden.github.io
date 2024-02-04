@@ -99,6 +99,19 @@ input[type="number"] {
     margin: 10px 0;
 }
 
+#arrayOutput {
+    width: 80% !important;
+    margin: auto;
+    display: flex;
+    min-height: 8em;
+}
+
+#arrayInput {
+    width: 90%;
+    display: flex;
+    margin: auto;
+}
+
 #passwordLength {
     width: unset;
     display: inline-block;
