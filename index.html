@@ -30,9 +30,10 @@
   </div>
   <div class="randomRunner">
   <div class="container">
+<div class="RNG-password">
     <h1>Random Password Generator</h1>
     <div class="container mathJax">
-      <p> This is built using the native Math.js <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random"><code>Math.<span class="token function">random</span>()</code></a> method. It is a crude, PRNG scheme that requires little compute time,  and suitable for simple tasks. At scale, it runs in  $\mathcal{O}(1)$</p>
+      <p> This is built using the native Math.js <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random"><code>Math.<span class="token function">random</span>()</code></a> method. It is a crude, PRNG scheme that requires little compute time,  and suitable for simple tasks. At scale, it runs in  <mjx-container class="MathJax CtxtMenu_Attached_0" jax="CHTML" tabindex="0" ctxtmenu_counter="0" style="font-size: 117.4%; position: relative;"><mjx-math class="MJX-TEX" aria-hidden="true"><mjx-texatom texclass="ORD"><mjx-mi class="mjx-cal mjx-i"><mjx-c class="mjx-c4F TEX-C"></mjx-c></mjx-mi></mjx-texatom><mjx-mo class="mjx-n"><mjx-c class="mjx-c28"></mjx-c></mjx-mo><mjx-mn class="mjx-n"><mjx-c class="mjx-c31"></mjx-c></mjx-mn><mjx-mo class="mjx-n"><mjx-c class="mjx-c29"></mjx-c></mjx-mo></mjx-math><mjx-assistive-mml unselectable="on" display="inline"><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow data-mjx-texclass="ORD"><mi data-mjx-variant="-tex-calligraphic" mathvariant="script">O</mi></mrow><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo></math></mjx-assistive-mml></mjx-container></p>
       <p> For use with business critical functions, or a security prescription utilization of the alternative <a href="https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues"><code>window.crypto.<span class="token function">getRandomValues</span>()</code></a></p>
     </div>
     <div class="options">
@@ -41,24 +42,37 @@
         <input type="number" id="passwordLength" value="12" min="4" max="64">
       </label>
       <label>
-        <input type="checkbox" id="includeUppercase" checked>
+        <input type="checkbox" id="includeUppercase" checked="">
         Include Uppercase
       </label>
       <label>
-        <input type="checkbox" id="includeLowercase" checked>
+        <input type="checkbox" id="includeLowercase" checked="">
         Include Lowercase
       </label>
       <label>
-        <input type="checkbox" id="includeNumbers" checked>
+        <input type="checkbox" id="includeNumbers" checked="">
         Include Numbers
       </label>
       <label>
-        <input type="checkbox" id="includeSymbols" checked>
+        <input type="checkbox" id="includeSymbols" checked="">
         Include Symbols
       </label>
     </div>
     <button id="generatePassword">Generate Password</button>
-    <input type="text" id="passwordOutput" readonly onclick="copyToClipboard()">
+    <input type="text" id="passwordOutput" readonly="" onclick="copyToClipboard()">
+  </div>
+<div class="RNG-Arrayizer">
+    <h1>Randomize an Array</h1>
+    <div class="container mathJax">
+      <p>Super Simple Array Randomizer. This is a prototool to develop an esoteric array sorting mechanism using low-order number analysis cohorts.</p>
+      <p>Takes a comma-seperated string, or a space seperated string.</p>
+    </div>
+    <div class="options">
+      <input type="text" id="arrayInput">
+    </div>
+    <button id="randomArrayMama" onclick="randomizeInputArray(arrayInput, arrayOutput)">Generate Password</button>
+    <input type="text" id="arrayOutput" readonly="">
+  </div>
   </div>
     <div class="container">
       <h1>Random Rand() plot</h1>
