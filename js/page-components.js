@@ -46,8 +46,10 @@ class HeaderComponent extends HTMLElement {
         this.loadScript("js/hamburgesa.js", () => {
             this.loadScript("js/plot_random_numbers.js", () => {
                 this.loadScript("js/password_generator.js", () => {
-                    this.loadScript("js/xorshift_rng.js", () => {
+                    this.loadScript("js/arraymama.js", () => {
+                        this.loadScript("js/xorshift_rng.js", () => {
                             this.loadScript("js/canvi-resize.js");
+                            });
                         });
                     });
                 });
