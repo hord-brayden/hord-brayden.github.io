@@ -70,7 +70,10 @@
     <div class="options">
       <input type="text" id="arrayInput" placeholder="Comma or Space Seperated array goes here">
     </div>
+    <div class="button-city">
+      <button id="array-fill" onclick="getElementById('arrayInput').value = '1, 2, 3, 4, 5, 6, 7, 8, 9, 10';"> Sample Array Gen</button>
     <button id="randomArrayMama" onclick="randomizeInputArray('arrayInput', 'arrayOutput')">Shuffle</button>
+    </div>
     <input type="text" id="arrayOutput" readonly="" placeholder="This is where it gets spit out" onclick="copyToClipboard('arrayOutput')">
   </div>
   </div>
