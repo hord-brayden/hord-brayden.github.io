@@ -9,4 +9,10 @@ function randomizeInputArray(inputId, outputId) {
         }
         outputElement.value = numbers.join(", ");
     }
+    else {
+        // for default or missing attributes
+        console.log("somethin is up home-slice. input id is set to ", inputId, "and output id is set to ", outputId);
+    }
 }
+
+randomizeInputArray('arrayInput', 'arrayOutput');
