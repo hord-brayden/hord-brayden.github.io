@@ -33,8 +33,8 @@ function generatePassword() {
     document.getElementById("passwordOutput").value = password;
     }
 
-function copyToClipboard() {
-    const output = document.getElementById("passwordOutput");
+function copyToClipboard(copyclicky) {
+    const output = document.getElementById(copyclicky);
     output.select();
     output.setSelectionRange(0, 99999);
     document.execCommand("copy");
@@ -44,6 +44,7 @@ function copyToClipboard() {
         popup.style.position = "fixed";
         popup.style.border = "1px solid #000";
         popup.style.background = "#fff";
+        popup.style.color = "#000";
         popup.style.padding = "5px";
         popup.style.zIndex = "1000";
         popup.style.left = `${event.clientX + 20}px`;
