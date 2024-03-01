@@ -158,14 +158,11 @@ function plotBetterRandomNumbers(count) {
     displayRandomValues(randomValues, "randomValues2");
   }
 
-document.getElementById("plotButton2").addEventListener("click", () => {
-    const canvas = document.getElementById('randomNumberPlot2');
+  document.getElementById("plotButton").addEventListener("click", () => {
+    const canvas = document.getElementById('randomNumberPlot');
     const ctx = canvas.getContext('2d');
-    const numberInput = document.getElementById('plot2Input').value;
-    const num = parseInt(numberInput) || 100;
-    plotRandomNumbers(canvas, ctx, num);
-});
-
+    plotRandomNumbers(canvas, ctx, 100);
+  });
   
 
 document.getElementById("plotButton").addEventListener("click", () => plotRandomNumbers(100));
