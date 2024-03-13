@@ -52,11 +52,24 @@ document.addEventListener('DOMContentLoaded', () => {
   let highScore = sessionStorage.getItem('highScore') || Infinity;
   let reactionTimeStart;
   let gameActive = false;
-  let gameStarted = false;
+  let gameStarted = sessionStorage.getItem('gameStarted') === 'true';
   let lightInterval;
 
   const messageDiv = document.getElementById('message');
   const highScoreDiv = document.querySelector('.high-score');
+
+    if (!gameStarted) {
+      alert('The goal of this game is to test your speed!!');
+      alert('To play; first click or touch to start the timer.');
+      alert('Once the timer is running, you will see the lights begin to illuminate in order.');
+      alert('When all the lights have lit up, you will need to click or touch the screen as fast as possible to test your reaction speed.');
+      alert('It will save your high score for future visits and bragging rights amongst your friends.');
+      if(confirm('Click OK to start the game!')) {
+        sessionStorage.setItem('gameStarted', 'true');
+        gameStarted = true; // Update gameStarted for current session
+      }
+  }
+
 
   function updateHighScoreDisplay() {
     highScoreDiv.textContent = highScore !== Infinity ? `High score: ${highScore}ms` : '';
