@@ -35,6 +35,20 @@
     font-size: 18px;
     color: blue;
   }
+  button.hard-reset {
+    margin-top: 100px;
+    border-radius: 5px;
+    padding: 10px;
+    width: 245px;
+    background-color: chartreuse;
+    color: white;
+    border: none !important;
+    box-shadow: 2px 5px 10px black;
+    font-size: 15px;
+    text-transform: capitalize;
+    font-weight: 600;
+}
+  
 </style>
 </head>
 <body>
@@ -44,8 +58,9 @@
   <div class="light"></div>
   <div class="light"></div>
 </div>
-<div id="message">Touch/click or press any button to start.</div>
+<div id="message">Touch/click or press any button on keyboard or mouse to start.</div>
 <div class="high-score"></div>
+  <div class="hard-reset"><button class="hard-reset" onclick="hardReset();">Push to Reset</button></div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const lights = Array.from(document.querySelectorAll('.light'));
@@ -62,8 +77,10 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('The goal of this game is to test your speed!!');
       alert('To play; first click or touch to start the timer.');
       alert('Once the timer is running, you will see the lights begin to illuminate in order.');
-      alert('When all the lights have lit up, you will need to click or touch the screen as fast as possible to test your reaction speed.');
+      alert('Once all of the lights have been lit up, get ready to CLICK once they turn off.') ;
+      alert('You will need to click or touch the screen as fast as possible, once all the lights  to test your reaction speed.');
       alert('It will save your high score for future visits and bragging rights amongst your friends.');
+      alert('If you have an error, or it says you`ve clicked too early, just click again until it says touch/click to restart or use the RESET button');
       if(confirm('Click OK to start the game!')) {
         sessionStorage.setItem('gameStarted', 'true');
         gameStarted = true; // Update gameStarted for current session
@@ -77,6 +94,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function resetLights() {
     lights.forEach(light => light.style.backgroundColor = 'grey');
+  }
+
+  function hardReset() {
+    lights.forEach(light => light.style.backgroundColor = 'grey');
+    messageDiv.textContent = 'Touch/click or press any button on keyboard or mouse to start.';
   }
 
   function startGame() {
