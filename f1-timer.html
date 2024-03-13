@@ -153,6 +153,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastTouchTime = 0;
 
   function handleInteraction(event) {
+    if (event.target.closest('.hard-reset')) {
+        return;
+    }
     if (event.type === 'touchstart') {
       lastTouchTime = Date.now();
     } else if (event.type === 'click' && Date.now() - lastTouchTime < 500) {
