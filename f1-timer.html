@@ -20,6 +20,24 @@
     text-align: center;
     padding-top: 11em !important;
   }
+  .pulse {
+    background-color: darkgray;
+    animation-name: color;
+    animation-duration: 2s;
+    animation-iteration-count: infinite;
+  }
+  @keyframes color {
+        0% {
+            background-color: darkgray;
+        }
+        50% {
+            background-color: red;
+        }
+        100 {
+            background-color: darkgray;
+        }
+    }
+
   .light {
     width: 50px;
     height: 50px;
@@ -112,6 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function lightSequence() {
     let i = 0;
     messageDiv.textContent = 'Game has started! Wait for all lights to go off!';
+    document.body.classList.add("pulse");
     lightInterval = setInterval(() => {
       if (i < lights.length) {
         lights[i].style.backgroundColor = 'red';
@@ -127,6 +146,9 @@ document.addEventListener('DOMContentLoaded', () => {
     resetLights();
     reactionTimeStart = Date.now();
     gameActive = true;
+    document.body.style.backgroundColor = 'green';
+    document.body.classList.remove("pulse");
+    messageDiv.textContent = `GO - CLICK NOW!!`;
   }
 
   function measureReaction() {
@@ -151,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   let lastTouchTime = 0;
-
+  
   function handleInteraction(event) {
     if (event.target.closest('.hard-reset')) {
         return;
@@ -164,10 +186,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (gameActive) {
       measureReaction();
+      document.body.style.backgroundColor = 'darkgray';
+      document.body.classList.remove("pulse");
     } else if (!gameStarted) {
       startGame();
     } else {
       failGame();
+      document.body.style.backgroundColor = 'darkgray';
+      document.body.classList.remove("pulse");
     }
   }
 
