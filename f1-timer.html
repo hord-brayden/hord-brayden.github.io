@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastTouchTime = 0;
   
   function handleInteraction(event) {
-    if (event.target.closest('.hard-reset')) {
+    if (event.currentTarget('.hard-reset')) {
         return;
     }
     if (event.type === 'touchstart') {
