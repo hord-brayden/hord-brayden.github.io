@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+    let speed = 50;
     const resolution = 10;
     const cols = Math.floor(canvas.width / resolution);
     const rows = Math.floor(canvas.height / resolution);
@@ -58,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const cell = grid[col][row];
                 ctx.beginPath();
                 ctx.rect(col * resolution, row * resolution, resolution, resolution);
-                ctx.fillStyle = cell ? 'white' : 'black';
+                ctx.fillStyle = cell ? 'white' : '#2b2b2b';
                 ctx.fill();
                 ctx.stroke();
             }
@@ -66,9 +67,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function update() {
-        grid = nextGeneration(grid);
-        draw();
-        requestAnimationFrame(update);
+        setTimeout(() => {
+            grid = nextGeneration(grid);
+            draw();
+            requestAnimationFrame(update);
+        }, speed);
     }
 
     update();
