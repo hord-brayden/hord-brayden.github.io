@@ -21,10 +21,12 @@
     <meta name="msapplication-TileImage" content="img/ms-icon-144x144.png">
     <meta name="theme-color" content="#ffffff">
     <!-- eruda because why not -->
-    <script src="//cdn.jsdelivr.net/npm/eruda"></script>
+    <!-- <script src="//cdn.jsdelivr.net/npm/eruda"></script> -->
+    <script src="js/gameOfLife.js"></script>
   </head>
 <header-component></header-component>
 <body>
+  <canvas id="gameOfLifeCanvas"></canvas>
   <div class="head-container container">
     <p>Just some weird stuff I'm working on.</p>
   </div>
@@ -115,5 +117,5 @@
   </body>
   <footer-component></footer-component>
   <script src="js/page-components.js"></script>
-  <script>eruda.init(); // Initialize eruda</script>
+  <script>//eruda.init(); // Initialize eruda</script>
 </html>
