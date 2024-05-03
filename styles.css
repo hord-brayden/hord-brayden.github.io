@@ -38,7 +38,9 @@ nav ul {
   overflow: hidden;
   transition: height 0.3s ease;
   list-style: none;
-  margin: auto;
+  background: rgba(47, 79, 79, .6);
+  border-radius: 15px;
+  margin: 1.4em auto;
 }
 
 nav ul li {
