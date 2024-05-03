@@ -118,4 +118,5 @@
   <footer-component></footer-component>
   <script src="js/page-components.js"></script>
   <script>//eruda.init(); // Initialize eruda</script>
+  <script>document.getElementById('toggleButton').addEventListener('click', function() { const contents = document.querySelectorAll('.content'); const isHidden = contents[0].style.display === 'none'; for (const content of contents) { content.style.display = isHidden ? '' : 'none !important'; } this.textContent = isHidden ? 'Click to Enjoy' : 'Click to Read';}); </script>
 </html>
