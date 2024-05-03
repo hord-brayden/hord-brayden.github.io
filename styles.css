@@ -42,7 +42,12 @@ nav ul {
 }
 
 nav ul li {
-  margin: 10px 0;
+  padding: 1em 0;
+  width: 100%;
+  background-color: darkslategray;
+  margin: 2px;
+  text-align: center;
+  height: 2em;
 }
 
 nav ul li a {
@@ -121,6 +126,12 @@ button {
 
 button:hover {
   background-color: #0056b3;
+}
+
+#toggleButton {
+    max-width: 35%;
+    margin: auto;
+    display: block;
 }
 
 input[type="text"] {
@@ -454,6 +465,7 @@ h2.main-label {
   }
   nav ul li {
     text-align: center;
+    height: 1em;
   }
 }
 
