@@ -3,6 +3,7 @@ class HeaderComponent extends HTMLElement {
       this.innerHTML = `
       <link rel="stylesheet" href="styles.css">
           <title>Random Password Generator</title>
+          <button class="" id="toggleButton">Click to Enjoy</button>
           <nav>
             <div class="hamburger-menu">
               <div class="bar"></div>
