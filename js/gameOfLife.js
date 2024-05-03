@@ -4,8 +4,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    let speed = 50;
-    const resolution = 10;
+    let speed = 20;
+    const resolution = 18;
     const cols = Math.floor(canvas.width / resolution);
     const rows = Math.floor(canvas.height / resolution);
 

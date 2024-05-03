@@ -118,5 +118,14 @@
   <footer-component></footer-component>
   <script src="js/page-components.js"></script>
   <script>//eruda.init(); // Initialize eruda</script>
-  <script>document.getElementById('toggleButton').addEventListener('click', function() { const contents = document.querySelectorAll('.content'); const isHidden = contents[0].style.display === 'none'; for (const content of contents) { content.style.display = isHidden ? '' : 'none !important'; } this.textContent = isHidden ? 'Click to Enjoy' : 'Click to Read';}); </script>
+  <script>
+    document.getElementById('toggleButton').addEventListener('click', function() {
+    const contents = document.querySelectorAll('.content');
+    const isHidden = window.getComputedStyle(contents[0]).display === 'none';
+    for (const content of contents) {
+      content.style.display = isHidden ? 'flex' : 'none';
+    }
+    this.textContent = isHidden ? 'Click for the Game of Life!' : 'Click to Read my stuff again';
+  });
+  </script>
 </html>
