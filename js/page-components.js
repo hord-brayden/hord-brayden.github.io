@@ -15,7 +15,6 @@ class HeaderComponent extends HTMLElement {
               <li><a href="f1-timer.html">Reaction Timer Game</a></li>
               <li><a href="https://github.com/hord-brayden/">My Full Github</a></li>
             <li><a href="privacy.html">Privacy</a></li>
-            <li><button id="reSeed" onclick="reSeed()">Reseed Game Of Life</button></li>
             </ul>
           </nav>
       `;this.MathJaxconfigLoad();}
@@ -40,6 +39,7 @@ class HeaderComponent extends HTMLElement {
       <footer>
         <div class="privacy-block footer-content">
             <a href="privacy.html">Privacy Policy</a>
+        <button id="reSeed" onclick="reSeed()">Reseed Game Of Life</button>
         </div> 
       </footer>
     `;
