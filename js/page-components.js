@@ -36,12 +36,12 @@ class HeaderComponent extends HTMLElement {
   class FooterComponent extends HTMLElement {
   connectedCallback() {
     this.innerHTML = `
-      <footer>
-        <div class="privacy-block footer-content">
-            <a href="privacy.html">Privacy Policy</a>
-        <button id="reSeed" onclick="reSeed()">Reseed Game Of Life</button>
-        </div> 
-      </footer>
+    <footer>
+      <div class="privacy-block footer-content">
+          <a href="privacy.html">Privacy Policy</a>
+          <button id="reSeed" onclick="window.reSeed()">Reseed Game Of Life</button>
+      </div> 
+    </footer>
     `;
     this.loadScript("js/dark_mode_toggle.js", () => {
         this.loadScript("js/hamburgesa.js", () => {
