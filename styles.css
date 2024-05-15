@@ -200,7 +200,12 @@ input[type="number"] {
   text-align: center;
   text-transform: uppercase;
   position: relative;
+  display: flex;
   z-index: 999;
+}
+#reSeed {
+    width: 20em;
+    margin: .5em auto;
 }
 
 .privacy-block a {
