@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     update();
+
     // for footer regen
     window.reSeed = function() {
         grid = createGrid();
