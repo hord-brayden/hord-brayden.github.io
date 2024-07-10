@@ -188,6 +188,7 @@ input[type="number"] {
 
 .randomRunner {
   display: flex;
+  margin: 0 10%;
 }
 
 .sector-counts div:first-child {
