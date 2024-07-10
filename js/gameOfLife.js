@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const rows = Math.floor(canvas.height / resolution);
 
     let grid = createGrid();
+    let animationFrameId;
 
     function createGrid() {
         let arr = new Array(cols);
@@ -67,14 +68,31 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function update() {
-        setTimeout(() => {
-            grid = nextGeneration(grid);
-            draw();
-            requestAnimationFrame(update);
-        }, speed);
+        grid = nextGeneration(grid);
+        draw();
+        animationFrameId = requestAnimationFrame(update);
     }
 
-    update();
+    function startGame() {
+        update();
+    }
+
+    function stopGame() {
+        cancelAnimationFrame(animationFrameId);
+    }
+
+    document.getElementById('startStopButton').addEventListener('click', function() {
+        if (this.textContent === 'Start Game of Life') {
+            startGame();
+            this.textContent = 'Stop Game of Life';
+        } else {
+            stopGame();
+            this.textContent = 'Start Game of Life';
+        }
+    });
+
+    // Ensure the game is stopped by default
+    stopGame();
 
     // for footer regen
     window.reSeed = function() {
