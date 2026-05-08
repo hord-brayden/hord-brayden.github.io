@@ -1,19 +1,21 @@
 import { XORShift, LCG } from './rng-classes.js';
 
-function getRNGFunction(method, seed, gameState = null) {
+function getRNGFunction(method, seed) {
   switch (method) {
-    case "mathRandom":
+    case 'mathRandom':
       return () => Math.random();
-    case "xorShift":
-      const xorShiftRng = new XORShift(seed, gameState);
-      return () => xorShiftRng.random();
-    case "lcg":
-      const lcgRng = new LCG(seed, gameState);
-      return () => lcgRng.random();
-    case "cryptoRandomValues":
-      return () => crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
+    case 'xorShift': {
+      const r = new XORShift(seed);
+      return () => r.random();
+    }
+    case 'lcg': {
+      const r = new LCG(seed);
+      return () => r.random();
+    }
+    case 'cryptoRandomValues':
+      return () => crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000;
     default:
-      throw new Error("Unknown RNG method");
+      throw new Error('Unknown RNG method: ' + method);
   }
 }
 

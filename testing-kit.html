@@ -1,38 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RNG Testing Kit</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NIST-style RNG Testing Kit - hord-brayden</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+  <script src="js/gameOfLife.js"></script>
 </head>
-<header-component></header-component>
 <body>
-    <div class="container">
-        <div class="rng-options">
-        <h1>RNG Testing Kit</h1>
-        <p>Select an RNG method:</p>
-        <select id="rngSelect">
-            <option value="mathRandom">Math.random()</option>
-            <option value="xorShift">XORShift</option>
-            <option value="lcg">LCG</option>
-            <option value="cryptoRandomValues">crypto.getRandomValues</option>
-            <!-- Add more options for different RNG methods here -->
-        </select>        
-        <input type="file" id="jsonFile" accept=".json">
-        <button id="runTestsButton">Run Tests</button>
-    </div>
-        <h2>Results:</h2>
-        <code id="results"></code>
-    </div>
-    <div class="dark-mode-toggle">
-        <label class="switch">
-            <input type="checkbox" id="dark-mode-toggle-btn">
-            <span class="slider round"></span>
-        </label>
+  <header-component></header-component>
+  <canvas id="gameOfLifeCanvas"></canvas>
+
+  <main class="site-main">
+    <section class="hero">
+      <span class="pill">randomness - statistical testing - NIST SP 800-22</span>
+      <h1>NIST-style RNG Testing Kit</h1>
+      <p class="lede">Pick a generator, run a sample, and watch four classical statistical tests evaluate it: equidistribution (chi-squared), Benford's Law (1st significant digit), and the Monobit and Runs tests from <a href="https://csrc.nist.gov/pubs/sp/800/22/r1/upd1/final" target="_blank" rel="noopener">NIST SP 800-22 Rev. 1a</a>.</p>
+    </section>
+
+    <article class="container container--wide">
+      <div class="rng-options">
+        <h2>Configure</h2>
+        <div class="options">
+          <label>RNG method:
+            <select id="rngSelect">
+              <option value="mathRandom">Math.random() - V8 xorshift128+</option>
+              <option value="xorShift">32-bit XORShift (Marsaglia 2003)</option>
+              <option value="lcg">Linear Congruential (Numerical Recipes)</option>
+              <option value="cryptoRandomValues">crypto.getRandomValues() - CSPRNG</option>
+            </select>
+          </label>
+          <label>Sample count: <input type="number" id="sampleCount" value="100000" min="1000" max="1000000" step="1000"></label>
+          <label>Or load samples from JSON: <input type="file" id="jsonFile" accept=".json"></label>
         </div>
-        <footer-component></footer-component>
+        <button id="runTestsButton" type="button">Run Tests</button>
+      </div>
+      <h2>Results</h2>
+      <div id="results"><p style="color:var(--muted);text-align:center">Run a test to see chi-squared, Benford, Monobit, and Runs results here.</p></div>
+
+      <hr style="margin:30px 0;border:0;border-top:1px solid var(--border)">
+
+      <h2>What the tests mean</h2>
+      <p><strong>Frequency / equidistribution.</strong> Bin the samples uniformly across $[0, 1)$ and compare bin counts to expectation via chi-squared. A truly uniform RNG won't sit at exactly $\chi^2 = 0$ - the test uses $df = \text{numBins}-1$ and the critical value at $\alpha = 0.05$.</p>
+      <p><strong>Benford's Law.</strong> The leading significant digit of many natural-data populations follows $P(d) = \log_{10}(1 + 1/d)$. Uniform PRNGs in $[0, 1)$ <em>also</em> approximately follow Benford's distribution because of the geometric way leading digits emerge from rescaling. We extract the first non-zero digit (so $0.0473 \rightarrow 4$, not $0$) and check the fit.</p>
+      <p><strong>Monobit test (SP 800-22 §2.1).</strong> Treat each sample as 32 bits and check that the proportion of 1s and 0s is consistent with a fair coin. Reports a $p$-value via $\operatorname{erfc}$; passes at $p \ge 0.01$.</p>
+      <p><strong>Runs test (SP 800-22 §2.3).</strong> Counts the number of bit-runs (maximal sequences of identical bits). Too few runs &rArr; the bits cluster (slow oscillation); too many &rArr; they over-alternate. Both indicate non-randomness.</p>
+      <p style="color:var(--muted);font-size:0.92rem"><strong>Caveat.</strong> These are simplified, browser-side analogs of a small subset of SP 800-22's full test battery. A passing run here is necessary but not sufficient evidence of cryptographic suitability. A failing run on a single sample is also not proof of a broken RNG - repeat the test and look at the distribution of $p$-values.</p>
+    </article>
+  </main>
+
+  <footer-component></footer-component>
+  <script type="module" src="js/rng-test.js"></script>
+  <script src="js/page-components.js"></script>
 </body>
-<script type="module" src="js/rng-test.js"></script>
-<script src="js/dark_mode_toggle.js"></script>   
-<script src="js/page-components.js"></script>
 </html>
