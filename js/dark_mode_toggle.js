@@ -1,22 +1,45 @@
+(function () {
+  const root = document.documentElement;
 
-function toggleDarkMode() {
-  if (darkModeToggle.checked) {
-    document.documentElement.classList.add('dark-mode');
-    localStorage.setItem('darkMode', 'enabled');
-  } else {
-    document.documentElement.classList.remove('dark-mode');
-    localStorage.setItem('darkMode', null);
+  function apply(enabled) {
+    root.classList.toggle('dark-mode', enabled);
+    try {
+      localStorage.setItem('darkMode', enabled ? 'enabled' : 'disabled');
+    } catch (e) { /* storage may be blocked */ }
   }
-}
 
-const darkModeToggle = document.querySelector('#dark-mode-toggle-btn');
-const darkMode = localStorage.getItem('darkMode');
-const isOsDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  function ensureToggle() {
+    if (document.querySelector('.dark-mode-toggle')) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'dark-mode-toggle';
+    wrap.setAttribute('aria-label', 'Toggle dark mode');
+    wrap.innerHTML = `
+      <label class="switch">
+        <input type="checkbox" id="dark-mode-toggle-btn" />
+        <span class="slider round"></span>
+      </label>
+    `;
+    document.body.appendChild(wrap);
+  }
 
-// Set dark mode based on OS/user preference
-if (isOsDarkMode || darkMode === 'enabled') {
-    document.documentElement.classList.add('dark-mode');
-    darkModeToggle.checked = true;
-}
+  function init() {
+    ensureToggle();
+    const btn = document.getElementById('dark-mode-toggle-btn');
+    if (!btn) return;
 
-darkModeToggle.addEventListener('change', toggleDarkMode);
+    let stored = null;
+    try { stored = localStorage.getItem('darkMode'); } catch (e) {}
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const enabled = stored ? stored === 'enabled' : prefersDark;
+
+    apply(enabled);
+    btn.checked = enabled;
+    btn.addEventListener('change', () => apply(btn.checked));
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();

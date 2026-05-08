@@ -1,18 +1,29 @@
-function seedXorshiftState() {
-  const buffer = new Uint32Array(1);
-  crypto.getRandomValues(buffer);
-  xorshiftState = buffer[0];
-}
+// Standalone 32-bit xorshift PRNG used by the homepage's "Better Random" plot.
+// Seeded from crypto.getRandomValues so each page load yields a fresh stream.
 
-function xorshift() {
-  xorshiftState ^= xorshiftState << 13;
-  xorshiftState ^= xorshiftState >> 17;
-  xorshiftState ^= xorshiftState << 5;
-  return xorshiftState;
-}
+(function () {
+  let state;
 
-function getBetterRandom() {
-  return (xorshift() >>> 0) / (0xFFFFFFFF + 1);
-}
+  function seed() {
+    const buf = new Uint32Array(1);
+    crypto.getRandomValues(buf);
+    state = buf[0] || 0x9e3779b9;
+  }
 
-seedXorshiftState();
+  function next() {
+    let x = state | 0;
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    state = x | 0;
+    return x >>> 0;
+  }
+
+  function getBetterRandom() {
+    return next() / 0x100000000;
+  }
+
+  seed();
+  window.getBetterRandom = getBetterRandom;
+  window.reseedXorshift = seed;
+})();

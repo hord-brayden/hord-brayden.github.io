@@ -1,18 +1,30 @@
-function randomizeInputArray(inputId, outputId) {
-    const inputElement = document.getElementById(inputId);
-    const outputElement = document.getElementById(outputId);
-    if (inputElement && outputElement) {
-        const numbers = inputElement.value.split(/[\s,]+/).filter(Boolean).map(Number);
-        for (let i = numbers.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
-        }
-        outputElement.value = numbers.join(", ");
+(function () {
+  function secureInt(max) {
+    if (window.crypto && window.crypto.getRandomValues) {
+      const limit = Math.floor(0x100000000 / max) * max;
+      const buf = new Uint32Array(1);
+      do { window.crypto.getRandomValues(buf); } while (buf[0] >= limit);
+      return buf[0] % max;
     }
-    else {
-        // for default or missing attributes
-        console.log("somethin is up home-slice. input id is set to ", inputId, "and output id is set to ", outputId);
-    }
-}
+    return Math.floor(Math.random() * max);
+  }
 
-randomizeInputArray('arrayInput', 'arrayOutput');
+  // Fisher-Yates with crypto-grade index selection.
+  window.randomizeInputArray = function (inputId, outputId) {
+    const inputEl = document.getElementById(inputId);
+    const outputEl = document.getElementById(outputId);
+    if (!inputEl || !outputEl) return;
+
+    const tokens = inputEl.value.split(/[\s,]+/).filter(Boolean);
+    if (tokens.length === 0) {
+      outputEl.value = '';
+      return;
+    }
+    const items = tokens.slice();
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = secureInt(i + 1);
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+    outputEl.value = items.join(', ');
+  };
+})();

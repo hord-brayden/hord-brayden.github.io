@@ -180,33 +180,33 @@
   <aside class="panel collapsed hidden" id="panel">
     <div class="handle"></div>
     <div class="panelHeader">
-      <div class="big" id="callsign">—</div>
+      <div class="big" id="callsign">-</div>
       <button class="toggleBtn" id="collapseBtn">Expand</button>
     </div>
 
     <div class="grid2">
       <div class="pilot"><img id="pilotImg" alt="Pilot" src=""/></div>
       <div>
-        <div class="muted" id="tail">—</div>
-        <div style="margin-top:6px"><span class="tag" id="type">—</span> <span class="tag" id="op">—</span></div>
+        <div class="muted" id="tail">-</div>
+        <div style="margin-top:6px"><span class="tag" id="type">-</span> <span class="tag" id="op">-</span></div>
       </div>
     </div>
 
     <div class="rows">
-      <div class="row"><span>Aircraft</span><span id="model">—</span></div>
-      <div class="row"><span>Type code</span><span id="typecode">—</span></div>
+      <div class="row"><span>Aircraft</span><span id="model">-</span></div>
+      <div class="row"><span>Type code</span><span id="typecode">-</span></div>
 
-      <div class="row"><span>Origin</span><span id="origin">—</span></div>
-      <div class="row"><span>Destination</span><span id="dest">—</span></div>
+      <div class="row"><span>Origin</span><span id="origin">-</span></div>
+      <div class="row"><span>Destination</span><span id="dest">-</span></div>
 
-      <div class="row"><span>Groundspeed</span><span id="gs">—</span></div>
-      <div class="row"><span>Altitude</span><span id="alt">—</span></div>
-      <div class="row"><span>Heading</span><span id="hdg">—</span></div>
-      <div class="row"><span>Last seen</span><span id="seen">—</span></div>
-      <div class="row"><span>Hex</span><span id="hex">—</span></div>
-      <div class="row"><span>Baro rate</span><span id="vr">—</span></div>
-      <div class="row"><span>Squawk</span><span id="squawk">—</span></div>
-      <div class="row"><span>Emergency</span><span id="emerg">—</span></div>
+      <div class="row"><span>Groundspeed</span><span id="gs">-</span></div>
+      <div class="row"><span>Altitude</span><span id="alt">-</span></div>
+      <div class="row"><span>Heading</span><span id="hdg">-</span></div>
+      <div class="row"><span>Last seen</span><span id="seen">-</span></div>
+      <div class="row"><span>Hex</span><span id="hex">-</span></div>
+      <div class="row"><span>Baro rate</span><span id="vr">-</span></div>
+      <div class="row"><span>Squawk</span><span id="squawk">-</span></div>
+      <div class="row"><span>Emergency</span><span id="emerg">-</span></div>
     </div>
 
     <div class="imgs">
@@ -234,7 +234,7 @@
       <li><b>Hex</b>: ICAO transponder address.</li>
       <li><b>Squawk</b>: transponder code.</li>
     </ul>
-    <p>Theme flips between day/night at the aircraft’s location. The dotted path is a local trail that grows as you keep the page running.</p>
+    <p>Theme flips between day/night at the aircraft's location. The dotted path is a local trail that grows as you keep the page running.</p>
   </div>
 </div>
 
@@ -243,7 +243,7 @@
   <div class="sheet">
     <button class="closeX" data-close="#modalNoData">Close</button>
     <h2>No live data for this tail</h2>
-    <p>The tail hasn’t departed yet, is out of coverage, or might be misspelled. Please recheck or try again when the aircraft is in the air.</p>
+    <p>The tail hasn't departed yet, is out of coverage, or might be misspelled. Please recheck or try again when the aircraft is in the air.</p>
   </div>
 </div>
 
@@ -389,8 +389,8 @@ const store = {
 
 function fmt0(n){return new Intl.NumberFormat(undefined,{maximumFractionDigits:0}).format(n)}
 function fmt1(n){return new Intl.NumberFormat(undefined,{maximumFractionDigits:1}).format(n)}
-function hdg(n){return n==null?'—':(Math.round(n)+'°')}
-function ago(sec){if(sec==null)return'—';return sec<60?sec.toFixed(1)+' s':(sec/60).toFixed(1)+' min'}
+function hdg(n){return n==null?'-':(Math.round(n)+'°')}
+function ago(sec){if(sec==null)return'-';return sec<60?sec.toFixed(1)+' s':(sec/60).toFixed(1)+' min'}
 function safeNum(n){return (typeof n==='number'&&isFinite(n))?n:null}
 function ktToMph(kt){return kt*1.15078}
 
@@ -421,10 +421,10 @@ function clearRoute(){
   if(routeLine){ map.removeLayer(routeLine); routeLine=null; }
   if(originMarker){ map.removeLayer(originMarker); originMarker=null; }
   if(destMarker){ map.removeLayer(destMarker); destMarker=null; }
-  els.origin.textContent='—'; els.dest.textContent='—';
+  els.origin.textContent='-'; els.dest.textContent='-';
 }
 function clearUI(){
-  ['callsign','tail','type','op','model','typecode','gs','alt','hdg','seen','hex','vr','squawk','emerg'].forEach(id=>{ els[id].textContent='—'; });
+  ['callsign','tail','type','op','model','typecode','gs','alt','hdg','seen','hex','vr','squawk','emerg'].forEach(id=>{ els[id].textContent='-'; });
   els.pilotImg.removeAttribute('src'); els.airframeImg.removeAttribute('src');
   trailPolyline.setLatLngs([]); if(marker){ map.removeLayer(marker); marker=null; }
   clearRoute(); firstFix = true;
@@ -448,7 +448,7 @@ function displayModel(ac){
     .replace('PRAETOR','Praetor')
     .replace('CHALLENGER','Challenger')
     .replace('SIKORSKY','Sikorsky');
-  return ac.t || ac.category || '—';
+  return ac.t || ac.category || '-';
 }
 
 /* ---------------- Images ---------------- */
@@ -497,10 +497,10 @@ async function fetchFlexjetFlights(){
 
 /* ---------------- Flights UI ---------------- */
 function flightRow(f){
-  const num = (f.flight?.iata || f.flight?.icao || (f.airline?.iata||'')+ (f.flight?.number||'')) || '—';
-  const from = `${f.departure?.iata||''}${f.departure?.iata?'/':''}${f.departure?.icao||''}` || '—';
-  const to   = `${f.arrival?.iata||''}${f.arrival?.iata?'/':''}${f.arrival?.icao||''}`   || '—';
-  const status = f.flight_status || '—';
+  const num = (f.flight?.iata || f.flight?.icao || (f.airline?.iata||'')+ (f.flight?.number||'')) || '-';
+  const from = `${f.departure?.iata||''}${f.departure?.iata?'/':''}${f.departure?.icao||''}` || '-';
+  const to   = `${f.arrival?.iata||''}${f.arrival?.iata?'/':''}${f.arrival?.icao||''}`   || '-';
+  const status = f.flight_status || '-';
   return `<tr data-flight='${encodeURIComponent(JSON.stringify(f))}'>
     <td>${num}</td>
     <td>${from}</td>
@@ -551,7 +551,7 @@ function addAirportPrompt(code, labelSpan){
 }
 
 function labelWithAdd(code, name, spanEl){
-  if(!code){ spanEl.textContent = name||'—'; return; }
+  if(!code){ spanEl.textContent = name||'-'; return; }
   const ap=getAirport(code);
   if(ap){
     spanEl.textContent = `${name||ap.name||code} (${code})`;
@@ -611,29 +611,29 @@ async function onPickFlight(f){
     store.set('tail', reg.toUpperCase());
     startPolling();
   } else {
-    ['gs','alt','hdg','seen','hex','vr','squawk','emerg'].forEach(id=>els[id].textContent='—');
+    ['gs','alt','hdg','seen','hex','vr','squawk','emerg'].forEach(id=>els[id].textContent='-');
   }
 }
 
 /* ---------------- Panel fill ---------------- */
 function updatePanel(ac){
   els.panel.classList.remove('hidden');
-  const callsign=(ac.flight||'').trim()||els.callsign.textContent||'—', tail=ac.r||els.tail.textContent||'—';
+  const callsign=(ac.flight||'').trim()||els.callsign.textContent||'-', tail=ac.r||els.tail.textContent||'-';
   els.callsign.textContent=callsign; els.tail.textContent=tail;
-  els.type.textContent=ac.t||ac.category||'—'; els.op.textContent=ac.ownOp||'—';
+  els.type.textContent=ac.t||ac.category||'-'; els.op.textContent=ac.ownOp||'-';
   els.model.textContent = displayModel(ac);
-  els.typecode.textContent = ac.t || ac.category || '—';
+  els.typecode.textContent = ac.t || ac.category || '-';
 
   const mph = (ac.gs!=null) ? ktToMph(ac.gs) : null;
-  els.gs.textContent=(mph!=null)?`${fmt1(mph)} mph`:'—';
+  els.gs.textContent=(mph!=null)?`${fmt1(mph)} mph`:'-';
   const alt=(ac.alt_baro!=null)?ac.alt_baro:(ac.alt_geom!=null?ac.alt_geom:null);
-  els.alt.textContent=(alt!=null)?`${fmt0(alt)} ft`:'—';
+  els.alt.textContent=(alt!=null)?`${fmt0(alt)} ft`:'-';
   els.hdg.textContent=hdg(ac.track); els.seen.textContent=ago(ac.seen);
-  els.hex.textContent=ac.hex||'—';
+  els.hex.textContent=ac.hex||'-';
   const vr = (ac.baro_rate!=null)?ac.baro_rate:(ac.geom_rate!=null?ac.geom_rate:null);
-  els.vr.textContent=(vr!=null)?`${fmt0(vr)} fpm`:'—';
-  els.squawk.textContent=ac.squawk||'—';
-  els.emerg.textContent=(ac.emergency&&ac.emergency!=='none')?ac.emergency:'—';
+  els.vr.textContent=(vr!=null)?`${fmt0(vr)} fpm`:'-';
+  els.squawk.textContent=ac.squawk||'-';
+  els.emerg.textContent=(ac.emergency&&ac.emergency!=='none')?ac.emergency:'-';
 
   setPilotImage();
   setAirframeImage(ac);
@@ -643,7 +643,7 @@ function updatePanel(ac){
 async function tick(){
   const tail=store.get('tail');
   if(!tail){ els.status.textContent='enter a tail or pick a flight'; return; }
-  els.status.textContent='fetching…';
+  els.status.textContent='fetching...';
   try{
     const {json, dt} = await fetchTail_ADSB(tail);
     const ac=(json&&json.ac&&json.ac[0])||null;
@@ -711,7 +711,7 @@ function toggleTopControls(){
 
 async function refreshFlightsList(){
   try{
-    els.flightsBody.innerHTML = '<tr><td colspan="5" class="muted">Loading…</td></tr>';
+    els.flightsBody.innerHTML = '<tr><td colspan="5" class="muted">Loading...</td></tr>';
     const data = await fetchFlexjetFlights();
     const filtered = filterFlights(data, els.flightSearch.value||'');
     renderFlightsTable(filtered);

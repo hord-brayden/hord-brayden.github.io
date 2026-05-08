@@ -1,70 +1,83 @@
 class HeaderComponent extends HTMLElement {
-    connectedCallback() {
-      this.innerHTML = `
+  connectedCallback() {
+    const current = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+    const links = [
+      { href: 'index.html',     label: 'Home' },
+      { href: 'resume.html',    label: 'Resume' },
+      { href: 'testing-kit.html', label: 'NIST Kit' },
+      { href: 'f1-timer.html',  label: 'Reaction Timer' },
+      { href: 'https://github.com/hord-brayden/', label: 'GitHub', external: true }
+    ];
+    const items = links.map(l => {
+      const isActive = !l.external && l.href.toLowerCase() === current;
+      const target = l.external ? ' target="_blank" rel="noopener"' : '';
+      return `<li><a href="${l.href}"${target} class="${isActive ? 'active' : ''}">${l.label}</a></li>`;
+    }).join('');
+
+    this.innerHTML = `
       <link rel="stylesheet" href="styles.css">
-          <title>Random Password Generator</title>
-          <nav>
-            <div class="hamburger-menu">
-              <div class="bar"></div>
-              <div class="bar"></div>
-              <div class="bar"></div>
-            </div>
-            <ul>
-              <li><a href="index.html">Home</a></li>
-              <li><a href="testing-kit.html">NIST Style Testing Kit</a></li>
-              <li><a href="f1-timer.html">Reaction Timer Game</a></li>
-              <li><a href="https://github.com/hord-brayden/">My Full Github</a></li>
-            <li><a href="privacy.html">Privacy</a></li>
-            </ul>
-          </nav>
-      `;this.MathJaxconfigLoad();}
-   MathJaxconfigLoad() {
-    // Configure MathJax
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+      <header class="site-header">
+        <nav>
+          <a class="brand" href="index.html">hord<span class="brand-dot">.</span>brayden</a>
+          <div class="hamburger-menu" aria-label="menu" role="button" tabindex="0">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          </div>
+          <ul>${items}</ul>
+        </nav>
+      </header>
+    `;
+    this.MathJaxconfigLoad();
+  }
+
+  MathJaxconfigLoad() {
+    if (window.MathJax) return;
     window.MathJax = {
-        tex: {inlineMath: [['$', '$'], ['\\(', '\\)']]},
-        svg: {fontCache: 'global'}
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+      svg: { fontCache: 'global' }
     };
     const script = document.createElement('script');
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js";
-    // need a new hash
-    // script.integrity = "new-correct-hash"; 
-    script.crossOrigin = "anonymous";
-    document.head.appendChild(script);
-}
-}
-
-  class FooterComponent extends HTMLElement {
-  connectedCallback() {
-    this.innerHTML = `
-    <footer>
-      <div class="privacy-block footer-content">
-          <a href="privacy.html">Privacy Policy</a>
-          <button id="reSeed" onclick="window.reSeed()">Reseed Game Of Life</button>
-      </div> 
-    </footer>
-    `;
-    this.loadScript("js/dark_mode_toggle.js", () => {
-        this.loadScript("js/hamburgesa.js", () => {
-            this.loadScript("js/plot_random_numbers.js", () => {
-                this.loadScript("js/password_generator.js", () => {
-                    this.loadScript("js/arraymama.js", () => {
-                        this.loadScript("js/xorshift_rng.js", () => {
-                            this.loadScript("js/canvi-resize.js");
-                            });
-                        });
-                    });
-                });
-            });
-        });
-    }
-
-  loadScript(src, callback) {
-    const script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.src = src;
-    script.onload = callback;
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js';
+    script.crossOrigin = 'anonymous';
     document.head.appendChild(script);
   }
 }
+
+class FooterComponent extends HTMLElement {
+  connectedCallback() {
+    const year = new Date().getFullYear();
+    this.innerHTML = `
+      <footer class="site-footer">
+        <div class="privacy-block footer-content">
+          <a href="privacy.html">Privacy</a>
+          <a href="https://github.com/hord-brayden/" target="_blank" rel="noopener">GitHub</a>
+          <button id="reSeed" type="button" onclick="window.reSeed && window.reSeed()">Reseed Game of Life</button>
+        </div>
+        <div class="footer-content"><p>&copy; ${year} Brayden Hord - built and broken in the open.</p></div>
+      </footer>
+    `;
+    this.loadScripts([
+      'js/dark_mode_toggle.js',
+      'js/hamburgesa.js',
+      'js/canvi-resize.js'
+    ]);
+  }
+
+  loadScripts(srcs) {
+    const next = () => {
+      const src = srcs.shift();
+      if (!src) return;
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = next;
+      s.onerror = next;
+      document.head.appendChild(s);
+    };
+    next();
+  }
+}
+
 customElements.define('header-component', HeaderComponent);
-customElements.define('footer-component', FooterComponent);  
+customElements.define('footer-component', FooterComponent);

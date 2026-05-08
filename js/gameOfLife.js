@@ -1,102 +1,117 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const canvas = document.getElementById('gameOfLifeCanvas');
-    const ctx = canvas.getContext('2d');
+(function () {
+  const RESOLUTION = 18;
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    let speed = 20;
-    const resolution = 18;
-    const cols = Math.floor(canvas.width / resolution);
-    const rows = Math.floor(canvas.height / resolution);
+  let canvas, ctx;
+  let cols = 0, rows = 0;
+  let grid = [];
+  let raf = 0;
+  let running = false;
 
-    let grid = createGrid();
-    let animationFrameId;
+  function sizeCanvas() {
+    if (!canvas) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    cols = Math.max(1, Math.floor(canvas.width / RESOLUTION));
+    rows = Math.max(1, Math.floor(canvas.height / RESOLUTION));
+  }
 
-    function createGrid() {
-        let arr = new Array(cols);
-        for (let i = 0; i < arr.length; i++) {
-            arr[i] = new Array(rows);
-            for (let j = 0; j < arr[i].length; j++) {
-                arr[i][j] = Math.floor(Math.random() * 2);
-            }
+  function freshGrid() {
+    const arr = new Array(cols);
+    for (let i = 0; i < cols; i++) {
+      arr[i] = new Uint8Array(rows);
+      for (let j = 0; j < rows; j++) arr[i][j] = Math.random() < 0.18 ? 1 : 0;
+    }
+    return arr;
+  }
+
+  function nextGen(g) {
+    const out = new Array(cols);
+    for (let c = 0; c < cols; c++) out[c] = new Uint8Array(rows);
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < rows; r++) {
+        let n = 0;
+        for (let dc = -1; dc <= 1; dc++) {
+          for (let dr = -1; dr <= 1; dr++) {
+            if (!dc && !dr) continue;
+            const cc = (c + dc + cols) % cols;
+            const rr = (r + dr + rows) % rows;
+            n += g[cc][rr];
+          }
         }
-        return arr;
+        const cell = g[c][r];
+        out[c][r] = (cell && (n === 2 || n === 3)) || (!cell && n === 3) ? 1 : 0;
+      }
     }
+    return out;
+  }
 
-    function nextGeneration(grid) {
-        let next = createGrid();
-        for (let col = 0; col < grid.length; col++) {
-            for (let row = 0; row < grid[col].length; row++) {
-                const neighbors = countNeighbors(grid, col, row);
-                const cell = grid[col][row];
-                if (cell === 0 && neighbors === 3) {
-                    next[col][row] = 1;
-                } else if (cell === 1 && (neighbors < 2 || neighbors > 3)) {
-                    next[col][row] = 0;
-                } else {
-                    next[col][row] = cell;
-                }
-            }
+  function getCss(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function draw() {
+    const fillOn = getCss('--text') || '#15171a';
+    const fillOff = getCss('--bg') || '#f4f5f7';
+    ctx.fillStyle = fillOff;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = fillOn;
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < rows; r++) {
+        if (grid[c][r]) {
+          ctx.fillRect(c * RESOLUTION, r * RESOLUTION, RESOLUTION - 1, RESOLUTION - 1);
         }
-        return next;
+      }
     }
+  }
 
-    function countNeighbors(grid, x, y) {
-        let count = 0;
-        for (let i = -1; i < 2; i++) {
-            for (let j = -1; j < 2; j++) {
-                const col = (x + i + cols) % cols;
-                const row = (y + j + rows) % rows;
-                count += grid[col][row];
-            }
-        }
-        count -= grid[x][y];
-        return count;
-    }
+  function loop() {
+    grid = nextGen(grid);
+    draw();
+    raf = requestAnimationFrame(loop);
+  }
 
-    function draw() {
-        for (let col = 0; col < grid.length; col++) {
-            for (let row = 0; row < grid[col].length; row++) {
-                const cell = grid[col][row];
-                ctx.beginPath();
-                ctx.rect(col * resolution, row * resolution, resolution, resolution);
-                ctx.fillStyle = cell ? 'white' : '#2b2b2b';
-                ctx.fill();
-                ctx.stroke();
-            }
-        }
-    }
+  function start() {
+    if (running) return;
+    running = true;
+    loop();
+  }
+  function stop() {
+    running = false;
+    cancelAnimationFrame(raf);
+  }
 
-    function update() {
-        grid = nextGeneration(grid);
-        draw();
-        animationFrameId = requestAnimationFrame(update);
-    }
+  function init() {
+    canvas = document.getElementById('gameOfLifeCanvas');
+    if (!canvas) return;
+    ctx = canvas.getContext('2d');
+    sizeCanvas();
+    grid = freshGrid();
+    draw();
 
-    function startGame() {
-        update();
-    }
-
-    function stopGame() {
-        cancelAnimationFrame(animationFrameId);
-    }
-
-    document.getElementById('startStopButton').addEventListener('click', function() {
-        if (this.textContent === 'Start Game of Life') {
-            startGame();
-            this.textContent = 'Stop Game of Life';
+    const startBtn = document.getElementById('startStopButton');
+    if (startBtn) {
+      startBtn.addEventListener('click', () => {
+        if (running) {
+          stop();
+          startBtn.textContent = 'Start Game of Life';
         } else {
-            stopGame();
-            this.textContent = 'Start Game of Life';
+          start();
+          startBtn.textContent = 'Stop Game of Life';
         }
-    });
+      });
+    }
 
-    // Ensure the game is stopped by default
-    stopGame();
-
-    // for footer regen
-    window.reSeed = function() {
-        grid = createGrid();
-        draw();
+    window.reSeed = function () {
+      sizeCanvas();
+      grid = freshGrid();
+      draw();
     };
-});
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else { init(); }
+})();

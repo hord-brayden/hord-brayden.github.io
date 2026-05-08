@@ -1,208 +1,293 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reaction Time Game</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@500&family=Sofia+Sans+Condensed:ital,wght@0,100;0,500;0,600;0,700;1,1;1,500&display=swap');
-</style>
-<style>
-  
-  html {
-    background-color:darkgray;
-    color: #fff;
-    font-family: 'Roboto', sans-serif;
-    font-weight:bold;
-  }
-  body {
-    display: block;
-    text-align: center;
-    padding-top: 11em !important;
-  }
-  .pulse {
-    background-color: darkgray;
-    animation-name: color;
-    animation-duration: 2s;
-    animation-iteration-count: infinite;
-  }
-  @keyframes color {
-        0% {
-            background-color: darkgray;
-        }
-        50% {
-            background-color: red;
-        }
-        100 {
-            background-color: darkgray;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>F1-Style Reaction Timer - hord-brayden</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* The reaction timer needs its own theming because state is communicated via
+       background color. Lights-out -> green is the same regardless of light/dark. */
+    :root.timer-state-idle,
+    :root.timer-state-armed,
+    :root.timer-state-go,
+    :root.timer-state-fail { transition: background-color .25s ease; }
+
+    body.timer-page {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      background: var(--bg);
+    }
+    .timer-stage {
+      flex: 1;
+      display: flex; flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 18px 80px;
+      text-align: center;
+      color: var(--text);
+      gap: 22px;
+    }
+    .timer-stage.armed { background: linear-gradient(180deg, #b91c1c 0%, #7f1d1d 100%); color:#fff; }
+    .timer-stage.go    { background: linear-gradient(180deg, #15803d 0%, #14532d 100%); color:#fff; }
+    .timer-stage.fail  { background: linear-gradient(180deg, #1f2937 0%, #111827 100%); color:#fff; }
+
+    .lights {
+      display: flex;
+      gap: 14px;
+      padding: 14px 18px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(6px);
+    }
+    .light {
+      width: 54px; height: 54px;
+      border-radius: 50%;
+      background: #2a2f3a;
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.06);
+      transition: background-color .15s ease, box-shadow .25s ease;
+    }
+    .light.on {
+      background: radial-gradient(circle at 35% 30%, #ff3b30 0%, #b91c1c 60%, #7f1d1d 100%);
+      box-shadow: 0 0 22px rgba(255,59,48,0.65), inset 0 0 0 2px rgba(255,255,255,0.18);
     }
 
-  .light {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    display: inline-block;
-    margin: 5px;
-    background-color: grey;
-  }
-  #message {
-    font-size: 20px;
-  }
-  .high-score {
-    font-size: 18px;
-    color: blue;
-  }
-  button.hard-reset {
-    margin-top: 100px;
-    border-radius: 5px;
-    padding: 10px;
-    width: 245px;
-    background-color: chartreuse;
-    color: white;
-    border: none !important;
-    box-shadow: 2px 5px 10px black;
-    font-size: 15px;
-    text-transform: capitalize;
-    font-weight: 600;
-}
-  
-</style>
+    .timer-headline {
+      font-size: clamp(1.4rem, 1rem + 1.5vw, 1.9rem);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin: 0;
+    }
+    .timer-detail {
+      color: inherit;
+      opacity: 0.85;
+      max-width: 540px;
+      margin: 0;
+    }
+    .timer-stage.armed .timer-detail,
+    .timer-stage.go    .timer-detail,
+    .timer-stage.fail  .timer-detail { opacity: 0.92; }
+
+    .timer-controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .timer-controls button {
+      margin: 0;
+      min-width: 160px;
+    }
+    .timer-stats {
+      display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+    }
+    .stat-pill {
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.18);
+      color: inherit;
+      font-size: 0.9rem;
+      letter-spacing: 0.04em;
+      border: 1px solid rgba(255,255,255,0.18);
+    }
+    body.timer-page:not(.timer-page-active) .stat-pill {
+      background: var(--surface);
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+    .timer-help {
+      max-width: 640px;
+      font-size: 0.92rem;
+      color: var(--muted);
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      background: var(--surface);
+    }
+    .timer-stage.armed .timer-help,
+    .timer-stage.go .timer-help,
+    .timer-stage.fail .timer-help { display: none; }
+
+    .timer-cta-hint {
+      font-size: 0.85rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      opacity: 0.75;
+    }
+  </style>
 </head>
-<body>
-<div id="lights">
-  <div class="light"></div>
-  <div class="light"></div>
-  <div class="light"></div>
-  <div class="light"></div>
-</div>
-<div id="message">Touch/click or press any button on keyboard or mouse to start.</div>
-<div class="high-score"></div>
-  <div class="hard-reset"><button class="hard-reset" onclick="hardReset();">Push to Reset</button></div>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const lights = Array.from(document.querySelectorAll('.light'));
-  let highScore = sessionStorage.getItem('highScore') || Infinity;
-  let reactionTimeStart;
-  let gameActive = false;
-  let gameStarted = sessionStorage.getItem('gameStarted') === 'true';
-  let lightInterval;
+<body class="timer-page">
+  <header-component></header-component>
 
-  const messageDiv = document.getElementById('message');
-  const highScoreDiv = document.querySelector('.high-score');
+  <main class="timer-stage" id="timerStage">
+    <p class="timer-cta-hint" id="hint">tap - click - or press any key</p>
+    <h1 class="timer-headline" id="message">F1-style reaction trainer</h1>
+    <p class="timer-detail" id="detail">Watch the lights illuminate, then react when they all go out - exactly like the start of a Formula 1 race.</p>
+    <div class="lights" id="lights" aria-hidden="true">
+      <div class="light"></div>
+      <div class="light"></div>
+      <div class="light"></div>
+      <div class="light"></div>
+      <div class="light"></div>
+    </div>
+    <div class="timer-stats">
+      <span class="stat-pill" id="lastTime">Last: -</span>
+      <span class="stat-pill" id="bestTime">Best: -</span>
+    </div>
+    <div class="timer-controls">
+      <button type="button" id="startBtn">Start</button>
+      <button type="button" id="resetBtn" class="btn--ghost">Reset</button>
+    </div>
+    <div class="timer-help">
+      <strong>How to play.</strong> Click <em>Start</em> (or press any key), then wait while the five red lights come on one at a time. After a random hold, all five turn off - react as fast as you can. React before lights-out and it's a jump-start. Times under 200&nbsp;ms are professional-driver fast.
+    </div>
+  </main>
 
-    if (!gameStarted) {
-      alert('The goal of this game is to test your speed!!');
-      alert('To play; first click or touch to start the timer.');
-      alert('Once the timer is running, you will see the lights begin to illuminate in order.');
-      alert('Once all of the lights have been lit up, get ready to CLICK once they turn off.') ;
-      alert('You will need to click or touch the screen as fast as possible, once all the lights  to test your reaction speed.');
-      alert('It will save your high score for future visits and bragging rights amongst your friends.');
-      alert('If you have an error, or it says you`ve clicked too early, just click again until it says touch/click to restart or use the RESET button');
-      if(confirm('Click OK to start the game!')) {
-        sessionStorage.setItem('gameStarted', 'true');
-        gameStarted = true; // Update gameStarted for current session
+  <footer-component></footer-component>
+  <script src="js/page-components.js"></script>
+  <script>
+    (function () {
+      const STATE = { IDLE: 'idle', ARMING: 'arming', WAIT: 'wait', GO: 'go', RESULT: 'result', FAIL: 'fail' };
+      let state = STATE.IDLE;
+      let lightTimers = [];
+      let goTimer;
+      let goAt = 0;
+
+      const stage = document.getElementById('timerStage');
+      const lights = Array.from(document.querySelectorAll('#lights .light'));
+      const message = document.getElementById('message');
+      const detail = document.getElementById('detail');
+      const hint = document.getElementById('hint');
+      const lastEl = document.getElementById('lastTime');
+      const bestEl = document.getElementById('bestTime');
+      const startBtn = document.getElementById('startBtn');
+      const resetBtn = document.getElementById('resetBtn');
+
+      function setStage(cls) {
+        stage.classList.remove('armed', 'go', 'fail');
+        document.body.classList.toggle('timer-page-active', cls !== '');
+        if (cls) stage.classList.add(cls);
       }
-  }
-
-
-  function updateHighScoreDisplay() {
-    highScoreDiv.textContent = highScore !== Infinity ? `High score: ${highScore}ms` : '';
-  }
-
-  function resetLights() {
-    lights.forEach(light => light.style.backgroundColor = 'grey');
-  }
-
-  function hardReset() {
-    lights.forEach(light => light.style.backgroundColor = 'grey');
-    messageDiv.textContent = 'Touch/click or press any button on keyboard or mouse to start.';
-  }
-
-  function startGame() {
-    resetLights();
-    gameStarted = true;
-    gameActive = false;
-    reactionTimeStart = undefined;
-    lightSequence();
-  }
-
-  function lightSequence() {
-    let i = 0;
-    messageDiv.textContent = 'Game has started! Wait for all lights to go off!';
-    document.body.classList.add("pulse");
-    lightInterval = setInterval(() => {
-      if (i < lights.length) {
-        lights[i].style.backgroundColor = 'red';
-        i++;
-      } else {
-        clearInterval(lightInterval);
-        setTimeout(turnOffLights, Math.random() * 2000 + 1000); // Random 
+      function clearTimers() {
+        lightTimers.forEach(clearTimeout);
+        lightTimers = [];
+        clearTimeout(goTimer);
       }
-    }, 1000);
-  }
+      function setLights(on) {
+        lights.forEach((l, i) => l.classList.toggle('on', i < on));
+      }
+      function loadBest() {
+        try {
+          const v = parseInt(localStorage.getItem('f1-best-ms'), 10);
+          return Number.isFinite(v) ? v : null;
+        } catch (e) { return null; }
+      }
+      function saveBest(v) { try { localStorage.setItem('f1-best-ms', String(v)); } catch (e) {} }
 
-  function turnOffLights() {
-    resetLights();
-    reactionTimeStart = Date.now();
-    gameActive = true;
-    document.body.style.backgroundColor = 'green';
-    document.body.classList.remove("pulse");
-    messageDiv.textContent = `GO - CLICK NOW!!`;
-  }
+      function renderBest() {
+        const best = loadBest();
+        bestEl.textContent = best ? `Best: ${best} ms` : 'Best: -';
+      }
 
-  function measureReaction() {
-    if (!gameActive) return;
-    const reactionTime = Date.now() - reactionTimeStart;
-    gameActive = false;
-    if (reactionTime < highScore) {
-      highScore = reactionTime;
-      sessionStorage.setItem('highScore', highScore);
-      updateHighScoreDisplay();
-    }
-    messageDiv.textContent = `Your reaction time: ${reactionTime}ms. Touch/click or press any button to restart.`;
-    gameStarted = false; // resrt
-  }
+      function reset() {
+        clearTimers();
+        setLights(0);
+        setStage('');
+        state = STATE.IDLE;
+        message.textContent = 'F1-style reaction trainer';
+        detail.textContent = 'Watch the lights illuminate, then react when they all go out - exactly like the start of a Formula 1 race.';
+        hint.textContent = 'tap - click - or press any key';
+        renderBest();
+      }
 
-  function failGame() {
-    clearInterval(lightInterval);
-    resetLights();
-    messageDiv.textContent = 'Too soon! Interact to restart.';
-    gameActive = false;
-    gameStarted = false; // resrt
-  }
+      function startSequence() {
+        clearTimers();
+        setLights(0);
+        setStage('armed');
+        state = STATE.ARMING;
+        message.textContent = 'Lights coming on...';
+        detail.textContent = "Wait for all five lights to go out. Don't jump.";
+        hint.textContent = 'eyes on the lights';
 
-  let lastTouchTime = 0;
-  
-  function handleInteraction(event) {
-    if (event.currentTarget('.hard-reset')) {
-        return;
-    }
-    if (event.type === 'touchstart') {
-      lastTouchTime = Date.now();
-    } else if (event.type === 'click' && Date.now() - lastTouchTime < 500) {
-      // Ignore the click event if it's close to the touch event for touch devices
-      return;
-    }
-    if (gameActive) {
-      measureReaction();
-      document.body.style.backgroundColor = 'darkgray';
-      document.body.classList.remove("pulse");
-    } else if (!gameStarted) {
-      startGame();
-    } else {
-      failGame();
-      document.body.style.backgroundColor = 'darkgray';
-      document.body.classList.remove("pulse");
-    }
-  }
+        const lightDelay = 1000;
+        for (let i = 0; i < lights.length; i++) {
+          lightTimers.push(setTimeout(() => {
+            setLights(i + 1);
+            if (i === lights.length - 1) {
+              state = STATE.WAIT;
+              const hold = 800 + Math.random() * 2400;
+              goTimer = setTimeout(go, hold);
+            }
+          }, lightDelay * (i + 1)));
+        }
+      }
 
-  document.addEventListener('keydown', handleInteraction);
-  document.addEventListener('click', handleInteraction);
-  document.addEventListener('touchstart', handleInteraction);
+      function go() {
+        setLights(0);
+        state = STATE.GO;
+        goAt = performance.now();
+        setStage('go');
+        message.textContent = 'GO!';
+        detail.textContent = 'Click / tap / press anything as fast as you can.';
+        hint.textContent = 'react now';
+      }
 
-  updateHighScoreDisplay();
-});
-</script>
+      function jumpStart() {
+        clearTimers();
+        setLights(0);
+        state = STATE.FAIL;
+        setStage('fail');
+        message.textContent = 'Jump start.';
+        detail.textContent = 'You reacted before lights-out. Press Start to try again.';
+        hint.textContent = 'too soon';
+      }
+
+      function recordReaction() {
+        const ms = Math.round(performance.now() - goAt);
+        state = STATE.RESULT;
+        setStage('');
+        message.textContent = `${ms} ms`;
+        detail.textContent = ms < 150 ? 'Suspiciously fast - were you peeking?'
+          : ms < 200 ? 'Pro-driver tier.'
+          : ms < 250 ? 'Sharp.'
+          : ms < 350 ? 'Very respectable.'
+          : ms < 500 ? 'Solid human reaction time.'
+          : 'Bit slow - try again.';
+        hint.textContent = 'press anything to go again';
+        lastEl.textContent = `Last: ${ms} ms`;
+
+        const best = loadBest();
+        if (!best || ms < best) {
+          saveBest(ms);
+          renderBest();
+        }
+      }
+
+      function handleInteraction(evt) {
+        // Allow control buttons to do their thing without colliding with the timer.
+        if (evt && evt.target && evt.target.closest && evt.target.closest('.timer-controls, .site-header, .dark-mode-toggle, .site-footer')) return;
+        if (evt && evt.type === 'keydown' && (evt.key === 'Tab' || evt.key === 'Shift')) return;
+
+        switch (state) {
+          case STATE.IDLE:
+          case STATE.RESULT:
+          case STATE.FAIL:
+            startSequence();
+            break;
+          case STATE.ARMING:
+          case STATE.WAIT:
+            jumpStart();
+            break;
+          case STATE.GO:
+            recordReaction();
+            break;
+        }
+      }
+
+      startBtn.addEventListener('click', (e) => { e.stopPropagation(); startSequence(); });
+      resetBtn.addEventListener('click', (e) => { e.stopPropagation(); reset(); });
+      document.addEventListener('click', handleInteraction);
+      document.addEventListener('touchstart', (e) => { handleInteraction(e); }, { passive: true });
+      document.addEventListener('keydown', handleInteraction);
+
+      renderBest();
+    })();
+  </script>
 </body>
 </html>
