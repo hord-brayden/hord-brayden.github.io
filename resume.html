@@ -3,23 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Resume - Brayden Anthony Hord</title>
+  <title>Resume — Brayden Anthony Hord</title>
+  <meta name="description" content="Brayden Hord — Director of Engineering & Innovation. Executive technology leader and hands-on builder.">
+
   <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+  <meta name="theme-color" content="#f7f4ee">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,400..600,30..100,0..1;1,9..144,400..600,30..100,0..1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="styles.css">
-  <script src="js/gameOfLife.js"></script>
 </head>
 <body>
   <header-component></header-component>
-  <canvas id="gameOfLifeCanvas"></canvas>
+  <canvas id="gameOfLifeCanvas" aria-hidden="true"></canvas>
 
   <main class="site-main">
+
     <section class="hero">
-      <span class="pill">Director of Engineering &amp; Innovation</span>
-      <h1>Brayden Anthony Hord <span style="color:var(--muted);font-weight:500">- "Anthony"</span></h1>
-      <p class="lede">Executive technology leader and hands-on builder. I take ambiguous, high-stakes business problems - legacy infrastructure, fragmented workflows, undefined AI strategy - and convert them into measurable, durable outcomes.</p>
+      <div class="hero-meta">
+        <span class="kicker kicker--accent">currently shipping</span>
+        <span class="kicker">Arena · Director of Engineering &amp; Innovation</span>
+      </div>
+      <h1>
+        Brayden Anthony Hord<br>
+        <span class="accent" style="font-size:0.55em">&mdash; "Anthony"</span>
+      </h1>
+      <p class="hero-lede">
+        Executive technology leader and hands-on builder. I take
+        ambiguous, high-stakes business problems — legacy infrastructure,
+        fragmented workflows, undefined AI strategy — and convert them
+        into measurable, durable outcomes.
+      </p>
       <div class="hero-cta">
-        <a class="btn" href="https://www.linkedin.com/in/brayden-hord" target="_blank" rel="noopener">LinkedIn</a>
-        <a class="btn btn--ghost" href="https://github.com/hord-brayden" target="_blank" rel="noopener">GitHub</a>
+        <a class="btn" href="https://www.linkedin.com/in/brayden-hord" target="_blank" rel="noopener">LinkedIn ↗</a>
+        <a class="btn btn--ghost" href="https://github.com/hord-brayden" target="_blank" rel="noopener">GitHub ↗</a>
       </div>
     </section>
 
@@ -27,8 +46,20 @@
 
       <section class="resume-section resume-summary">
         <h2>Executive Summary</h2>
-        <p>Decade-plus track record building, scaling, and modernizing technical organizations across software engineering, data, AI, and enterprise IT. Recent shipped work includes <strong>$1.7M+ in measured 2025-2026 annualized organizational value</strong>, 7,358 operating hours recovered across six departments, and 20+ production systems shipped in a single calendar year.</p>
-        <p>I have built and led full-stack engineering teams, internal IT and red-team functions, project management and asset organizations, and a non-profit wing of a major cancer-care organization. My approach pairs clear strategic vision with deep technical credibility and disciplined change management - moving organizations from talking about transformation to actually completing it.</p>
+        <p>
+          Decade-plus track record building, scaling, and modernizing technical organizations
+          across software engineering, data, AI, and enterprise IT. Recent shipped work includes
+          <strong>$1.7M+ in measured 2025-2026 annualized organizational value</strong>,
+          7,358 operating hours recovered across six departments, and 20+ production systems
+          shipped in a single calendar year.
+        </p>
+        <p>
+          I have built and led full-stack engineering teams, internal IT and red-team functions,
+          project management and asset organizations, and a non-profit wing of a major
+          cancer-care organization. My approach pairs clear strategic vision with deep technical
+          credibility and disciplined change management — moving organizations from
+          talking about transformation to actually completing it.
+        </p>
       </section>
 
       <section class="resume-section">
@@ -40,7 +71,7 @@
           </div>
           <div class="highlight-card">
             <strong>20+ production systems in one year</strong>
-            <span>AI agents, automation tools, Chrome extensions, internal web apps, and self-serve platforms - all instrumented, supported, and adopted by frontline teams.</span>
+            <span>AI agents, automation tools, Chrome extensions, internal web apps, and self-serve platforms — all instrumented, supported, and adopted by frontline teams.</span>
           </div>
           <div class="highlight-card">
             <strong>Authored enterprise AI Policy v2.0</strong>
@@ -64,17 +95,17 @@
       <section class="resume-section">
         <h2>Innovation Highlights</h2>
         <div class="resume-grid" style="gap:14px">
-          <div><strong>Agentic AI ad-buying agent (first-in-class).</strong> LLM-driven media buyer that takes raw emails and PM input and executes buys across DSPs and social platforms with full PM-system traceability - shipped before agentic media buying went mainstream.</div>
+          <div><strong>Agentic AI ad-buying agent (first-in-class).</strong> LLM-driven media buyer that takes raw emails and PM input and executes buys across DSPs and social platforms with full PM-system traceability — shipped before agentic media buying went mainstream.</div>
           <div><strong>Datum Veil.</strong> Privacy-preserving Python tool combining HMAC pseudonymization, sum-preserving perturbation (three modes), and Paillier homomorphic encryption to enable safe use of proprietary datasets with third-party AI systems. Authored leadership-facing documentation translating cryptographic guarantees into business terms.</div>
-          <div><strong>AONS - Ad Object Naming System.</strong> Information-theoretically grounded identifier framework with embedded foreign-key Key Ring, User Tags, and Variant Slots; deployed across StackAdapt, Meta, LinkedIn, TikTok, and Google. Data integrity baked into the encoding layer.</div>
+          <div><strong>AONS — Ad Object Naming System.</strong> Information-theoretically grounded identifier framework with embedded foreign-key Key Ring, User Tags, and Variant Slots; deployed across StackAdapt, Meta, LinkedIn, TikTok, and Google. Data integrity baked into the encoding layer.</div>
           <div><strong>Generative-Engine Optimization (GEO).</strong> Designed and shipped agentic-search optimization for organic marketing pipeline and automated RFP responses, capturing government contract opportunities others were missing.</div>
-          <div><strong>Direct-Mail Innovation Research.</strong> Led technical research and integration design for physical/digital attribution - evaluated USPS Informed Visibility, PURL systems, BLE beacons, conductive ink, and Digimarc as a portfolio approach to bridging postal infrastructure with downstream digital signal.</div>
-          <div><strong>Eight-platform abstraction layer.</strong> Standardized CS&rarr;Media handoffs across Meta, Programmatic, YouTube, Search, Native, X, LinkedIn, and Reddit into a single normalized schema and versioned spec, recovering 62 weekly team hours.</div>
+          <div><strong>Direct-Mail Innovation Research.</strong> Led technical research and integration design for physical/digital attribution — evaluated USPS Informed Visibility, PURL systems, BLE beacons, conductive ink, and Digimarc as a portfolio approach to bridging postal infrastructure with downstream digital signal.</div>
+          <div><strong>Eight-platform abstraction layer.</strong> Standardized CS→Media handoffs across Meta, Programmatic, YouTube, Search, Native, X, LinkedIn, and Reddit into a single normalized schema and versioned spec, recovering 62 weekly team hours.</div>
           <div><strong>Build-vs-buy at scale.</strong> Replaced a $50K/yr LiveRamp vendor feature with an Apps Script pipeline that parses 12-13 daily emails, dedupes CSVs, and refreshes every 15 minutes. Same outcome, zero recurring cost.</div>
           <div><strong>Marketing Mix Modeling.</strong> Google Meridian + Facebook Robyn alongside FFT and Bayesian causal-inference techniques to produce defensible attribution from messy performance data.</div>
-          <div><strong>Edge-compute AI.</strong> CLIP-based image classification and Ollama thin-model deployments on Arduino NICLA and Raspberry Pi - making inference local, cheap, and fast.</div>
-          <div><strong>Production Anthropic Claude integration.</strong> Arena Regulatus Slack bot deployed via Make.com&rarr;Claude API&rarr;Slack, tuned to enforce QA culture and add personality to the media-ops workflow.</div>
-          <div><strong>Cryptographic campaign-ID hashing.</strong> MD5 aggregate key that solved a chronic cross-system join problem (typos and freehand campaign names) - running in production for years and trusted by data, sales, and PM teams alike.</div>
+          <div><strong>Edge-compute AI.</strong> CLIP-based image classification and Ollama thin-model deployments on Arduino NICLA and Raspberry Pi — making inference local, cheap, and fast.</div>
+          <div><strong>Production Anthropic Claude integration.</strong> Arena Regulatus Slack bot deployed via Make.com→Claude API→Slack, tuned to enforce QA culture and add personality to the media-ops workflow.</div>
+          <div><strong>Cryptographic campaign-ID hashing.</strong> MD5 aggregate key that solved a chronic cross-system join problem (typos and freehand campaign names) — running in production for years and trusted by data, sales, and PM teams alike.</div>
         </div>
       </section>
 
@@ -82,7 +113,7 @@
         <h2>Professional Experience</h2>
 
         <div class="resume-role">
-          <div class="role-head"><span class="role-title">Director of Engineering &amp; Innovation</span><span class="role-meta">Dec 2024 - Present</span></div>
+          <div class="role-head"><span class="role-title">Director of Engineering &amp; Innovation</span><span class="role-meta">Dec 2024 — Present</span></div>
           <div class="role-org">Arena Communications</div>
           <ul>
             <li>Own engineering, AI, and innovation strategy for the firm; chair of internal AI and Automation committees.</li>
@@ -94,7 +125,7 @@
         </div>
 
         <div class="resume-role">
-          <div class="role-head"><span class="role-title">Executive</span><span class="role-meta">Dec 2024 - Present</span></div>
+          <div class="role-head"><span class="role-title">Executive</span><span class="role-meta">Dec 2024 — Present</span></div>
           <div class="role-org">AdPlacementPartners</div>
           <ul>
             <li>Built the GEO / agentic-search optimization practice that turned organic marketing into a structured pipeline source and automated RFP responses for government contracts.</li>
@@ -105,7 +136,7 @@
         </div>
 
         <div class="resume-role">
-          <div class="role-head"><span class="role-title">Senior Full-Stack Developer</span><span class="role-meta">Feb 2023 - Mar 2024</span></div>
+          <div class="role-head"><span class="role-title">Senior Full-Stack Developer</span><span class="role-meta">Feb 2023 — Mar 2024</span></div>
           <div class="role-org">The Professional Education Institute</div>
           <ul>
             <li>Built attention-tracking infrastructure on top of GTM and custom JS to capture mid-webinar engagement and dropoff signals; designed mid-stream interest-meter modals and heat-map-driven retargeting paths.</li>
@@ -115,7 +146,7 @@
         </div>
 
         <div class="resume-role">
-          <div class="role-head"><span class="role-title">Consultant (Part-Time, concurrent)</span><span class="role-meta">Jun 2023 - Dec 2024</span></div>
+          <div class="role-head"><span class="role-title">Consultant (Part-Time, concurrent)</span><span class="role-meta">Jun 2023 — Dec 2024</span></div>
           <div class="role-org">Ad Placement Partners</div>
           <ul>
             <li>Hardened AWS ETL pipelines and Lambda aggregation; invented new digital-ad products and insights driving net-new revenue.</li>
@@ -123,18 +154,18 @@
         </div>
 
         <div class="resume-role">
-          <div class="role-head"><span class="role-title">Director of Data &amp; Reporting</span><span class="role-meta">Oct 2021 - Jun 2023</span></div>
+          <div class="role-head"><span class="role-title">Director of Data &amp; Reporting</span><span class="role-meta">Oct 2021 — Jun 2023</span></div>
           <div class="role-org">Ad Placement Partners</div>
           <ul>
             <li>Led 7 engineers across complex political data sets; coordinated 15 staff across 70 client campaigns at peak.</li>
             <li>Built the proprietary data and reporting system that increased revenue opportunities 120% and ad optimization yield 570%, saving millions in 2022.</li>
             <li>Designed the MD5 campaign-ID hashing layer; built cross-vendor harmonization tables; migrated the on-prem SQL stack to a cloud-native datalake.</li>
-            <li>Spun up an email rental and validation system using AWS-based validation, social enrichment, and ML-driven topic propensity - foundation for a future API-rentable audience product.</li>
+            <li>Spun up an email rental and validation system using AWS-based validation, social enrichment, and ML-driven topic propensity — foundation for a future API-rentable audience product.</li>
           </ul>
         </div>
 
         <div class="resume-role">
-          <div class="role-head"><span class="role-title">Senior Full-Stack Developer</span><span class="role-meta">Dec 2019 - Jan 2022</span></div>
+          <div class="role-head"><span class="role-title">Senior Full-Stack Developer</span><span class="role-meta">Dec 2019 — Jan 2022</span></div>
           <div class="role-org">Arena Communications</div>
           <ul>
             <li>Built and maintained sites for U.S. legislators; developed custom .gov data APIs.</li>
@@ -144,7 +175,7 @@
         </div>
 
         <div class="resume-role">
-          <div class="role-head"><span class="role-title">Freelance Consultant &amp; Developer</span><span class="role-meta">Mar 2014 - Dec 2019</span></div>
+          <div class="role-head"><span class="role-title">Freelance Consultant &amp; Developer</span><span class="role-meta">Mar 2014 — Dec 2019</span></div>
           <div class="role-org">Various Clients</div>
           <ul>
             <li>Multi-disciplinary technical resource for e-commerce vendors, hedge funds, and government clients.</li>
@@ -168,7 +199,7 @@
         <div class="resume-highlights">
           <div class="highlight-card">
             <strong>Dual-zone wireless garage indicator</strong>
-            <span>Three ESP32 nodes communicating via ESP-NOW peer-to-peer, HC-SR04 ultrasonic sensors, and a Waveshare 64×64 HUB75E LED matrix - multi-node embedded with timing-sensitive matrix driving and sensor fusion.</span>
+            <span>Three ESP32 nodes communicating via ESP-NOW peer-to-peer, HC-SR04 ultrasonic sensors, and a Waveshare 64×64 HUB75E LED matrix — multi-node embedded with timing-sensitive matrix driving and sensor fusion.</span>
           </div>
           <div class="highlight-card">
             <strong>Smart sprinkler controller</strong>
@@ -176,7 +207,7 @@
           </div>
           <div class="highlight-card">
             <strong>Home air-quality monitor fleet</strong>
-            <span>ESP32 + SCD41 CO₂ sensor + SSD1306 OLED, with WiFi dashboards, ntfy.sh push alerts, and historical logging to Google Sheets - full data path from device to dashboard to alert to log.</span>
+            <span>ESP32 + SCD41 CO₂ sensor + SSD1306 OLED, with WiFi dashboards, ntfy.sh push alerts, and historical logging to Google Sheets — full data path from device to dashboard to alert to log.</span>
           </div>
         </div>
       </section>
@@ -188,8 +219,8 @@
           <div class="role-org">Brigham Young University, Idaho</div>
         </div>
         <div class="resume-role">
-          <div class="role-head"><span class="role-title">Doctoral Candidate, Human-Centered Computing - on hold</span><span class="role-meta">planned 2038</span></div>
-          <div class="role-org">University of Utah - Emphasis: AI Modeling &amp; Quantum Applications</div>
+          <div class="role-head"><span class="role-title">Doctoral Candidate, Human-Centered Computing — on hold</span><span class="role-meta">planned 2038</span></div>
+          <div class="role-org">University of Utah — Emphasis: AI Modeling &amp; Quantum Applications</div>
         </div>
         <div class="tag-list">
           <span class="pill">AWS Bedrock Foundations</span>
@@ -221,6 +252,6 @@
   </main>
 
   <footer-component></footer-component>
-  <script src="js/page-components.js"></script>
+  <script src="js/site.js"></script>
 </body>
 </html>

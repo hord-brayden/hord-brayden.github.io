@@ -3,41 +3,146 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Privacy - hord-brayden</title>
+  <title>Privacy — Brayden Hord</title>
+  <meta name="description" content="What this site does and doesn't collect. The short version: nothing leaves your browser.">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="img/apple-icon-180x180.png">
   <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+  <link rel="manifest" href="img/manifest.json">
+  <meta name="theme-color" content="#f7f4ee">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,400..600,30..100,0..1;1,9..144,400..600,30..100,0..1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="styles.css">
+
+  <style>
+    /* Privacy page: long-form reading. Tighten the prose column and
+       give h2s a quiet kicker-style label-row treatment. */
+    .privacy-body { max-width: 68ch; margin: 0 auto; }
+    .privacy-body h2 {
+      font-family: var(--font-display);
+      font-size: clamp(1.4rem, 0.6vw + 1.2rem, 1.7rem);
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      margin: 40px 0 12px;
+      font-variation-settings: "opsz" 80, "SOFT" 50;
+    }
+    .privacy-body h2 + p { margin-top: 0; }
+    .privacy-body p {
+      font-size: 1.02rem;
+      line-height: 1.7;
+      color: var(--ink-soft);
+      margin: 0 0 14px;
+    }
+    .privacy-body code {
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      background: var(--bg-sunken);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      color: var(--ink);
+    }
+    .privacy-body strong { color: var(--ink); font-weight: 600; }
+    .privacy-meta {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+  </style>
 </head>
 <body>
   <header-component></header-component>
+  <canvas id="gameOfLifeCanvas" aria-hidden="true"></canvas>
 
   <main class="site-main">
+
+    <!-- HERO -->
     <section class="hero">
-      <span class="pill">privacy</span>
-      <h1>Privacy Policy</h1>
-      <p class="lede">This is a personal portfolio. The short version: nothing on this page collects, stores, or transmits any personal information about you to me.</p>
+      <div class="hero-meta">
+        <span class="kicker kicker--accent">policy</span>
+        <span class="kicker">last reviewed · 2026</span>
+      </div>
+
+      <h1>
+        Privacy<br>
+        <span class="accent">policy</span>.
+      </h1>
+
+      <p class="hero-lede">
+        The short version: this is a static personal site. Nothing here
+        collects, stores, or transmits personal information about you
+        to me. The longer version is below, written like a human wrote it.
+      </p>
     </section>
 
-    <article class="container">
-      <p><em>Last updated: 2026.</em></p>
+    <!-- LONG-FORM -->
+    <section class="section">
+      <div class="container container--wide">
+        <article class="privacy-body">
 
-      <h2>What this site collects</h2>
-      <p>Nothing identifying. Pages are static HTML, JavaScript, and CSS. No analytics, no cookies set by me, no tracking pixels, no server-side logging beyond what GitHub Pages records by default to serve traffic. Settings you toggle on this site (dark mode, your reaction-timer high score) live in your browser via <code>localStorage</code> and never leave your device.</p>
+          <p class="privacy-meta">jurisdiction · global · static site · github pages</p>
 
-      <h2>Third-party resources</h2>
-      <p>The site loads a few public CDN resources - fonts (Google Fonts), MathJax (Cloudflare CDN). Loading these resources discloses your IP and User-Agent to those providers, which is standard for any website that uses them. Their privacy policies govern that data.</p>
+          <h2>What this site collects</h2>
+          <p>
+            Nothing identifying. Pages are static HTML, CSS, and JavaScript.
+            There's no analytics, no cookies set by me, no tracking pixels,
+            and no server-side logging beyond what GitHub Pages records by
+            default to serve traffic. Settings you toggle on this site
+            (dark mode, your reaction-timer best score) live in your browser
+            via <code>localStorage</code> and never leave your device.
+          </p>
 
-      <h2>Cookies</h2>
-      <p>This site does not set cookies. Browser <code>localStorage</code> is used only for the dark-mode preference and the reaction-timer best score. You can clear both at any time from your browser's site-data controls.</p>
+          <h2>Third-party resources</h2>
+          <p>
+            The site loads a handful of public CDN resources — typography
+            (Google Fonts), MathJax (Cloudflare CDN), and Leaflet tiles on
+            the flight-tracking page (OpenStreetMap). Loading any of those
+            discloses your IP and User-Agent to the providers in question,
+            which is standard for any website that uses them. Their privacy
+            policies govern that data, not this one.
+          </p>
 
-      <h2>Your rights</h2>
-      <p>You have the right to know how data about you is collected and used. Since this site does not collect identifying data about visitors, there is no profile to access, correct, or delete. If you believe that has changed, the best place to flag it is on the <a href="https://github.com/hord-brayden/hord-brayden.github.io" target="_blank" rel="noopener">site's GitHub repository</a>.</p>
+          <h2>Cookies</h2>
+          <p>
+            This site does not set cookies. Browser <code>localStorage</code>
+            is used only for the dark-mode preference and the reaction-timer
+            best score. You can clear both at any time from your browser's
+            site-data controls.
+          </p>
 
-      <h2>Contact</h2>
-      <p>For anything else, the public channels listed on the <a href="resume.html">resume page</a> are the right place to start.</p>
-    </article>
+          <h2>Your rights</h2>
+          <p>
+            You have the right to know how data about you is collected and
+            used. Since this site does not collect identifying data about
+            visitors, there is no profile to access, correct, or delete.
+            If you believe that has changed, the right place to flag it is
+            the site's <a href="https://github.com/hord-brayden/hord-brayden.github.io" target="_blank" rel="noopener">GitHub repository</a>.
+          </p>
+
+          <h2>Contact</h2>
+          <p>
+            For anything else, the public channels linked from the
+            <a href="resume.html">resume page</a> or the
+            <a href="index.html#about">about section</a> on the homepage
+            are the right place to start.
+          </p>
+
+        </article>
+      </div>
+    </section>
+
   </main>
 
+  <button type="button" id="golExit" class="gol-exit btn--ghost">Back to the page</button>
+
   <footer-component></footer-component>
-  <script src="js/page-components.js"></script>
+  <script src="js/site.js"></script>
 </body>
 </html>

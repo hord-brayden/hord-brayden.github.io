@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playground — Brayden Hord</title>
+  <meta name="description" content="RNG toys: password generator, array shuffle, side-by-side Math.random vs xorshift plots, Game of Life background.">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+  <meta name="theme-color" content="#f7f4ee">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,400..600,30..100,0..1;1,9..144,400..600,30..100,0..1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- MathJax: only loaded on pages that need it -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js" crossorigin="anonymous" defer></script>
+</head>
+<body>
+  <header-component></header-component>
+  <canvas id="gameOfLifeCanvas" aria-hidden="true"></canvas>
+
+  <main class="site-main">
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-meta">
+        <span class="kicker kicker--accent">after-hours</span>
+        <span class="kicker">RNG · cryptography · cellular automata</span>
+      </div>
+      <h1>The <span class="accent">playground</span>.</h1>
+      <p class="hero-lede">
+        Small things, built honestly. The math here is real even when
+        the toys are silly. Most of these double as live demos for the
+        statistical-testing kit one click away.
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn--ghost" href="testing-kit.html">Run the NIST RNG kit →</a>
+        <a class="btn btn--ghost" href="index.html">← Back to work</a>
+      </div>
+    </section>
+
+    <!-- BACKGROUND CONTROLS -->
+    <section class="section section--tight">
+      <div class="container container--bare t-align-c">
+        <p style="color:var(--muted);max-width:60ch;margin-left:auto;margin-right:auto">
+          If you'd like to sit and stare, here's
+          <a href="https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life" target="_blank" rel="noopener">Conway's Game of Life</a>
+          as a fullscreen stage, or just animated as the background.
+        </p>
+        <div class="button-row">
+          <button id="startStopButton" type="button" class="btn--ghost">Start Game of Life</button>
+          <button id="toggleButton" type="button">Stage fullscreen</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- F1 REACTION TIMER TEASER -->
+    <section class="section section--tight">
+      <a href="f1-timer.html" class="work-card" style="display:block">
+        <div class="work-card-tag">
+          <span>side door · live</span>
+          <span>reaction trainer</span>
+        </div>
+        <h3 style="margin:8px 0 10px;font-family:var(--font-display);font-weight:500;font-size:1.4rem;letter-spacing:-0.01em">
+          F1-style <em class="accent">reaction timer</em> →
+        </h3>
+        <p style="color:var(--ink-soft);margin:0;line-height:1.55">
+          Five lights, random hold, lights-out, react. Jump-start detection,
+          persistent best score in <code>localStorage</code>. Under 200&nbsp;ms is
+          pro-driver territory. Anything claiming under 150&nbsp;ms is probably
+          you anticipating.
+        </p>
+      </a>
+    </section>
+
+    <!-- PASSWORD + ARRAY SHUFFLE -->
+    <div class="randomRunner">
+      <section class="container">
+        <span class="kicker kicker--accent">tool 01</span>
+        <h2 style="margin-top:8px">Password generator</h2>
+        <div class="mathJax">
+          <p>
+            Pulls bytes from
+            <a href="https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues" target="_blank" rel="noopener"><code>window.crypto.getRandomValues()</code></a>
+            (the browser CSPRNG, suitable for security-sensitive use)
+            with rejection sampling so the modulo doesn't bias the
+            character distribution. Falls back to <code>Math.random()</code>
+            only if <code>crypto</code> is unavailable.
+          </p>
+          <p>
+            Modern V8/SpiderMonkey implement <code>Math.random()</code>
+            with xorshift128+, so the output is statistically high quality —
+            but it is <em>not</em> cryptographically secure: the internal
+            state can be reconstructed from a handful of outputs. Don't
+            use it for tokens, secrets, or anything an attacker would
+            benefit from predicting.
+          </p>
+        </div>
+        <div class="options">
+          <label>Password length
+            <input type="number" id="passwordLength" value="20" min="4" max="128">
+          </label>
+          <label><input type="checkbox" id="includeUppercase" checked> Include uppercase</label>
+          <label><input type="checkbox" id="includeLowercase" checked> Include lowercase</label>
+          <label><input type="checkbox" id="includeNumbers" checked> Include numbers</label>
+          <label><input type="checkbox" id="includeSymbols" checked> Include symbols</label>
+        </div>
+        <button id="generatePassword" type="button" class="btn--block">Generate password</button>
+        <input type="text" id="passwordOutput" readonly onclick="copyToClipboard('passwordOutput', event)" aria-label="Generated password (click to copy)">
+      </section>
+
+      <section class="container">
+        <span class="kicker kicker--accent">tool 02</span>
+        <h2 style="margin-top:8px">Array shuffler</h2>
+        <div class="mathJax">
+          <p>
+            Fisher-Yates shuffle backed by a uniform integer generator
+            on top of <code>crypto.getRandomValues()</code> (with
+            rejection sampling so each of the $n!$ permutations is
+            equally likely). Takes a comma- or space-separated list
+            and returns a fair shuffle.
+          </p>
+        </div>
+        <div class="options">
+          <input type="text" id="arrayInput" placeholder="Comma- or space-separated values">
+        </div>
+        <div class="button-row">
+          <button id="array-fill" type="button" class="btn--ghost btn--small" onclick="document.getElementById('arrayInput').value = '1, 2, 3, 4, 5, 6, 7, 8, 9, 10';">Sample fill</button>
+          <button id="randomArrayMama" type="button" onclick="randomizeInputArray('arrayInput', 'arrayOutput')">Shuffle</button>
+        </div>
+        <input type="text" id="arrayOutput" readonly placeholder="Shuffled output appears here" onclick="copyToClipboard('arrayOutput', event)" aria-label="Shuffled output (click to copy)">
+      </section>
+    </div>
+
+    <!-- PLOTS -->
+    <div class="randomRunner">
+      <section class="container">
+        <span class="kicker kicker--accent">visual 01</span>
+        <h2 style="margin-top:8px"><code>Math.random()</code> plot</h2>
+        <div class="mathJax">
+          <p>
+            Points $(x, y)$ where both coordinates come from
+            <code>Math.random()</code>. The plot runs in
+            \(\mathcal{O}(n)\) per call — constant work per sample.
+          </p>
+          <p>
+            With $n = 250$ points the four quadrants of $[0,1]^2$
+            won't have exactly the same count even from a perfect
+            uniform RNG; that's a property of <em>random sampling</em>,
+            not a flaw of the generator. The Law of Large Numbers
+            makes the imbalance shrink as $n$ grows.
+          </p>
+        </div>
+        <canvas id="randomNumberPlot" width="500" height="500" style="aspect-ratio:1/1"></canvas>
+        <div id="sectorCounts" class="sector-counts"></div>
+        <div id="randomValues" class="random-values" aria-live="polite"></div>
+        <button id="plotButton" type="button" class="btn--block">Generate <code>Math.random()</code> plot</button>
+      </section>
+
+      <section class="container">
+        <span class="kicker kicker--accent">visual 02</span>
+        <h2 style="margin-top:8px">32-bit XORShift plot</h2>
+        <div class="mathJax">
+          <p>
+            Same plot, but using a small
+            <a href="https://en.wikipedia.org/wiki/Xorshift" target="_blank" rel="noopener">xorshift</a>
+            generator (Marsaglia 2003) seeded once from
+            <code>crypto.getRandomValues()</code>. It's the
+            <code>x ^= x &lt;&lt; 13; x ^= x &gt;&gt; 17; x ^= x &lt;&lt; 5;</code>
+            recurrence — fast, statistically decent at short lengths,
+            and a useful baseline for comparison.
+          </p>
+          <p>
+            For full statistical evaluation, use the
+            <a href="testing-kit.html">NIST-style testing kit</a>.
+          </p>
+        </div>
+        <canvas id="randomNumberPlot2" width="500" height="500" style="aspect-ratio:1/1"></canvas>
+        <div id="sectorCounts2" class="sector-counts"></div>
+        <div id="randomValues2" class="random-values" aria-live="polite"></div>
+        <button id="plotButton2" type="button" class="btn--block">Generate XORShift plot</button>
+      </section>
+    </div>
+
+    <!-- MATHJAX SANITY CHECK -->
+    <section class="container container--wide mathJax">
+      <span class="kicker kicker--accent">notes</span>
+      <h2 style="margin-top:8px">Inline math sanity check</h2>
+      <p>
+        This page uses
+        <a href="https://www.mathjax.org/" target="_blank" rel="noopener">MathJax</a>
+        for inline LaTeX. Right-click any equation for an alternate-
+        rendering dialog if your browser is having a bad time.
+      </p>
+      <p>Inline: \( x^2 + y^2 = z^2 \). &nbsp;Displayed:</p>
+      \[ \int_0^\infty e^{-x^2}\, dx = \frac{\sqrt{\pi}}{2} \]
+    </section>
+
+  </main>
+
+  <button type="button" id="golExit" class="gol-exit btn--ghost">Back to the page</button>
+
+  <footer-component></footer-component>
+  <script src="js/site.js"></script>
+  <script src="js/playground.js"></script>
+</body>
+</html>

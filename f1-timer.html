@@ -3,122 +3,222 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>F1-Style Reaction Timer - hord-brayden</title>
+  <title>F1-style reaction timer — Brayden Hord</title>
+  <meta name="description" content="Watch the five lights, wait for lights-out, then react. Browser-side reaction-time trainer with jump-start detection and a persistent best.">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="img/apple-icon-180x180.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+  <link rel="manifest" href="img/manifest.json">
+  <meta name="theme-color" content="#f7f4ee">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,400..600,30..100,0..1;1,9..144,400..600,30..100,0..1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="styles.css">
+
   <style>
-    /* The reaction timer needs its own theming because state is communicated via
-       background color. Lights-out -> green is the same regardless of light/dark. */
-    :root.timer-state-idle,
-    :root.timer-state-armed,
-    :root.timer-state-go,
-    :root.timer-state-fail { transition: background-color .25s ease; }
+    /* ---- F1 timer page-local styles ----
+       The page deliberately overrides background while armed/go/fail —
+       state is communicated visually via color, the way the real
+       lights work at Albert Park. Everything else stays on the
+       global design system. */
 
     body.timer-page {
       min-height: 100vh;
-      display: flex; flex-direction: column;
-      background: var(--bg);
+      display: flex;
+      flex-direction: column;
     }
+
     .timer-stage {
       flex: 1;
-      display: flex; flex-direction: column;
+      display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 32px 18px 80px;
+      gap: 28px;
+      padding: 72px 24px 96px;
       text-align: center;
-      color: var(--text);
-      gap: 22px;
+      max-width: var(--max-wide);
+      margin: 0 auto;
+      width: 100%;
+      transition: background-color .25s var(--ease), color .25s var(--ease);
     }
-    .timer-stage.armed { background: linear-gradient(180deg, #b91c1c 0%, #7f1d1d 100%); color:#fff; }
-    .timer-stage.go    { background: linear-gradient(180deg, #15803d 0%, #14532d 100%); color:#fff; }
-    .timer-stage.fail  { background: linear-gradient(180deg, #1f2937 0%, #111827 100%); color:#fff; }
 
-    .lights {
-      display: flex;
-      gap: 14px;
-      padding: 14px 18px;
-      border-radius: 999px;
-      background: rgba(0,0,0,0.25);
-      border: 1px solid rgba(255,255,255,0.08);
-      backdrop-filter: blur(6px);
+    /* In-flight state backgrounds — use solid blocks with white type so
+       they read clearly in either theme without fighting the design tokens. */
+    body.timer-armed { background: linear-gradient(180deg, #a52e0b 0%, #6b1f08 100%); }
+    body.timer-go    { background: linear-gradient(180deg, #166534 0%, #052e16 100%); }
+    body.timer-fail  { background: linear-gradient(180deg, #1f2937 0%, #0a0907 100%); }
+
+    body.timer-armed .timer-stage,
+    body.timer-go .timer-stage,
+    body.timer-fail .timer-stage { color: #fff; }
+
+    /* Hide the field-notebook chrome while a sequence is live —
+       the GoL canvas and dot-grid would just distract from a 200ms task. */
+    body.timer-armed #gameOfLifeCanvas,
+    body.timer-go #gameOfLifeCanvas,
+    body.timer-fail #gameOfLifeCanvas { opacity: 0 !important; }
+
+    .timer-kicker {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0;
     }
-    .light {
-      width: 54px; height: 54px;
-      border-radius: 50%;
-      background: #2a2f3a;
-      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.06);
-      transition: background-color .15s ease, box-shadow .25s ease;
-    }
-    .light.on {
-      background: radial-gradient(circle at 35% 30%, #ff3b30 0%, #b91c1c 60%, #7f1d1d 100%);
-      box-shadow: 0 0 22px rgba(255,59,48,0.65), inset 0 0 0 2px rgba(255,255,255,0.18);
-    }
+    body.timer-armed .timer-kicker,
+    body.timer-go .timer-kicker,
+    body.timer-fail .timer-kicker { color: rgba(255,255,255,0.78); }
 
     .timer-headline {
-      font-size: clamp(1.4rem, 1rem + 1.5vw, 1.9rem);
-      font-weight: 700;
-      letter-spacing: -0.01em;
+      font-family: var(--font-display);
+      font-size: clamp(2.2rem, 1.4rem + 4vw, 4rem);
+      font-weight: 500;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
       margin: 0;
+      font-variation-settings: "opsz" 144, "SOFT" 100;
     }
-    .timer-detail {
-      color: inherit;
-      opacity: 0.85;
-      max-width: 540px;
-      margin: 0;
-    }
-    .timer-stage.armed .timer-detail,
-    .timer-stage.go    .timer-detail,
-    .timer-stage.fail  .timer-detail { opacity: 0.92; }
 
-    .timer-controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-    .timer-controls button {
+    .timer-detail {
+      max-width: 52ch;
       margin: 0;
-      min-width: 160px;
+      font-size: clamp(1rem, 0.4vw + 0.95rem, 1.15rem);
+      color: var(--ink-soft);
+      line-height: 1.55;
     }
+    body.timer-armed .timer-detail,
+    body.timer-go .timer-detail,
+    body.timer-fail .timer-detail { color: rgba(255,255,255,0.92); }
+
+    /* The five-light bar */
+    .lights {
+      display: flex;
+      gap: 16px;
+      padding: 18px 22px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(6px);
+    }
+    body:not(.timer-armed):not(.timer-go):not(.timer-fail) .lights {
+      background: var(--bg-sunken);
+      border-color: var(--border);
+    }
+
+    .light {
+      width: clamp(38px, 8vw, 58px);
+      height: clamp(38px, 8vw, 58px);
+      border-radius: 50%;
+      background: #2a2222;
+      box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.06);
+      transition: background-color .15s ease, box-shadow .25s ease;
+    }
+    body:not(.timer-armed):not(.timer-go):not(.timer-fail) .light {
+      background: var(--bg-elev);
+      box-shadow: inset 0 0 0 1px var(--border-strong);
+    }
+    .light.on {
+      background: radial-gradient(circle at 35% 30%, #ff5238 0%, #c0250a 60%, #6b1f08 100%);
+      box-shadow:
+        0 0 24px rgba(255, 82, 56, 0.7),
+        inset 0 0 0 2px rgba(255, 255, 255, 0.18);
+    }
+
+    /* Stats pills */
     .timer-stats {
-      display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
     }
     .stat-pill {
-      padding: 6px 12px;
+      padding: 7px 14px;
       border-radius: 999px;
-      background: rgba(0,0,0,0.18);
-      color: inherit;
-      font-size: 0.9rem;
-      letter-spacing: 0.04em;
-      border: 1px solid rgba(255,255,255,0.18);
+      background: var(--bg-elev);
+      color: var(--ink-soft);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      border: 1px solid var(--border-strong);
+      font-variant-numeric: tabular-nums;
     }
-    body.timer-page:not(.timer-page-active) .stat-pill {
-      background: var(--surface);
-      color: var(--text);
-      border-color: var(--border-strong);
+    body.timer-armed .stat-pill,
+    body.timer-go .stat-pill,
+    body.timer-fail .stat-pill {
+      background: rgba(0,0,0,0.25);
+      color: #fff;
+      border-color: rgba(255,255,255,0.22);
     }
+
+    /* Controls */
+    .timer-controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .timer-controls .btn { min-width: 160px; }
+
+    /* Help card — only visible at idle */
     .timer-help {
-      max-width: 640px;
-      font-size: 0.92rem;
+      max-width: 60ch;
+      font-size: 0.93rem;
       color: var(--muted);
       border: 1px dashed var(--border-strong);
       border-radius: var(--radius);
-      padding: 14px 18px;
-      background: var(--surface);
+      padding: 18px 22px;
+      background: var(--bg-elev);
+      text-align: left;
     }
-    .timer-stage.armed .timer-help,
-    .timer-stage.go .timer-help,
-    .timer-stage.fail .timer-help { display: none; }
+    .timer-help strong { color: var(--ink); }
+    body.timer-armed .timer-help,
+    body.timer-go .timer-help,
+    body.timer-fail .timer-help { display: none; }
 
-    .timer-cta-hint {
-      font-size: 0.85rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      opacity: 0.75;
+    /* The big reaction-time number */
+    .timer-result-ms {
+      font-family: var(--font-display);
+      font-size: clamp(4rem, 2.5rem + 8vw, 8rem);
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      letter-spacing: -0.03em;
+      margin: 0;
+      font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1;
     }
+    .timer-result-ms .unit {
+      font-size: 0.32em;
+      font-style: italic;
+      color: var(--accent);
+      margin-left: 0.1em;
+      vertical-align: 0.6em;
+      font-variation-settings: "opsz" 60, "WONK" 1;
+    }
+    body.timer-armed .timer-result-ms .unit,
+    body.timer-go .timer-result-ms .unit,
+    body.timer-fail .timer-result-ms .unit { color: #fbbf24; }
   </style>
 </head>
 <body class="timer-page">
   <header-component></header-component>
+  <canvas id="gameOfLifeCanvas" aria-hidden="true"></canvas>
 
   <main class="timer-stage" id="timerStage">
-    <p class="timer-cta-hint" id="hint">tap - click - or press any key</p>
+    <p class="timer-kicker" id="hint">tap · click · or press any key</p>
+
     <h1 class="timer-headline" id="message">F1-style reaction trainer</h1>
-    <p class="timer-detail" id="detail">Watch the lights illuminate, then react when they all go out - exactly like the start of a Formula 1 race.</p>
+
+    <p class="timer-detail" id="detail">
+      Watch the five lights illuminate one at a time. After a random hold,
+      they all go out. <strong>That's your cue.</strong> React early and
+      it's a jump-start.
+    </p>
+
     <div class="lights" id="lights" aria-hidden="true">
       <div class="light"></div>
       <div class="light"></div>
@@ -126,21 +226,31 @@
       <div class="light"></div>
       <div class="light"></div>
     </div>
+
     <div class="timer-stats">
-      <span class="stat-pill" id="lastTime">Last: -</span>
-      <span class="stat-pill" id="bestTime">Best: -</span>
+      <span class="stat-pill" id="lastTime">last — —</span>
+      <span class="stat-pill" id="bestTime">best — —</span>
     </div>
+
     <div class="timer-controls">
-      <button type="button" id="startBtn">Start</button>
-      <button type="button" id="resetBtn" class="btn--ghost">Reset</button>
+      <button type="button" id="startBtn" class="btn">Start</button>
+      <button type="button" id="resetBtn" class="btn btn--ghost">Reset</button>
     </div>
+
     <div class="timer-help">
-      <strong>How to play.</strong> Click <em>Start</em> (or press any key), then wait while the five red lights come on one at a time. After a random hold, all five turn off - react as fast as you can. React before lights-out and it's a jump-start. Times under 200&nbsp;ms are professional-driver fast.
+      <strong>How it works.</strong> Click <em>Start</em> (or press any key) and
+      five red lights come on one at a time, just like an F1 grid. The hold
+      after the fifth light is randomized between 0.8s and 3.2s. When the
+      lights go out, react as fast as you can. Anything under 200&nbsp;ms is
+      professional-driver territory. Anything that looks under 150&nbsp;ms is
+      probably a bad sample — humans don't actually go that fast.
     </div>
   </main>
 
+  <button type="button" id="golExit" class="gol-exit btn--ghost">Back to the page</button>
+
   <footer-component></footer-component>
-  <script src="js/page-components.js"></script>
+  <script src="js/site.js"></script>
   <script>
     (function () {
       const STATE = { IDLE: 'idle', ARMING: 'arming', WAIT: 'wait', GO: 'go', RESULT: 'result', FAIL: 'fail' };
@@ -149,20 +259,19 @@
       let goTimer;
       let goAt = 0;
 
-      const stage = document.getElementById('timerStage');
-      const lights = Array.from(document.querySelectorAll('#lights .light'));
-      const message = document.getElementById('message');
-      const detail = document.getElementById('detail');
-      const hint = document.getElementById('hint');
-      const lastEl = document.getElementById('lastTime');
-      const bestEl = document.getElementById('bestTime');
+      const stage    = document.getElementById('timerStage');
+      const lights   = Array.from(document.querySelectorAll('#lights .light'));
+      const message  = document.getElementById('message');
+      const detail   = document.getElementById('detail');
+      const hint     = document.getElementById('hint');
+      const lastEl   = document.getElementById('lastTime');
+      const bestEl   = document.getElementById('bestTime');
       const startBtn = document.getElementById('startBtn');
       const resetBtn = document.getElementById('resetBtn');
 
-      function setStage(cls) {
-        stage.classList.remove('armed', 'go', 'fail');
-        document.body.classList.toggle('timer-page-active', cls !== '');
-        if (cls) stage.classList.add(cls);
+      function setBodyState(cls) {
+        document.body.classList.remove('timer-armed', 'timer-go', 'timer-fail');
+        if (cls) document.body.classList.add(cls);
       }
       function clearTimers() {
         lightTimers.forEach(clearTimeout);
@@ -176,33 +285,34 @@
         try {
           const v = parseInt(localStorage.getItem('f1-best-ms'), 10);
           return Number.isFinite(v) ? v : null;
-        } catch (e) { return null; }
+        } catch (_) { return null; }
       }
-      function saveBest(v) { try { localStorage.setItem('f1-best-ms', String(v)); } catch (e) {} }
-
+      function saveBest(v) {
+        try { localStorage.setItem('f1-best-ms', String(v)); } catch (_) {}
+      }
       function renderBest() {
         const best = loadBest();
-        bestEl.textContent = best ? `Best: ${best} ms` : 'Best: -';
+        bestEl.textContent = best ? `best · ${best} ms` : 'best · —';
       }
 
       function reset() {
         clearTimers();
         setLights(0);
-        setStage('');
+        setBodyState('');
         state = STATE.IDLE;
-        message.textContent = 'F1-style reaction trainer';
-        detail.textContent = 'Watch the lights illuminate, then react when they all go out - exactly like the start of a Formula 1 race.';
-        hint.textContent = 'tap - click - or press any key';
+        message.innerHTML = 'F1-style reaction trainer';
+        detail.innerHTML = 'Watch the five lights illuminate one at a time. After a random hold, they all go out. <strong>That\'s your cue.</strong> React early and it\'s a jump-start.';
+        hint.textContent = 'tap · click · or press any key';
         renderBest();
       }
 
       function startSequence() {
         clearTimers();
         setLights(0);
-        setStage('armed');
+        setBodyState('timer-armed');
         state = STATE.ARMING;
-        message.textContent = 'Lights coming on...';
-        detail.textContent = "Wait for all five lights to go out. Don't jump.";
+        message.textContent = 'Lights coming on…';
+        detail.textContent = "Wait for all five to go out. Don't jump.";
         hint.textContent = 'eyes on the lights';
 
         const lightDelay = 1000;
@@ -222,9 +332,9 @@
         setLights(0);
         state = STATE.GO;
         goAt = performance.now();
-        setStage('go');
+        setBodyState('timer-go');
         message.textContent = 'GO!';
-        detail.textContent = 'Click / tap / press anything as fast as you can.';
+        detail.textContent = 'Click, tap, or press anything as fast as you can.';
         hint.textContent = 'react now';
       }
 
@@ -232,7 +342,7 @@
         clearTimers();
         setLights(0);
         state = STATE.FAIL;
-        setStage('fail');
+        setBodyState('timer-fail');
         message.textContent = 'Jump start.';
         detail.textContent = 'You reacted before lights-out. Press Start to try again.';
         hint.textContent = 'too soon';
@@ -241,16 +351,17 @@
       function recordReaction() {
         const ms = Math.round(performance.now() - goAt);
         state = STATE.RESULT;
-        setStage('');
-        message.textContent = `${ms} ms`;
-        detail.textContent = ms < 150 ? 'Suspiciously fast - were you peeking?'
-          : ms < 200 ? 'Pro-driver tier.'
-          : ms < 250 ? 'Sharp.'
-          : ms < 350 ? 'Very respectable.'
-          : ms < 500 ? 'Solid human reaction time.'
-          : 'Bit slow - try again.';
+        setBodyState('');
+        message.innerHTML = `<span class="timer-result-ms">${ms}<span class="unit">ms</span></span>`;
+        detail.textContent =
+          ms < 150 ? "Suspiciously fast — you sure you didn't anticipate?" :
+          ms < 200 ? 'Pro-driver tier.' :
+          ms < 250 ? 'Sharp.' :
+          ms < 350 ? 'Very respectable.' :
+          ms < 500 ? 'Solid human reaction time.' :
+                     'A bit slow — give it another go.';
         hint.textContent = 'press anything to go again';
-        lastEl.textContent = `Last: ${ms} ms`;
+        lastEl.textContent = `last · ${ms} ms`;
 
         const best = loadBest();
         if (!best || ms < best) {
@@ -260,8 +371,9 @@
       }
 
       function handleInteraction(evt) {
-        // Allow control buttons to do their thing without colliding with the timer.
-        if (evt && evt.target && evt.target.closest && evt.target.closest('.timer-controls, .site-header, .dark-mode-toggle, .site-footer')) return;
+        // Don't let the timer hijack chrome buttons.
+        if (evt && evt.target && evt.target.closest &&
+            evt.target.closest('.timer-controls, .site-header, .dark-mode-toggle, .site-footer, .gol-exit')) return;
         if (evt && evt.type === 'keydown' && (evt.key === 'Tab' || evt.key === 'Shift')) return;
 
         switch (state) {
