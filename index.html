@@ -1,144 +1,361 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brayden Hord - engineering, AI, and weird builds</title>
-    <meta name="description" content="Personal portfolio of Brayden Hord - Director of Engineering & Innovation. AI systems, randomness experiments, and a few math-y toys.">
-    <link rel="apple-touch-icon" sizes="180x180" href="img/apple-icon-180x180.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
-    <link rel="manifest" href="img/manifest.json">
-    <meta name="theme-color" content="#0b0d12">
-    <link rel="stylesheet" href="styles.css">
-    <script src="js/gameOfLife.js"></script>
-  </head>
-  <body>
-    <header-component></header-component>
-    <canvas id="gameOfLifeCanvas"></canvas>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brayden Hord — engineering, AI, & stranger machines</title>
+  <meta name="description" content="Brayden Hord — Director of Engineering & Innovation. Production AI systems, ad-tech infrastructure, and the occasional weird machine.">
 
-    <main class="site-main">
+  <link rel="apple-touch-icon" sizes="180x180" href="img/apple-icon-180x180.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+  <link rel="manifest" href="img/manifest.json">
+  <meta name="theme-color" content="#f7f4ee">
 
-      <section class="hero">
-        <span class="pill">portfolio - personal site</span>
-        <h1>Brayden Hord</h1>
-        <p class="lede">Director of Engineering &amp; Innovation. I build production AI systems by day and weird, mathy toys by night - most of which live on this site. Click around, generate some randomness, race the lights.</p>
-        <div class="hero-cta">
-          <a class="btn" href="resume.html">Read the resume</a>
-          <a class="btn btn--ghost" href="testing-kit.html">NIST RNG kit</a>
-          <a class="btn btn--ghost" href="f1-timer.html">F1 reaction trainer</a>
+  <!-- Fonts: Fraunces (display, variable) + Inter (body) + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,400..600,30..100,0..1;1,9..144,400..600,30..100,0..1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header-component></header-component>
+  <canvas id="gameOfLifeCanvas" aria-hidden="true"></canvas>
+
+  <main class="site-main">
+
+    <!-- ============================================================
+         HERO
+         ============================================================ -->
+    <section class="hero">
+      <div class="hero-meta reveal" data-delay="1">
+        <span class="kicker kicker--accent">currently shipping</span>
+        <span class="kicker">Arena · Director of Engineering &amp; Innovation</span>
+      </div>
+
+      <h1 class="reveal" data-delay="2">
+        Production&nbsp;AI by&nbsp;day.<br>
+        <span class="accent">Stranger machines</span> by&nbsp;night.
+      </h1>
+
+      <p class="hero-lede reveal" data-delay="3">
+        I'm Brayden Hord — I take ambiguous, high-stakes problems
+        (legacy infrastructure, fragmented workflows, undefined AI strategy)
+        and convert them into systems that ship and stay shipped.
+        On the side I build embedded electronics, run statistical
+        tests on PRNGs, and break things for fun.
+      </p>
+
+      <div class="hero-cta reveal" data-delay="4">
+        <a class="btn" href="resume.html">Read the resume <span aria-hidden="true">→</span></a>
+        <a class="btn btn--ghost" href="#work">See selected work</a>
+      </div>
+
+      <div class="hero-indicator reveal" data-delay="5">
+        Scroll for outcomes, projects, &amp; playground
+      </div>
+    </section>
+
+    <!-- ============================================================
+         OUTCOMES — the 5-second pitch
+         ============================================================ -->
+    <section class="section section--tight">
+      <div class="section-head">
+        <h2 class="reveal">Recent outcomes</h2>
+        <span class="kicker">2024 · 2025 · 2026 ytd</span>
+      </div>
+
+      <div class="outcomes reveal">
+        <div class="outcome">
+          <div class="outcome-value tabular">$1.7<span class="unit">M+</span></div>
+          <div class="outcome-label">Annualized<br>organizational value</div>
         </div>
-      </section>
+        <div class="outcome">
+          <div class="outcome-value tabular">7,358</div>
+          <div class="outcome-label">Operating hours<br>recovered</div>
+        </div>
+        <div class="outcome">
+          <div class="outcome-value tabular">20<span class="unit">+</span></div>
+          <div class="outcome-label">Production systems<br>shipped in one year</div>
+        </div>
+        <div class="outcome">
+          <div class="outcome-value tabular">4</div>
+          <div class="outcome-label">Production AI<br>models in flight</div>
+        </div>
+      </div>
+    </section>
 
-      <div class="head-container">
-        <div class="container">
-          <h2 class="t-align-c">A brief tour</h2>
-          <p class="t-align-c" style="color:var(--muted)">Below: a small playground of randomness experiments. They're toys, but the math is honest. <em>If you'd like to sit and stare, click below to enjoy <a href="https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life">Conway's Game of Life</a> as the background instead.</em></p>
-          <div class="button-row">
-            <button id="toggleButton" type="button">Hide everything for the GoL view</button>
-            <button id="startStopButton" type="button" class="btn--ghost">Start Game of Life</button>
+    <hr class="divider">
+
+    <!-- ============================================================
+         SELECTED WORK
+         ============================================================ -->
+    <section class="section" id="work">
+      <div class="section-head">
+        <h2>Selected work</h2>
+        <span class="kicker">a sampling, not an inventory</span>
+      </div>
+
+      <div class="work-grid">
+
+        <!-- Feature: Deazlebub -->
+        <article class="work-card work-card--feature reveal">
+          <div class="work-card-head">
+            <h3>Deazlebub — agentic ad-buying agent</h3>
+            <span class="work-card-tag">flagship · 2025</span>
+          </div>
+          <p>
+            Natural-language ad-ops agent built on Claude via AWS Bedrock with
+            36 custom platform tools. Takes raw emails and project-management
+            input and executes media buys across DSPs and social platforms
+            with full PM-system traceability. Shipped before agentic media
+            buying went mainstream.
+          </p>
+          <div class="work-card-stack">
+            <span class="stamp">Claude</span>
+            <span class="stamp">AWS Bedrock</span>
+            <span class="stamp">Python</span>
+            <span class="stamp">MCP tools</span>
+            <span class="stamp">Monday.com GraphQL</span>
+          </div>
+        </article>
+
+        <!-- Datum Veil -->
+        <article class="work-card reveal">
+          <div class="work-card-head">
+            <h3>Datum Veil</h3>
+            <span class="work-card-tag">privacy · 2024</span>
+          </div>
+          <p>
+            Privacy-preserving data pipeline. HMAC pseudonymization,
+            three modes of sum-preserving numeric perturbation, and a
+            Paillier homomorphic encryption module. Lets proprietary
+            datasets meet third-party AI without leaking the underlying
+            records or aggregates.
+          </p>
+          <div class="work-card-stack">
+            <span class="stamp">Python</span>
+            <span class="stamp">HMAC</span>
+            <span class="stamp">Paillier HE</span>
+          </div>
+        </article>
+
+        <!-- AONS v3.1 -->
+        <article class="work-card reveal">
+          <div class="work-card-head">
+            <h3>AONS v3.1</h3>
+            <span class="work-card-tag">spec · 2024-25</span>
+          </div>
+          <p>
+            Ad Object Naming System, grounded in information theory:
+            Shannon entropy and Kraft's inequality applied to identifier
+            design. Embedded foreign-key Key Rings, User Tags, Variant Slots.
+            Deployed across StackAdapt, Meta, LinkedIn, TikTok, and Google.
+            Data integrity baked into the encoding layer.
+          </p>
+          <div class="work-card-stack">
+            <span class="stamp">Information theory</span>
+            <span class="stamp">Spec design</span>
+            <span class="stamp">5-platform deploy</span>
+          </div>
+        </article>
+
+        <!-- Direct-mail attribution -->
+        <article class="work-card reveal">
+          <div class="work-card-head">
+            <h3>Direct-mail attribution pipeline</h3>
+            <span class="work-card-tag">research → prod · 2025</span>
+          </div>
+          <p>
+            Bridge between physical and digital signal. USPS Informed
+            Visibility scan ingestion, Flask-based PURL system for
+            personalized landing pages, and portfolio research across
+            BLE beacons, conductive ink, and Digimarc. Closing the loop
+            between drop date, mailbox arrival, and downstream behavior.
+          </p>
+          <div class="work-card-stack">
+            <span class="stamp">USPS IV</span>
+            <span class="stamp">Flask</span>
+            <span class="stamp">Apps Script</span>
+            <span class="stamp">Attribution</span>
+          </div>
+        </article>
+
+        <!-- Eight-platform abstraction layer -->
+        <article class="work-card reveal">
+          <div class="work-card-head">
+            <h3>Eight-platform abstraction layer</h3>
+            <span class="work-card-tag">infrastructure · 2024</span>
+          </div>
+          <p>
+            Standardized client-services → media handoffs across Meta,
+            Programmatic, YouTube, Search, Native, X, LinkedIn, and
+            Reddit into a single normalized schema and versioned spec.
+            Recovered 62 weekly team hours and ended a decade of
+            tribal-knowledge handoff drift.
+          </p>
+          <div class="work-card-stack">
+            <span class="stamp">Schema design</span>
+            <span class="stamp">Versioned spec</span>
+            <span class="stamp">Cross-platform</span>
+          </div>
+        </article>
+
+        <!-- Arena Regulatus -->
+        <article class="work-card reveal">
+          <div class="work-card-head">
+            <h3>Arena Regulatus</h3>
+            <span class="work-card-tag">ai-in-the-loop · 2024</span>
+          </div>
+          <p>
+            AI QA bot in Slack: Claude API piped through Make.com,
+            tuned to enforce QA culture across media ops without being
+            annoying. Catches the small mistakes humans miss and lets
+            the team move faster as a result.
+          </p>
+          <div class="work-card-stack">
+            <span class="stamp">Claude API</span>
+            <span class="stamp">Slack</span>
+            <span class="stamp">Make.com</span>
+          </div>
+        </article>
+
+        <!-- ESP32 garage indicator -->
+        <article class="work-card reveal">
+          <div class="work-card-head">
+            <h3>Dual-zone garage indicator</h3>
+            <span class="work-card-tag">embedded · 2025</span>
+          </div>
+          <p>
+            Three ESP32 nodes communicating via ESP-NOW peer-to-peer,
+            HC-SR04 ultrasonics, and a Waveshare 64×64 HUB75E LED matrix
+            with weather display and pixel-art animations. Multi-node
+            embedded with timing-sensitive matrix driving and sensor
+            fusion. The "stranger machines" side of the house.
+          </p>
+          <div class="work-card-stack">
+            <span class="stamp">ESP32</span>
+            <span class="stamp">ESP-NOW</span>
+            <span class="stamp">HUB75E</span>
+            <span class="stamp">Arduino/C++</span>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <hr class="divider">
+
+    <!-- ============================================================
+         PLAYGROUND LINK
+         ============================================================ -->
+    <section class="section section--tight">
+      <div class="playground-tile reveal">
+        <div class="playground-tile-body">
+          <span class="kicker kicker--accent">after-hours</span>
+          <h2>The playground</h2>
+          <p>
+            Cryptographically-honest password generator, Fisher-Yates
+            array shuffler, side-by-side <code>Math.random()</code> vs
+            32-bit xorshift visual plots, and a Game-of-Life background
+            you can stage fullscreen.
+          </p>
+          <div class="button-row" style="justify-content:flex-start">
+            <a class="btn btn--small" href="playground.html">Enter the playground →</a>
+            <a class="btn btn--ghost btn--small" href="testing-kit.html">NIST RNG kit</a>
+          </div>
+        </div>
+        <div class="playground-tile-visual" aria-hidden="true">
+          <svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%">
+            <!-- Sparse dot field, hinting at the Math.random plot -->
+            <defs>
+              <pattern id="dotgrid" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                <circle cx="10" cy="10" r="0.6" fill="currentColor" opacity="0.15"/>
+              </pattern>
+            </defs>
+            <rect width="400" height="220" fill="url(#dotgrid)" style="color:var(--muted)"/>
+            <!-- Axis lines -->
+            <line x1="200" y1="0" x2="200" y2="220" stroke="currentColor" stroke-width="0.5" opacity="0.25" style="color:var(--muted)"/>
+            <line x1="0" y1="110" x2="400" y2="110" stroke="currentColor" stroke-width="0.5" opacity="0.25" style="color:var(--muted)"/>
+            <!-- Scattered points -->
+            <g style="color:var(--accent)">
+              <circle cx="42" cy="180" r="2.4" fill="currentColor"/>
+              <circle cx="78" cy="142" r="2.4" fill="currentColor"/>
+              <circle cx="120" cy="64" r="2.4" fill="currentColor"/>
+              <circle cx="155" cy="195" r="2.4" fill="currentColor"/>
+              <circle cx="186" cy="42" r="2.4" fill="currentColor"/>
+              <circle cx="218" cy="108" r="2.4" fill="currentColor"/>
+              <circle cx="252" cy="76" r="2.4" fill="currentColor"/>
+              <circle cx="276" cy="158" r="2.4" fill="currentColor"/>
+              <circle cx="304" cy="50" r="2.4" fill="currentColor"/>
+              <circle cx="332" cy="190" r="2.4" fill="currentColor"/>
+              <circle cx="362" cy="92" r="2.4" fill="currentColor"/>
+              <circle cx="380" cy="140" r="2.4" fill="currentColor"/>
+              <circle cx="58" cy="34" r="2.4" fill="currentColor"/>
+              <circle cx="98" cy="180" r="2.4" fill="currentColor"/>
+              <circle cx="142" cy="124" r="2.4" fill="currentColor"/>
+              <circle cx="174" cy="160" r="2.4" fill="currentColor"/>
+              <circle cx="232" cy="38" r="2.4" fill="currentColor"/>
+              <circle cx="268" cy="120" r="2.4" fill="currentColor"/>
+              <circle cx="296" cy="200" r="2.4" fill="currentColor"/>
+              <circle cx="346" cy="32" r="2.4" fill="currentColor"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <hr class="divider">
+
+    <!-- ============================================================
+         ABOUT / CONTACT
+         ============================================================ -->
+    <section class="section">
+      <div class="about">
+        <div>
+          <span class="kicker kicker--accent">about</span>
+          <h2 style="margin-top:14px">The shape of the work</h2>
+        </div>
+        <div class="about-prose">
+          <p>
+            I lead engineering, AI, and innovation at
+            <a href="https://arenawins.com/" target="_blank" rel="noopener">Arena</a>,
+            a digital advertising firm with deep political-cycle exposure
+            and an unusually broad surface area (DSPs, social, CTV, direct
+            mail). The role was created on purpose: a distinct vector for
+            engineering excellence next to traditional agency work.
+          </p>
+          <p>
+            I'm most useful at the intersection of three things — production
+            AI systems that have to actually run, hard data and information-theoretic
+            problems, and the human side of getting teams to adopt new
+            machinery. I authored our enterprise AI Policy v2.0 (7 core
+            principles, 16-category Universal Data Restrictions, vendor-
+            assessment rubric, 24-hour incident protocol) and chair the
+            internal AI and Automation committees.
+          </p>
+          <p>
+            Outside work I build embedded electronics, run statistical
+            tests on PRNGs because it's fun, contribute to local political
+            campaigns, and keep a homelab in northern Utah running on
+            more YAML than is strictly defensible.
+          </p>
+
+          <div class="contact-strip">
+            <a class="btn" href="https://www.linkedin.com/in/brayden-hord" target="_blank" rel="noopener">LinkedIn ↗</a>
+            <a class="btn btn--ghost" href="https://github.com/hord-brayden/" target="_blank" rel="noopener">GitHub ↗</a>
+            <span class="kicker">also at &middot; arenawins.com</span>
           </div>
         </div>
       </div>
+    </section>
 
-      <div class="randomRunner">
-        <div class="container">
-          <h1>Random Password Generator</h1>
-          <div class="mathJax">
-            <p>This generator pulls bytes from <a href="https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues"><code>window.crypto.getRandomValues()</code></a> when available - the browser's CSPRNG, suitable for security-sensitive use - with rejection sampling so the modulo doesn't bias the character distribution. It falls back to <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random"><code>Math.random()</code></a> only if <code>crypto</code> is unavailable.</p>
-            <p>Modern V8/SpiderMonkey actually implement <code>Math.random()</code> with xorshift128+, so the output is high-quality statistically - but it's <em>not</em> cryptographically secure: the internal state can be reconstructed from a handful of outputs. Don't use it for tokens, secrets, or anything an attacker would benefit from predicting.</p>
-          </div>
-          <div class="options">
-            <label>Password Length: <input type="number" id="passwordLength" value="20" min="4" max="128"></label>
-            <label><input type="checkbox" id="includeUppercase" checked> Include Uppercase</label>
-            <label><input type="checkbox" id="includeLowercase" checked> Include Lowercase</label>
-            <label><input type="checkbox" id="includeNumbers" checked> Include Numbers</label>
-            <label><input type="checkbox" id="includeSymbols" checked> Include Symbols</label>
-          </div>
-          <button id="generatePassword" type="button">Generate Password</button>
-          <input type="text" id="passwordOutput" readonly onclick="copyToClipboard('passwordOutput', event)">
-        </div>
+  </main>
 
-        <div class="container">
-          <h1>Randomize an Array</h1>
-          <div class="mathJax">
-            <p>Fisher-Yates shuffle backed by a uniform integer generator on top of <code>crypto.getRandomValues()</code> (with rejection sampling so each permutation is equally likely). Takes a comma- or space-separated list and returns a fair shuffle.</p>
-          </div>
-          <div class="options">
-            <input type="text" id="arrayInput" placeholder="Comma- or space-separated values (numbers or words)">
-          </div>
-          <div class="button-row">
-            <button id="array-fill" type="button" class="btn--ghost" onclick="document.getElementById('arrayInput').value = '1, 2, 3, 4, 5, 6, 7, 8, 9, 10';">Sample fill</button>
-            <button id="randomArrayMama" type="button" onclick="randomizeInputArray('arrayInput', 'arrayOutput')">Shuffle</button>
-          </div>
-          <input type="text" id="arrayOutput" readonly placeholder="Shuffled output appears here" onclick="copyToClipboard('arrayOutput', event)">
-        </div>
-      </div>
+  <button type="button" id="golExit" class="gol-exit btn--ghost">Back to the page</button>
 
-      <div class="randomRunner">
-        <div class="container">
-          <h1>Math.random() plot</h1>
-          <div class="mathJax">
-            <p>Plot of points $(x, y)$ where both coordinates come from <code>Math.random()</code>. The plot runs in <mjx-container class="MathJax" jax="CHTML"><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>O</mi></mrow><mo>(</mo><mn>n</mn><mo>)</mo></math></mjx-container> per call - constant work per sample.</p>
-            <p>With $n = 250$ points the four quadrants of $[0,1]^2$ won't have exactly the same count even from a perfect uniform RNG; that's a property of <em>random sampling</em>, not a flaw of the generator. The Law of Large Numbers makes the imbalance shrink as $n$ grows.</p>
-          </div>
-          <canvas id="randomNumberPlot" width="500" height="500" style="aspect-ratio:1/1"></canvas>
-          <div id="sectorCounts" class="sector-counts"></div>
-          <div id="randomValues" class="random-values" aria-live="polite"></div>
-          <button id="plotButton" type="button">Generate Math.random() plot</button>
-        </div>
-
-        <div class="container">
-          <h1>32-bit XORShift plot</h1>
-          <div class="mathJax">
-            <p>Same plot, but using a small <a href="https://en.wikipedia.org/wiki/Xorshift">xorshift</a> generator (Marsaglia 2003) seeded once from <code>crypto.getRandomValues()</code>. It's the <code>x ^= x &lt;&lt; 13; x ^= x &gt;&gt; 17; x ^= x &lt;&lt; 5;</code> recurrence - fast, statistically decent at short lengths, and a useful baseline for comparison.</p>
-            <p>For full statistical evaluation, use the <a href="testing-kit.html">NIST-style testing kit</a>.</p>
-          </div>
-          <canvas id="randomNumberPlot2" width="500" height="500" style="aspect-ratio:1/1"></canvas>
-          <div id="sectorCounts2" class="sector-counts"></div>
-          <div id="randomValues2" class="random-values" aria-live="polite"></div>
-          <button id="plotButton2" type="button">Generate XORShift plot</button>
-        </div>
-      </div>
-
-      <div class="head-container container mathJax content">
-        <p>This page uses <a href="https://www.mathjax.org/">MathJax</a> for inline LaTeX. You can right-click on equations or symbols to access an alternate-rendering dialog if your browser is having a bad time.</p>
-        <p>Inline equation: \( x^2 + y^2 = z^2 \)</p>
-        <p>Displayed equation:</p>
-        \[ \int_0^\infty e^{-x^2}\, dx = \frac{\sqrt{\pi}}{2} \]
-      </div>
-    </main>
-
-    <button type="button" id="golExit" class="gol-exit btn--ghost">Show the page again</button>
-
-    <footer-component></footer-component>
-    <script src="js/page-components.js"></script>
-    <script src="js/xorshift_rng.js"></script>
-    <script src="js/plot_random_numbers.js"></script>
-    <script src="js/password_generator.js"></script>
-    <script src="js/arraymama.js"></script>
-    <script>
-      (function () {
-        const toggle = document.getElementById('toggleButton');
-        const exitBtn = document.getElementById('golExit');
-
-        function enterGolMode() {
-          document.body.classList.add('gol-only');
-          toggle.textContent = 'Hide everything for the GoL view';
-          const startBtn = document.getElementById('startStopButton');
-          if (startBtn && startBtn.textContent === 'Start Game of Life') startBtn.click();
-        }
-        function exitGolMode() {
-          document.body.classList.remove('gol-only');
-          toggle.textContent = 'Hide everything for the GoL view';
-        }
-
-        toggle.addEventListener('click', enterGolMode);
-        exitBtn.addEventListener('click', exitGolMode);
-        document.addEventListener('keydown', function (e) {
-          if (e.key === 'Escape' && document.body.classList.contains('gol-only')) exitGolMode();
-        });
-      })();
-    </script>
-  </body>
+  <footer-component></footer-component>
+  <script src="js/site.js"></script>
+</body>
 </html>
