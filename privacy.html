@@ -14,7 +14,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Privacy — Brayden Hord</title>
-  <meta name="description" content="What this site does and doesn't collect. The short version: nothing leaves your browser.">
+  <meta name="description" content="What this site does and doesn't collect. The short version: anonymous visit stats via Google Analytics, nothing more.">
 
   <link rel="apple-touch-icon" sizes="180x180" href="img/apple-icon-180x180.png">
   <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
@@ -86,9 +86,10 @@
       </h1>
 
       <p class="hero-lede">
-        The short version: this is a static personal site. Nothing here
-        collects, stores, or transmits personal information about you
-        to me. The longer version is below, written like a human wrote it.
+        The short version: this is a static personal site. It uses
+        Google Analytics so I can see whether anyone actually visits,
+        and collects nothing beyond that. The longer version is below,
+        written like a human wrote it.
       </p>
     </section>
 
@@ -101,12 +102,30 @@
 
           <h2>What this site collects</h2>
           <p>
-            Nothing identifying. Pages are static HTML, CSS, and JavaScript.
-            There's no analytics, no cookies set by me, no tracking pixels,
-            and no server-side logging beyond what GitHub Pages records by
+            Visit statistics, and that's it. Pages are static HTML, CSS,
+            and JavaScript. There are no tracking pixels, no forms, and
+            no server-side logging beyond what GitHub Pages records by
             default to serve traffic. Settings you toggle on this site
             (dark mode, your reaction-timer best score) live in your browser
             via <code>localStorage</code> and never leave your device.
+          </p>
+
+          <h2>Analytics</h2>
+          <p>
+            Every page loads <strong>Google Analytics 4</strong>
+            (<code>gtag.js</code>). It reports the usual aggregate stats to
+            Google on my behalf: which pages get viewed, roughly where
+            visitors are (city-level, derived from IP), and what kind of
+            browser and device they use. I use it to answer exactly one
+            question — is anyone looking at this? — and I don't collect,
+            see, or keep anything beyond what Google's standard reports
+            provide. GA4 does not log or store visitor IP addresses, and
+            I haven't enabled ad personalization or Google Signals. How
+            Google handles the data in transit is governed by
+            <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Google's own policy</a>.
+            If you'd rather not be counted, the
+            <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">GA opt-out add-on</a>
+            or any common content blocker will do it — no hard feelings.
           </p>
 
           <h2>Third-party resources</h2>
@@ -121,19 +140,24 @@
 
           <h2>Cookies</h2>
           <p>
-            This site does not set cookies. Browser <code>localStorage</code>
-            is used only for the dark-mode preference and the reaction-timer
-            best score. You can clear both at any time from your browser's
+            Google Analytics sets two first-party cookies
+            (<code>_ga</code> and <code>_ga_*</code>) to tell returning
+            visitors apart from new ones. They contain a random client ID,
+            not your name or anything you typed. Beyond that, this site sets
+            no cookies of its own — browser <code>localStorage</code> is used
+            only for the dark-mode preference and the reaction-timer best
+            score. You can clear all of it at any time from your browser's
             site-data controls.
           </p>
 
           <h2>Your rights</h2>
           <p>
             You have the right to know how data about you is collected and
-            used. Since this site does not collect identifying data about
-            visitors, there is no profile to access, correct, or delete.
-            If you believe that has changed, the right place to flag it is
-            the site's <a href="https://github.com/hord-brayden/hord-brayden.github.io" target="_blank" rel="noopener">GitHub repository</a>.
+            used. The analytics data I see is aggregate and pseudonymous —
+            there's no per-person profile on my end to access, correct, or
+            delete. If you believe something on this site collects more than
+            described here, the right place to flag it is the site's
+            <a href="https://github.com/hord-brayden/hord-brayden.github.io" target="_blank" rel="noopener">GitHub repository</a>.
           </p>
 
           <h2>Contact</h2>
