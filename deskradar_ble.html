@@ -1,0 +1,86 @@
+<!doctype html>
+<!-- ==========================================================================
+ DeskRadar Pro - Bluetooth client
+ Open this file in CHROME or EDGE (desktop or Android). It talks to the Heltec
+ over BLE (Web Bluetooth) so you can pull audit data WITHOUT joining its WiFi.
+ iOS Safari does not support Web Bluetooth. If the browser blocks it from a
+ file:// URL, serve this file from any local web server (e.g. `python3 -m
+ http.server`) and open http://localhost:8000/deskradar_ble.html .
+=========================================================================== -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Desk Radar Pro - BLE</title>
+<style>
+ :root{--bg:#05090c;--pan:#0a1319;--grid:#123a2e;--sweep:#00ff9c;--ink:#c9ffe8;--dim:#4f7a6c;--hot:#ff5d5d}
+ body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-monospace,Menlo,Consolas,monospace}
+ header{padding:14px 18px;border-bottom:1px solid var(--grid);display:flex;justify-content:space-between;align-items:baseline}
+ h1{margin:0;font-size:15px;letter-spacing:3px;color:var(--sweep)} .st{font-size:12px;color:var(--dim)}
+ .bar{padding:12px 18px;border-bottom:1px solid var(--grid);display:flex;gap:8px;flex-wrap:wrap}
+ button{background:var(--pan);color:var(--sweep);border:1px solid var(--sweep);border-radius:5px;padding:7px 14px;font:inherit;font-size:12px;cursor:pointer}
+ button:disabled{color:var(--dim);border-color:var(--grid);cursor:not-allowed}
+ button.dc{color:var(--hot);border-color:var(--hot)}
+ pre{margin:0;padding:16px;font-size:12px;white-space:pre-wrap;word-break:break-word;overflow:auto}
+ .note{padding:0 18px;color:var(--dim);font-size:11px}
+</style></head><body>
+<header><h1>&#9678; DESK RADAR PRO &middot; BLE</h1><div class="st" id="st">not connected</div></header>
+<div class="bar">
+ <button id="conn" onclick="connect()">Connect</button>
+ <button class="q" onclick="req('SUM')" disabled>Summary</button>
+ <button class="q" onclick="req('THR')" disabled>&#9888; Threats</button>
+ <button class="q" onclick="req('APS')" disabled>Access points</button>
+ <button class="q" onclick="req('CLI')" disabled>Clients</button>
+ <button class="q" onclick="req('FIND')" disabled>Findings</button>
+ <button class="q" onclick="dl()" disabled>Download last</button>
+ <button id="disc" class="dc" onclick="disconnect()" disabled>Disconnect</button>
+</div>
+<div class="note">Tip: run <b>Access points</b> or <b>Clients</b>, then <b>Download last</b> to save it as a CSV for your records.</div>
+<pre id="out">Click Connect, then pick "DeskRadar-Pro".</pre>
+<script>
+const SVC='6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const RX ='6e400002-b5a3-f393-e0a9-e50e24dcca9e';   // write to device
+const TX ='6e400003-b5a3-f393-e0a9-e50e24dcca9e';   // notify from device
+let dev,rxc,txc,buf='',lastCmd='',lastData='';
+const $=id=>document.getElementById(id);
+const setBusy=b=>document.querySelectorAll('.q').forEach(x=>x.disabled=b);
+function status(t){$('st').textContent=t;}
+async function connect(){
+  if(!navigator.bluetooth){$('out').textContent='This browser has no Web Bluetooth. Use Chrome or Edge (desktop or Android).';return;}
+  try{
+    dev=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'Desk'}],optionalServices:[SVC]});
+    dev.addEventListener('gattserverdisconnected',onDisc);
+    status('connecting…');
+    const gatt=await dev.gatt.connect();
+    const svc=await gatt.getPrimaryService(SVC);
+    rxc=await svc.getCharacteristic(RX);
+    txc=await svc.getCharacteristic(TX);
+    await txc.startNotifications();
+    txc.addEventListener('characteristicvaluechanged',onNotify);
+    status('connected: '+(dev.name||'device'));
+    $('conn').disabled=true;$('disc').disabled=false;document.querySelectorAll('.q').forEach(x=>x.disabled=false);
+    $('out').textContent='Connected. Pick a query above.';
+    req('SUM');
+  }catch(e){$('out').textContent='Connection failed: '+e;status('not connected');}
+}
+function disconnect(){ if(dev&&dev.gatt.connected)dev.gatt.disconnect(); }
+function onDisc(){ status('disconnected'); $('conn').disabled=false;$('disc').disabled=true;document.querySelectorAll('.q').forEach(x=>x.disabled=true); }
+function onNotify(e){
+  const v=new Uint8Array(e.target.value.buffer);
+  if(v.length===1 && v[0]===0x04){                    // EOT -> response complete
+    lastData=buf; buf='';
+    $('out').textContent=lastData||'(empty)';
+    setBusy(false);
+    return;
+  }
+  buf+=new TextDecoder().decode(v);
+}
+async function req(cmd){
+  if(!rxc)return; lastCmd=cmd; buf=''; $('out').textContent='…'; setBusy(true);
+  await rxc.writeValue(new TextEncoder().encode(cmd+'\n'));
+}
+function dl(){
+  if(!lastData){alert('nothing to download yet');return;}
+  const ext=(lastCmd==='APS'||lastCmd==='CLI')?'csv':'txt';
+  const name='deskradar_'+lastCmd.toLowerCase()+'_'+Date.now()+'.'+ext;
+  const b=new Blob([lastData],{type:'text/plain'});const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download=name;a.click();
+}
+</script></body></html>
