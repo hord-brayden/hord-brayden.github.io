@@ -57,6 +57,11 @@
  <button class="q" onclick="req('THR')" disabled>&#9888; THREATS</button>
  <button class="q" onclick="req('APS')" disabled>AP SWEEP</button>
  <button class="q" onclick="req('CLI')" disabled>STATIONS</button>
+ <button class="q" onclick="req('NET')" disabled>&#127760; NETWORK</button>
+ <button class="q" onclick="req('EVT 0')" disabled>EVENTS</button>
+ <button class="q" onclick="req('JOIN')" disabled>JOIN BEST</button>
+ <button class="q" onclick="req('PAIR')" disabled>PAIR BOOST</button>
+ <button class="q" onclick="if(confirm('Reboot the unit?'))req('BOOT')" disabled>REBOOT</button>
  <button class="q" onclick="dl()" disabled>&#11015; EXFIL</button>
  <button id="disc" class="dc" onclick="disconnect()" disabled>&#9632; DROP</button>
 </div>
@@ -71,6 +76,8 @@
  <button class="q" onclick="syncNow()" disabled>&#8593; SYNC TO CLOUD</button>
  <button onclick="toggleCfg()">&#9881; RELAY SETUP</button>
  <label style="font-size:11px;color:var(--dim)"><input type="checkbox" id="autoSync" onchange="saveCfg()"> auto-sync on connect</label>
+ <input id="blepin" type="password" placeholder="unit passcode (if set)" style="width:170px">
+ <button onclick="savePin()">remember</button>
  <span id="syncSt" style="font-size:11px;color:var(--dim)"></span>
 </div>
 
@@ -109,15 +116,16 @@ function status(h){$('st').innerHTML='link: '+h;}
 // page, which matters because this page is served from a public site.
 // ===========================================================================
 const CFGK='anlax_relay_cfg', SEENK='anlax_seen_';
-let CFG={ntfy:'',url:'',key:'',auto:false};
+let CFG={ntfy:'',url:'',key:'',auto:false,pin:''};
 function loadCfg(){
   try{ CFG=Object.assign(CFG,JSON.parse(localStorage.getItem(CFGK)||'{}')); }catch(e){}
   $('cfgNtfy').value=CFG.ntfy||''; $('cfgUrl').value=CFG.url||'';
   $('cfgKey').value=CFG.key||'';   $('autoSync').checked=!!CFG.auto;
+  $('blepin').value=CFG.pin||'';
 }
 function saveCfg(announce){
   CFG={ntfy:$('cfgNtfy').value.trim(),url:$('cfgUrl').value.trim(),
-       key:$('cfgKey').value,auto:$('autoSync').checked};
+       key:$('cfgKey').value,auto:$('autoSync').checked,pin:$('blepin').value};
   try{ localStorage.setItem(CFGK,JSON.stringify(CFG)); }catch(e){}
   if(announce) setSync('saved on this device only');
 }
@@ -125,6 +133,7 @@ function forgetCfg(){
   try{ localStorage.removeItem(CFGK); }catch(e){}
   CFG={ntfy:'',url:'',key:'',auto:false}; loadCfg(); setSync('cleared from this device');
 }
+function savePin(){ saveCfg(); setSync('passcode remembered on this device'); }
 function toggleCfg(){ const b=$('cfgbox'); b.style.display = b.style.display==='none'?'block':'none'; }
 function setSync(t){ $('syncSt').textContent=t; }
 
@@ -196,9 +205,18 @@ async function attach(d){
   rxc=await s.getCharacteristic(RX); txc=await s.getCharacteristic(TX);
   await txc.startNotifications(); txc.addEventListener('characteristicvaluechanged',onNotify);
   status('<b>LINKED</b> · '+(d.name||'unit')); setDesig(d.name);
+  // iOS caches a peripheral's GAP name and hands back whatever it saw first -
+  // for these boards that is often the Meshtastic name they shipped with. The
+  // unit reports its real designation, so believe the unit, not the cache.
+  if(CFG.pin){ try{ await request('PIN '+CFG.pin,8000); }catch(e){} }
   $('conn').disabled=true;$('disc').disabled=false;document.querySelectorAll('.q').forEach(x=>x.disabled=false);
   $('out').textContent='◎ link established. pulling status…';
-  await request('SUM').then(t=>{$('out').textContent=t;}).catch(()=>{});
+  await request('SUM').then(t=>{
+    $('out').textContent=t;
+    if(t.indexOf('LOCKED')===0){ setSync('unit is passcode-locked — enter it and reconnect'); return; }
+    const first=(t.split('\n')[0]||'').trim();          // first line is the designation
+    if(/^[A-Za-z0-9/_.-]{3,32}$/.test(first) && first!=='unit') setDesig(first);
+  }).catch(()=>{});
   if(CFG.auto && (CFG.ntfy||CFG.url)) syncNow();
 }
 async function connect(){
