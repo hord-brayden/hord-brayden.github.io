@@ -51,6 +51,7 @@
 </header>
 
 <div class="bar">
+ <button id="reconn" onclick="reconnectKnown()">&#8635; RECONNECT</button>
  <button id="conn" onclick="connect()">&#9656; CONNECT</button>
  <button class="q" onclick="req('SUM')" disabled>STATUS</button>
  <button class="q" onclick="req('THR')" disabled>&#9888; THREATS</button>
@@ -65,6 +66,28 @@
  <button class="q" onclick="addWifi()" disabled>&#8599; TASK UPLINK</button>
 </div>
 <div class="note">TASK UPLINK provisions a WiFi network over Bluetooth &mdash; the unit joins it and reports its LAN address on the OLED, for the full console. STATUS/THREATS/etc. stream over BLE with no association.</div>
+
+<div class="bar">
+ <button class="q" onclick="syncNow()" disabled>&#8593; SYNC TO CLOUD</button>
+ <button onclick="toggleCfg()">&#9881; RELAY SETUP</button>
+ <label style="font-size:11px;color:var(--dim)"><input type="checkbox" id="autoSync" onchange="saveCfg()"> auto-sync on connect</label>
+ <span id="syncSt" style="font-size:11px;color:var(--dim)"></span>
+</div>
+
+<div id="cfgbox" style="display:none;padding:10px 16px;border-bottom:1px solid var(--grid)">
+ <div class="note" style="padding:0 0 8px">
+  <b>Your phone becomes the unit's uplink.</b> The set talks to this page over Bluetooth; this page forwards to the internet over your phone's connection. The unit never needs WiFi &mdash; same shape as how smart glasses reach the cloud through a paired phone.<br><br>
+  <b style="color:var(--amb)">These settings are stored only in this browser (localStorage), never in the page and never uploaded.</b> This is a public site &mdash; nothing you type here is committed anywhere.
+ </div>
+ <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+  <input id="cfgNtfy" placeholder="ntfy topic" style="width:170px">
+  <input id="cfgUrl" placeholder="Apps Script /exec URL (optional)" style="width:260px">
+  <input id="cfgKey" type="password" placeholder="sheet secret" style="width:150px">
+  <button onclick="saveCfg(1)">save</button>
+  <button onclick="forgetCfg()">forget</button>
+ </div>
+ <div class="note" style="padding:8px 0 0">Sync sends only <i>new</i> events since the last successful upload, tracked per unit, so nothing is duplicated.</div>
+</div>
 <pre id="out">&#9678; standby. press CONNECT and select your unit.</pre>
 <script>
 const SVC='6e400001-b5a3-f393-e0a9-e50e24dcca9e';
@@ -74,34 +97,147 @@ let dev,rxc,txc,buf='',lastCmd='',lastData='';
 const $=id=>document.getElementById(id);
 const setBusy=b=>document.querySelectorAll('.q').forEach(x=>x.disabled=b);
 function status(h){$('st').innerHTML='link: '+h;}
+
+// ===========================================================================
+// Phone-as-uplink relay
+//
+// The set has no cellular radio. This page bridges it: BLE in from the unit,
+// HTTPS out over the phone's own connection - the same shape as smart glasses
+// reaching the cloud through a paired phone. The unit never has to join WiFi.
+//
+// Config lives in localStorage on THIS device only. Nothing is baked into the
+// page, which matters because this page is served from a public site.
+// ===========================================================================
+const CFGK='anlax_relay_cfg', SEENK='anlax_seen_';
+let CFG={ntfy:'',url:'',key:'',auto:false};
+function loadCfg(){
+  try{ CFG=Object.assign(CFG,JSON.parse(localStorage.getItem(CFGK)||'{}')); }catch(e){}
+  $('cfgNtfy').value=CFG.ntfy||''; $('cfgUrl').value=CFG.url||'';
+  $('cfgKey').value=CFG.key||'';   $('autoSync').checked=!!CFG.auto;
+}
+function saveCfg(announce){
+  CFG={ntfy:$('cfgNtfy').value.trim(),url:$('cfgUrl').value.trim(),
+       key:$('cfgKey').value,auto:$('autoSync').checked};
+  try{ localStorage.setItem(CFGK,JSON.stringify(CFG)); }catch(e){}
+  if(announce) setSync('saved on this device only');
+}
+function forgetCfg(){
+  try{ localStorage.removeItem(CFGK); }catch(e){}
+  CFG={ntfy:'',url:'',key:'',auto:false}; loadCfg(); setSync('cleared from this device');
+}
+function toggleCfg(){ const b=$('cfgbox'); b.style.display = b.style.display==='none'?'block':'none'; }
+function setSync(t){ $('syncSt').textContent=t; }
+
+// Reconnect without the picker. Needs the "allow future background
+// connections" permission iOS offers when you first pair.
+async function reconnectKnown(){
+  if(!navigator.bluetooth || !navigator.bluetooth.getDevices){
+    $('out').textContent='This browser cannot list already-permitted devices. Use CONNECT once, and allow future background connections when asked.'; return; }
+  try{
+    const known=await navigator.bluetooth.getDevices();
+    if(!known.length){ $('out').textContent='No remembered units. Press CONNECT once and allow future background connections.'; return; }
+    for(const d of known){
+      try{ dev=d; await attach(d); return; }catch(e){}
+    }
+    $('out').textContent='Remembered '+known.length+' unit(s) but none answered. Wake one, or use the pairing boost on its BLE tab.';
+  }catch(e){ $('out').textContent='reconnect failed: '+e; }
+}
+
+// Pull the event log and push anything new. Per-unit high-water mark means
+// re-syncing is safe and never duplicates.
+async function syncNow(){
+  if(!rxc){ setSync('not connected'); return; }
+  if(!CFG.ntfy && !CFG.url){ setSync('nothing configured — open RELAY SETUP'); toggleCfg(); return; }
+  const key=SEENK+(unitName||'unit');
+  const since=parseInt(localStorage.getItem(key)||'0',10)||0;
+  setSync('reading events…');
+  const txt=await request('EVT '+since);
+  const lines=txt.split('\n');
+  let hdr=(lines[0]||'').split(' '), unit=hdr[1]||unitName||'unit', top=parseInt(hdr[2]||'0',10)||since;
+  const rows=lines.slice(1).filter(l=>l.indexOf('\t')>0);
+  const geo=(lines.find(l=>l.startsWith('GEO '))||'').slice(4).trim();
+  if(!rows.length){ setSync('nothing new (up to #'+top+')'); return; }
+
+  setSync('sending '+rows.length+'…');
+  let ok=0, fail=0;
+  for(const r of rows){
+    const [id,age,type,detail]=r.split('\t');
+    const line=unit+' · '+type+' · '+detail+(geo?(' @ '+geo):'')+' · '+age+'s ago';
+    try{
+      if(CFG.ntfy){
+        await fetch('https://ntfy.sh/'+encodeURIComponent(CFG.ntfy),{
+          method:'POST', body:line,
+          headers:{'Title':unit+' · '+type,'Priority':'default','Tags':'satellite'}});
+      }
+      if(CFG.url){
+        // Apps Script + text/plain avoids a CORS preflight it would reject.
+        // no-cors means we cannot read the reply, so this is fire-and-forget.
+        await fetch(CFG.url,{method:'POST',mode:'no-cors',
+          headers:{'Content-Type':'text/plain;charset=utf-8'},
+          body:JSON.stringify({key:CFG.key,type:type,detail:detail,dev:unit,loc:geo,via:'ble-relay'})});
+      }
+      ok++;
+    }catch(e){ fail++; }
+  }
+  if(!fail){ try{ localStorage.setItem(key,String(top)); }catch(e){} }
+  setSync(ok+' sent'+(fail?(', '+fail+' failed — will retry next sync'):' · up to #'+top));
+  $('out').textContent='Relayed '+ok+' event(s) from '+unit+(geo?('\nlocation: '+geo):'')+'\n\n'+rows.join('\n');
+}
 // The page takes its identity from whichever unit you connect to, so one copy
 // of this file works for every unit in the fleet.
 let unitName='unit';
 function setDesig(n){ if(!n)return; unitName=n; $('desig').textContent=n; document.title='◎ '+n; }
+// Shared by CONNECT (picker) and RECONNECT (already-permitted device).
+async function attach(d){
+  d.addEventListener('gattserverdisconnected',onDisc);
+  status('<b>ACQUIRING…</b>');
+  const g=await d.gatt.connect();
+  const s=await g.getPrimaryService(SVC);
+  rxc=await s.getCharacteristic(RX); txc=await s.getCharacteristic(TX);
+  await txc.startNotifications(); txc.addEventListener('characteristicvaluechanged',onNotify);
+  status('<b>LINKED</b> · '+(d.name||'unit')); setDesig(d.name);
+  $('conn').disabled=true;$('disc').disabled=false;document.querySelectorAll('.q').forEach(x=>x.disabled=false);
+  $('out').textContent='◎ link established. pulling status…';
+  await request('SUM').then(t=>{$('out').textContent=t;}).catch(()=>{});
+  if(CFG.auto && (CFG.ntfy||CFG.url)) syncNow();
+}
 async function connect(){
   if(!navigator.bluetooth){$('out').textContent='No Web Bluetooth in this browser. Use Chrome/Edge (desktop or Android) or the Bluefy app on iOS.';return;}
   try{
     dev=await navigator.bluetooth.requestDevice({filters:[{services:[SVC]}],optionalServices:[SVC]});
-    dev.addEventListener('gattserverdisconnected',onDisc);
-    status('<b>ACQUIRING…</b>');
-    const g=await dev.gatt.connect();
-    const s=await g.getPrimaryService(SVC);
-    rxc=await s.getCharacteristic(RX); txc=await s.getCharacteristic(TX);
-    await txc.startNotifications(); txc.addEventListener('characteristicvaluechanged',onNotify);
-    status('<b>LINKED</b> · '+(dev.name||'unit')); setDesig(dev.name);
-    $('conn').disabled=true;$('disc').disabled=false;document.querySelectorAll('.q').forEach(x=>x.disabled=false);
-    $('out').textContent='◎ link established. pulling status…'; req('SUM');
+    await attach(dev);
   }catch(e){$('out').textContent='link failed: '+e; status('<b class=blink>STANDBY</b>');}
 }
 function disconnect(){ if(dev&&dev.gatt.connected)dev.gatt.disconnect(); }
 function onDisc(){ status('<b class=blink>DROPPED</b>'); $('conn').disabled=false;$('disc').disabled=true;document.querySelectorAll('.q').forEach(x=>x.disabled=true); }
+// Replies arrive in chunks terminated by 0x04. `pending` lets a caller await a
+// whole response instead of just watching the screen update.
+let pending=null;
 function onNotify(e){
   const v=new Uint8Array(e.target.value.buffer);
-  if(v.length===1 && v[0]===0x04){ lastData=buf; buf=''; $('out').textContent=lastData||'(empty)'; setBusy(false); return; }
+  if(v.length===1 && v[0]===0x04){
+    lastData=buf; buf=''; setBusy(false);
+    if(pending){ const p=pending; pending=null; clearTimeout(p.timer); p.resolve(lastData); }
+    else $('out').textContent=lastData||'(empty)';
+    return;
+  }
   buf+=new TextDecoder().decode(v);
 }
-async function req(cmd){ if(!rxc)return; lastCmd=cmd; buf=''; $('out').textContent='◎ querying '+cmd+'…'; setBusy(true);
-  await rxc.writeValue(new TextEncoder().encode(cmd+'\n')); }
+// Awaitable request. Times out rather than hanging forever if a unit goes away.
+function request(cmd,ms){
+  if(!rxc) return Promise.reject('not connected');
+  lastCmd=cmd.split(' ')[0]; buf=''; setBusy(true);
+  return new Promise((resolve,reject)=>{
+    pending={resolve,reject,timer:setTimeout(()=>{
+      pending=null; setBusy(false); reject('timed out waiting for '+cmd);
+    },ms||15000)};
+    rxc.writeValue(new TextEncoder().encode(cmd+'\n')).catch(err=>{
+      if(pending){clearTimeout(pending.timer);pending=null;} setBusy(false); reject(err);
+    });
+  });
+}
+async function req(cmd){ if(!rxc)return; $('out').textContent='◎ querying '+cmd+'…';
+  try{ $('out').textContent=await request(cmd); }catch(e){ $('out').textContent=''+e; } }
 async function addWifi(){ if(!rxc)return;
   const s=$('wssid').value,p=$('wpass').value; if(!s){alert('enter an uplink SSID');return;}
   lastCmd='WIFI'; buf=''; $('out').textContent='◎ provisioning uplink '+s+'…'; setBusy(true);
@@ -111,4 +247,5 @@ function dl(){ if(!lastData){alert('nothing to exfil yet');return;}
   const b=new Blob([lastData],{type:'text/plain'});const a=document.createElement('a');
   const slug=unitName.toLowerCase().replace(/[^a-z0-9]+/g,'')||'unit';
   a.href=URL.createObjectURL(b);a.download=slug+'_'+lastCmd.toLowerCase()+'_'+Date.now()+'.'+ext;a.click(); }
+loadCfg();
 </script></body></html>
