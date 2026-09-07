@@ -1,0 +1,114 @@
+<!doctype html>
+<!-- ==========================================================================
+ AN/VL_-___  ·  BLE link terminal  (one file, any unit - it takes its name
+ from whichever unit you connect to)
+ Open in CHROME / EDGE (desktop or Android) or the BLUEFY app on iOS.
+ Talks to the unit over Bluetooth (Web Bluetooth) — no WiFi association needed.
+ If blocked from a file:// path, serve it (python3 -m http.server) or host on
+ GitHub Pages and open the https URL.
+=========================================================================== -->
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- keep this off search engines / archives -->
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<meta name="googlebot" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#02060a">
+<title>&#9678; link</title>
+<style>
+ :root{--bg:#02060a;--pan:#07130f;--pan2:#0a1a16;--grid:#12463a;--grn:#12f7b4;--amb:#ffce4a;--red:#ff4d6d;--ink:#bff7e4;--dim:#4c7c6e}
+ *{box-sizing:border-box} html,body{height:100%}
+ body{margin:0;background:radial-gradient(1000px 500px at 80% -10%,rgba(18,247,180,.08),transparent 60%),var(--bg);
+   color:var(--ink);font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.5px}
+ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:99;opacity:.4;
+   background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.25) 2px 3px)}
+ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:98;box-shadow:inset 0 0 160px rgba(0,0,0,.9)}
+ header{padding:16px 16px 10px;border-bottom:1px solid var(--grid);position:relative}
+ .desig{font-size:16px;letter-spacing:5px;color:var(--grn);text-shadow:0 0 14px rgba(18,247,180,.7)}
+ .sub{font-size:9px;color:var(--dim);letter-spacing:3px;margin-top:3px}
+ .cls{position:absolute;top:16px;right:16px;font-size:9px;letter-spacing:2px;color:var(--amb);border:1px solid var(--amb);padding:2px 6px;border-radius:3px;opacity:.8}
+ .st{font-size:11px;color:var(--dim);margin-top:8px} .st b{color:var(--grn)}
+ .bar{padding:11px 14px;display:flex;gap:7px;flex-wrap:wrap;border-bottom:1px solid var(--grid);align-items:center}
+ button,input{font:inherit;letter-spacing:.5px}
+ button{background:var(--pan);color:var(--grn);border:1px solid var(--grid);border-radius:4px;padding:8px 13px;font-size:12px;cursor:pointer;
+   clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);transition:.15s}
+ button:hover:not(:disabled){border-color:var(--grn);color:#eafff7;box-shadow:0 0 12px rgba(18,247,180,.35)}
+ button:disabled{color:var(--dim);border-color:#0d2a22;cursor:not-allowed}
+ button.dc{color:var(--red);border-color:#3a1520}
+ input{background:#04100c;color:var(--ink);border:1px solid var(--grid);border-radius:4px;padding:8px}
+ input::placeholder{color:#39604f}
+ .note{padding:8px 16px 0;color:var(--dim);font-size:10.5px;line-height:1.5}
+ pre{margin:12px 16px;padding:14px;font-size:12px;white-space:pre-wrap;word-break:break-word;overflow:auto;
+   background:linear-gradient(160deg,var(--pan2),var(--pan));border:1px solid var(--grid);border-radius:6px;min-height:120px;box-shadow:inset 0 0 30px rgba(0,0,0,.5)}
+ .blink{animation:bl 1.1s steps(2) infinite}@keyframes bl{50%{opacity:.25}}
+</style></head><body>
+<header>
+ <div class="desig">&#9678; <span id="desig">AN/VL_-___</span></div>
+ <div class="sub">WIRELESS RECON / SURVEILLANCE SET &middot; BLE LINK</div>
+ <div class="cls">// EYES ONLY</div>
+ <div class="st" id="st">link: <b class="blink">STANDBY</b> &mdash; press CONNECT</div>
+</header>
+
+<div class="bar">
+ <button id="conn" onclick="connect()">&#9656; CONNECT</button>
+ <button class="q" onclick="req('SUM')" disabled>STATUS</button>
+ <button class="q" onclick="req('THR')" disabled>&#9888; THREATS</button>
+ <button class="q" onclick="req('APS')" disabled>AP SWEEP</button>
+ <button class="q" onclick="req('CLI')" disabled>STATIONS</button>
+ <button class="q" onclick="dl()" disabled>&#11015; EXFIL</button>
+ <button id="disc" class="dc" onclick="disconnect()" disabled>&#9632; DROP</button>
+</div>
+<div class="bar">
+ <input id="wssid" class="q" placeholder="uplink SSID" disabled style="width:130px">
+ <input id="wpass" class="q" type="password" placeholder="passphrase" disabled style="width:130px">
+ <button class="q" onclick="addWifi()" disabled>&#8599; TASK UPLINK</button>
+</div>
+<div class="note">TASK UPLINK provisions a WiFi network over Bluetooth &mdash; the unit joins it and reports its LAN address on the OLED, for the full console. STATUS/THREATS/etc. stream over BLE with no association.</div>
+<pre id="out">&#9678; standby. press CONNECT and select your unit.</pre>
+<script>
+const SVC='6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const RX ='6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+const TX ='6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+let dev,rxc,txc,buf='',lastCmd='',lastData='';
+const $=id=>document.getElementById(id);
+const setBusy=b=>document.querySelectorAll('.q').forEach(x=>x.disabled=b);
+function status(h){$('st').innerHTML='link: '+h;}
+// The page takes its identity from whichever unit you connect to, so one copy
+// of this file works for every unit in the fleet.
+let unitName='unit';
+function setDesig(n){ if(!n)return; unitName=n; $('desig').textContent=n; document.title='◎ '+n; }
+async function connect(){
+  if(!navigator.bluetooth){$('out').textContent='No Web Bluetooth in this browser. Use Chrome/Edge (desktop or Android) or the Bluefy app on iOS.';return;}
+  try{
+    dev=await navigator.bluetooth.requestDevice({filters:[{services:[SVC]}],optionalServices:[SVC]});
+    dev.addEventListener('gattserverdisconnected',onDisc);
+    status('<b>ACQUIRING…</b>');
+    const g=await dev.gatt.connect();
+    const s=await g.getPrimaryService(SVC);
+    rxc=await s.getCharacteristic(RX); txc=await s.getCharacteristic(TX);
+    await txc.startNotifications(); txc.addEventListener('characteristicvaluechanged',onNotify);
+    status('<b>LINKED</b> · '+(dev.name||'unit')); setDesig(dev.name);
+    $('conn').disabled=true;$('disc').disabled=false;document.querySelectorAll('.q').forEach(x=>x.disabled=false);
+    $('out').textContent='◎ link established. pulling status…'; req('SUM');
+  }catch(e){$('out').textContent='link failed: '+e; status('<b class=blink>STANDBY</b>');}
+}
+function disconnect(){ if(dev&&dev.gatt.connected)dev.gatt.disconnect(); }
+function onDisc(){ status('<b class=blink>DROPPED</b>'); $('conn').disabled=false;$('disc').disabled=true;document.querySelectorAll('.q').forEach(x=>x.disabled=true); }
+function onNotify(e){
+  const v=new Uint8Array(e.target.value.buffer);
+  if(v.length===1 && v[0]===0x04){ lastData=buf; buf=''; $('out').textContent=lastData||'(empty)'; setBusy(false); return; }
+  buf+=new TextDecoder().decode(v);
+}
+async function req(cmd){ if(!rxc)return; lastCmd=cmd; buf=''; $('out').textContent='◎ querying '+cmd+'…'; setBusy(true);
+  await rxc.writeValue(new TextEncoder().encode(cmd+'\n')); }
+async function addWifi(){ if(!rxc)return;
+  const s=$('wssid').value,p=$('wpass').value; if(!s){alert('enter an uplink SSID');return;}
+  lastCmd='WIFI'; buf=''; $('out').textContent='◎ provisioning uplink '+s+'…'; setBusy(true);
+  await rxc.writeValue(new TextEncoder().encode('WIFI\n'+s+'\n'+p)); }
+function dl(){ if(!lastData){alert('nothing to exfil yet');return;}
+  const ext=(lastCmd==='APS'||lastCmd==='CLI')?'csv':'txt';
+  const b=new Blob([lastData],{type:'text/plain'});const a=document.createElement('a');
+  const slug=unitName.toLowerCase().replace(/[^a-z0-9]+/g,'')||'unit';
+  a.href=URL.createObjectURL(b);a.download=slug+'_'+lastCmd.toLowerCase()+'_'+Date.now()+'.'+ext;a.click(); }
+</script></body></html>
