@@ -511,6 +511,9 @@ const bakeCache = new Map();
  * ever rasterised once for the lifetime of the page.
  */
 export function bakeWeapon(weaponId, pal, scale, outlineColor) {
+  // Guard the contract rather than trusting callers: a NaN or zero scale
+  // produces a zero-size canvas, and drawImage throws on one of those.
+  scale = Number.isFinite(scale) ? Math.max(1, Math.min(8, Math.round(scale))) : 1;
   const key = `${weaponId}|${pal.key}|${scale}|${outlineColor || '-'}`;
   const hit = bakeCache.get(key);
   if (hit) return hit;

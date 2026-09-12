@@ -37,13 +37,18 @@ function ringSpawn(engine, count, index, inset = 0.32) {
 
 /**
  * Turn the roster from the config into live fighters.
- * `roster` is [{ fighterId, teamId, count, loadout }].
+ * `roster` is [{ fighterId, teamId, count, loadout, profile, startHp }].
+ * `profile` and `startHp` are how a campaign run layers its upgrades and its
+ * accumulated damage onto an otherwise ordinary fighter.
  */
 function spawnRoster(engine, roster) {
   const flat = [];
   roster.forEach((entry) => {
     for (let i = 0; i < (entry.count || 1); i++) {
-      flat.push({ fighterId: entry.fighterId, teamId: entry.teamId, loadout: entry.loadout });
+      flat.push({
+        fighterId: entry.fighterId, teamId: entry.teamId, loadout: entry.loadout,
+        profile: entry.profile, startHp: entry.startHp,
+      });
     }
   });
 
@@ -54,6 +59,8 @@ function spawnRoster(engine, roster) {
       fighterId: f.fighterId,
       teamId: f.teamId,
       loadout: f.loadout,
+      profile: f.profile,
+      startHp: f.startHp,
       x: pos.x, y: pos.y,
       hp: c.baseHp,
       damage: c.baseDamage,

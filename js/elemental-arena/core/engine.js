@@ -126,6 +126,7 @@ export class Ball {
     this.maxHp = this.baseMaxHp;
     this.hp = this.maxHp;
     this.baseDamage = damage * el.damage * buildMultiplier(loadout, 'dmg');
+    this.startHp = opts.startHp;   // campaign carries damage between stages
 
     this.statuses = new Map();
     this.mods = baseModifiers();
@@ -147,6 +148,16 @@ export class Ball {
 
     this.weapons = [];
     this.addWeapon(engine, true);
+
+    /* A campaign profile layers a run's accumulated upgrades on top of the
+     * template. It is deliberately separate from `loadout`: a loadout is
+     * something you author in the Forge and share in a URL, a profile is
+     * something a run earns. Applied by Engine.applyProfile once the ball
+     * exists, so an upgrade can read the finished stats. */
+    this.profile = opts.profile || null;
+    this.resists = null;       // { burn: 0.3, all: 0.1, ... }
+    this.ccResist = 0;         // fraction shaved off control durations
+    this.crit = null;          // { chance, mult }
 
     this.dead = false;
     this.deathTime = 0;
@@ -250,15 +261,55 @@ export class Engine {
   setMode(mode) {
     this.mode = mode;
     mode.init(this);
-    // Perks are applied once every fighter exists, so a perk may safely look
-    // at the rest of the board.
-    for (const ball of this.balls) this.applyPerk(ball);
+    // Perks and profiles are applied once every fighter exists, so either may
+    // safely look at the rest of the board.
+    for (const ball of this.balls) {
+      this.applyProfile(ball);
+      this.applyPerk(ball);
+    }
+    if (this.onReady) this.onReady(this);
     return this;
   }
 
   applyPerk(ball) {
     const perk = Perks.get(ball.loadout.perk);
     if (perk && perk.apply) perk.apply(this, ball);
+  }
+
+  /**
+   * Fold a campaign profile into a freshly built ball.
+   *
+   * Multipliers are applied to the *base* values rather than the live ones so
+   * the order upgrades were bought in cannot change the result — a run that
+   * buys armour then health ends up identical to one that buys them the other
+   * way round.
+   */
+  applyProfile(ball) {
+    const p = ball.profile;
+    if (!p) return;
+
+    if (p.maxHpMul) { ball.baseMaxHp *= p.maxHpMul; ball.maxHp = ball.baseMaxHp; ball.hp = ball.maxHp; }
+    if (p.damageMul) ball.baseDamage *= p.damageMul;
+    if (p.speedMul) ball.targetSpeed *= p.speedMul;
+    if (p.radiusMul) { ball.baseRadius *= p.radiusMul; ball.radius = ball.baseRadius; }
+    if (p.reachBonus) ball.tetherBonus = (ball.tetherBonus || 0) + p.reachBonus;
+    if (p.spinMul) ball.spinScale = p.spinMul;
+    if (p.ultRate) ball.ultRate = p.ultRate;
+    if (p.resists) ball.resists = { ...p.resists };
+    if (p.ccResist) ball.ccResist = p.ccResist;
+    if (p.crit) ball.crit = { ...p.crit };
+    if (p.flags) Object.assign(ball.flags, p.flags);
+
+    for (let i = 1; i < (p.extraWeapons || 0) + 1; i++) ball.addWeapon(this, true);
+    for (const id of p.perks || []) {
+      const perk = Perks.get(id);
+      if (perk && perk.apply) perk.apply(this, ball);
+    }
+
+    // A campaign orb carries its wounds between stages.
+    if (Number.isFinite(ball.startHp)) {
+      ball.hp = Math.max(1, Math.min(ball.maxHp, ball.startHp));
+    }
   }
 
   on(event, fn) {
@@ -437,6 +488,8 @@ export class Engine {
     // Diminishing returns on hard crowd control. Without this, one lucky
     // freeze leads to another — a stunned fighter cannot swing, so it cannot
     // break the chain, and the match is decided by whoever landed CC first.
+    if (ball.ccResist) duration *= Math.max(0.15, 1 - ball.ccResist);
+
     if (def.hardCC) {
       if (this.time < (ball.ccImmuneUntil || 0)) {
         this.announce(ball, 'RESIST', '#ffffff', 0.8);
@@ -575,7 +628,7 @@ export class Engine {
     for (const ball of this.balls) {
       if (ball.dead) continue;
       const grip = ball.gripDistance();
-      const drive = 2400 * ball.element.spin * ball.mods.spinMul * ball.spinDir
+      const drive = 2400 * ball.element.spin * (ball.spinScale || 1) * ball.mods.spinMul * ball.spinDir
         * (1 + (ball.spinBoost || 0) * 0.2);
       if (ball.spinBoost) ball.spinBoost = Math.max(0, ball.spinBoost - dt * 2);
 
@@ -723,6 +776,12 @@ export class Engine {
     amount *= w.dmgScale;
     if (w.heavy) amount *= 1.12;
 
+    let crit = false;
+    if (attacker.crit && this.rng.chance(attacker.crit.chance)) {
+      amount *= attacker.crit.mult;
+      crit = true;
+    }
+
     const dealt = this.damage(victim, amount, {
       sourceId: attacker.id,
       kind: 'weapon',
@@ -730,6 +789,12 @@ export class Engine {
       fromX: w.tipX, fromY: w.tipY,
     });
     if (dealt <= 0) return;   // evaded
+
+    if (crit) {
+      this.announce(victim, 'CRIT', '#ffd93d', 0.7);
+      this.particles.burst('spark', victim.x, victim.y, 14, 260, '#ffd93d');
+      this.shake(6);
+    }
 
     attacker.hitsLanded++;
     this.stats.hits++;
@@ -778,6 +843,16 @@ export class Engine {
 
     let dealt = amount;
     if (!ignoreArmor) dealt *= target.mods.dmgTakenMul;
+
+    // Campaign resistances are keyed by damage kind, so a run can specialise
+    // against the thing that keeps killing it rather than buying generic bulk.
+    // The floor is what stops that specialisation becoming immunity: stacked
+    // with a run's health upgrades, anything deeper than this made late builds
+    // unkillable and the score stopped meaning anything.
+    if (target.resists) {
+      const r = (target.resists[kind] || 0) + (target.resists.all || 0);
+      if (r) dealt *= Math.max(0.4, 1 - r);
+    }
     dealt = Math.max(0, dealt);
 
     target.hp -= dealt;
@@ -819,6 +894,7 @@ export class Engine {
 
   heal(ball, amount) {
     if (!ball || ball.dead || amount <= 0) return;
+    if (this.noHealing) return;   // the Sudden Death stage modifier
     const healed = Math.min(amount * ball.mods.healMul, ball.maxHp - ball.hp);
     if (healed <= 0) return;
     ball.hp += healed;

@@ -22,6 +22,7 @@ import { Perks } from './content/loadouts.js';
 import { Modes } from './modes/index.js';
 import { randomSeedPhrase } from './core/rng.js';
 import { Forge, TEAM_NAMES, TEAM_TINTS } from './ui/forge.js';
+import { Campaign } from './ui/campaign.js';
 import { refreshPreviews } from './ui/preview.js';
 import {
   defaultConfig, normalizeConfig, loadConfig, saveConfig,
@@ -55,6 +56,8 @@ class App {
     this.observeResize();
 
     this.forge = new Forge(this);
+    this.campaign = new Campaign(this);
+    this.campaignBattle = null;   // set while a campaign fight is running
 
     if (shared) this.startMatch();
     else this.showForge();
@@ -67,22 +70,33 @@ class App {
 
   /* ----------------------------------------------------------- screens */
 
-  showForge() {
-    this.screen = 'forge';
+  /** Screens are mutually exclusive; this is the only place that toggles them. */
+  setScreen(name) {
+    this.screen = name;
     this.scrollToTop();
-    $('#forge').hidden = false;
-    $('#play').hidden = true;
-    document.body.classList.remove('ea-playing');
+    $('#forge').hidden = name !== 'forge';
+    $('#campaign').hidden = name !== 'campaign';
+    $('#play').hidden = name !== 'play';
+    document.body.classList.toggle('ea-playing', name === 'play');
+    $$('.ea-mode-switch button').forEach((b) =>
+      b.classList.toggle('is-on', b.dataset.screen === name));
+  }
+
+  showForge() {
+    this.setScreen('forge');
+    this.campaignBattle = null;
     if (this.forge) this.forge.render();
     refreshPreviews();
   }
 
+  showCampaign() {
+    this.setScreen('campaign');
+    this.campaignBattle = null;
+    this.campaign.enter();
+  }
+
   showPlay() {
-    this.screen = 'play';
-    this.scrollToTop();
-    $('#forge').hidden = true;
-    $('#play').hidden = false;
-    document.body.classList.add('ea-playing');
+    this.setScreen('play');
     this.renderer.hostW = -1;
     this.fitCanvas();
   }
@@ -95,11 +109,25 @@ class App {
 
   /* ------------------------------------------------------------ match */
 
-  startMatch(overrides = {}) {
-    Object.assign(this.config, overrides);
-    const cfg = normalizeConfig(this.config);
-    this.config = cfg;
-    this.persist();
+  /**
+   * @param {object} overrides merged into the config
+   * @param {object} opts      { campaign, modifier } — a campaign fight is not
+   *                           persisted as the player's Forge setup, because
+   *                           its roster is generated rather than authored.
+   */
+  startMatch(overrides = {}, opts = {}) {
+    let cfg;
+    if (opts.campaign) {
+      cfg = normalizeConfig({ ...this.config, ...overrides });
+      // A generated roster carries profiles that normalizeConfig drops, so
+      // reattach them from the override.
+      cfg.roster = overrides.roster;
+    } else {
+      Object.assign(this.config, overrides);
+      cfg = normalizeConfig(this.config);
+      this.config = cfg;
+      this.persist();
+    }
 
     const mode = Modes.require(cfg.modeId);
 
@@ -125,6 +153,9 @@ class App {
     engine.on('hit', ({ amount }) => this.audio.play('hit', { power: Math.min(1, amount / 30) }));
     engine.on('bounce', () => this.audio.play('bounce'));
     engine.on('end', (r) => this.showResult(r));
+    if (opts.modifier && opts.modifier.onStart) {
+      engine.onReady = (e) => opts.modifier.onStart(e);
+    }
 
     // A fresh mode instance per match so grids and clocks never leak across.
     engine.setMode(Object.create(mode));
@@ -140,10 +171,29 @@ class App {
     this.updateTitleBar();
     $('#pauseBtn').textContent = 'Pause';
     $('#seedReadout').textContent = cfg.seed;
+
+    // Campaign fights hide the sandbox controls: rerolling the seed or editing
+    // the roster mid-run would make the score meaningless.
+    const inCampaign = !!opts.campaign;
+    $('#play').classList.toggle('is-campaign', inCampaign);
+    $('#backBtn').textContent = inCampaign ? '← Give up' : '← Forge';
+  }
+
+  /**
+   * Launch the fight a campaign run has set up. It is an ordinary duel; the
+   * run supplies the roster (with profiles) and gets told how it went.
+   */
+  startCampaignBattle(run) {
+    const { cfg, modifier } = run.battleConfig(normalizeConfig(this.config));
+    this.campaignBattle = { run, modifier };
+    this.startMatch(cfg, { campaign: true, modifier });
   }
 
   restartSameSeed() { this.startMatch({}); }
   restartNewSeed() { this.startMatch({ seed: randomSeedPhrase() }); }
+
+  /** True while the match on screen belongs to a campaign run. */
+  get inCampaign() { return !!this.campaignBattle; }
 
   /* ------------------------------------------------------------- loop */
 
@@ -271,7 +321,34 @@ class App {
         </tr>`).join('');
 
     this.audio.play('win');
+
+    if (this.campaignBattle) {
+      const { run } = this.campaignBattle;
+      const summary = this.campaign.onBattleEnd(this.engine);
+      this.campaignBattle = null;
+      this.showCampaignResult(run, summary);
+      return;
+    }
     this.showOverlay('panelResult');
+  }
+
+  /** The campaign's own post-battle panel: gold earned, then back to the run. */
+  showCampaignResult(run, summary) {
+    const r = this.campaign.lastResult;
+    $('#campResultTitle').textContent = r.survived ? 'Stage cleared'
+      : r.timedOut ? 'Out of time' : 'Your orb fell';
+    $('#campResultTitle').style.color = r.survived ? 'var(--good)' : 'var(--bad)';
+    $('#campResultBody').innerHTML = r.survived
+      ? `<ul class="ea-reward">
+           <li><span>Clear bonus</span><b>+${r.clearGold}g</b></li>
+           <li><span>Performance</span><b>+${r.perfGold}g</b></li>
+           <li><span>Damage dealt</span><b>${Math.round(r.dmg)}</b></li>
+           <li><span>Kills · parries</span><b>${r.kills} · ${r.parries}</b></li>
+           <li><span>Purse</span><b>${run.gold}g</b></li>
+         </ul>`
+      : `<p class="ea-note">Final score <b>${run.score.toLocaleString()}</b> after ${run.stage + 1} stages.</p>`;
+    $('#campResultNext').textContent = r.survived ? 'Continue' : 'See the run';
+    this.showOverlay('panelCampResult');
   }
 
   /* ---------------------------------------------------------- controls */
@@ -285,7 +362,19 @@ class App {
     });
     $('#backBtn').addEventListener('click', () => {
       this.hideOverlay();
-      this.showForge();
+      if (this.campaignBattle) { this.campaignBattle = null; this.showCampaign(); }
+      else this.showForge();
+    });
+
+    $$('.ea-mode-switch button').forEach((b) => b.addEventListener('click', () => {
+      this.hideOverlay();
+      if (b.dataset.screen === 'campaign') this.showCampaign();
+      else this.showForge();
+    }));
+
+    $('#campResultNext').addEventListener('click', () => {
+      this.hideOverlay();
+      this.showCampaign();
     });
 
     $('#pauseBtn').addEventListener('click', () => {
@@ -358,11 +447,14 @@ class App {
       const k = ev.key.toLowerCase();
       if (k === 'escape') {
         if (!$('#overlay').hidden) { this.hideOverlay(); return; }
-        if (this.screen === 'play') this.showForge();
+        if (this.screen === 'play') {
+          if (this.campaignBattle) { this.campaignBattle = null; this.showCampaign(); }
+          else this.showForge();
+        }
         return;
       }
       if (this.screen !== 'play') {
-        if (k === 'enter' && !$('#launchBtn').disabled) this.startMatch();
+        if (k === 'enter' && this.screen === 'forge' && !$('#launchBtn').disabled) this.startMatch();
         return;
       }
       switch (k) {

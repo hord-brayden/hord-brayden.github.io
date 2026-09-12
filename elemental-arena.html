@@ -35,6 +35,11 @@
 
   <main class="ea-shell">
 
+    <nav class="ea-mode-switch" aria-label="Game section">
+      <button type="button" data-screen="forge" class="is-on">Forge</button>
+      <button type="button" data-screen="campaign">Campaign</button>
+    </nav>
+
     <!-- ==================== FORGE ==================== -->
     <div id="forge">
       <div class="ea-forge-head">
@@ -83,6 +88,64 @@
         <button type="button" class="btn--ghost" data-open-panel="panelSettings">Settings</button>
         <button type="button" class="btn--ghost" data-open-panel="panelCodex">Codex</button>
         <button type="button" id="launchBtn">Launch match</button>
+      </div>
+    </div>
+
+    <!-- ==================== CAMPAIGN ==================== -->
+    <div id="campaign" hidden>
+
+      <div id="campIntro">
+        <h1 class="ea-forge-title">The <span class="accent">Long Run</span></h1>
+        <p class="ea-forge-lede">
+          One orb. Fight after fight, each one harder than the last, each one
+          stacked slightly against you. Between them you bank gold and bolt on
+          upgrades — armour, reach, resistances, a second weapon — and repairs
+          come out of the same purse. You never steer the fight. You only decide
+          what walks into it.
+        </p>
+        <p class="ea-camp-best" id="campBest"></p>
+        <div class="ea-panel-actions" style="border:0;padding:0">
+          <button type="button" id="campNewRun">Begin a run</button>
+          <button type="button" class="btn--ghost" id="campScoresBtn">High scores</button>
+        </div>
+      </div>
+
+      <div id="campStarter" hidden>
+        <h2 class="ea-camp-title">Choose your orb</h2>
+        <p class="ea-note">This is the only template you get. Everything else is bought.</p>
+        <div id="starterGrid" class="ea-starter-grid"></div>
+      </div>
+
+      <div id="campRun" hidden>
+        <header class="ea-camp-header" id="campHeader">
+          <canvas id="campOrb" class="ea-camp-orb" width="96" height="96" aria-hidden="true"></canvas>
+          <div class="ea-camp-ident">
+            <p class="ea-camp-name" id="campFighter"></p>
+            <p class="ea-camp-weapon" id="campWeapon"></p>
+            <div class="ea-camp-hp">
+              <div class="ea-camp-hp-bar"><div class="ea-camp-hp-fill" id="campHpFill"></div></div>
+              <span id="campHpText"></span>
+            </div>
+          </div>
+          <dl class="ea-camp-stats">
+            <div><dt>Stage</dt><dd id="campStage">1</dd></div>
+            <div><dt>Gold</dt><dd id="campGold">0</dd></div>
+            <div><dt>Score</dt><dd id="campScore">0</dd></div>
+          </dl>
+          <div class="ea-camp-build" id="campBuild"></div>
+        </header>
+
+        <div class="ea-camp-phase">
+          <h3 id="campPhaseTitle"></h3>
+          <p class="ea-note" id="campPhaseNote"></p>
+        </div>
+
+        <div id="campBody"></div>
+      </div>
+
+      <div class="ea-camp-foot">
+        <button type="button" class="btn--ghost" id="campAbandon" hidden>Abandon run</button>
+        <button type="button" class="btn--ghost" data-open-panel="panelCodex">Codex</button>
       </div>
     </div>
 
@@ -244,6 +307,24 @@
 
       <div class="ea-panel-actions">
         <button type="button" data-close-panel>Close</button>
+      </div>
+    </section>
+
+    <section class="ea-panel ea-panel--narrow" id="panelCampResult" hidden>
+      <h2 id="campResultTitle"></h2>
+      <div id="campResultBody"></div>
+      <div class="ea-panel-actions">
+        <button type="button" id="campResultNext">Continue</button>
+      </div>
+    </section>
+
+    <section class="ea-panel" id="panelScores" hidden>
+      <h2>High scores</h2>
+      <p class="ea-lede">Saved in this browser only.</p>
+      <div id="scoresBody"></div>
+      <div class="ea-panel-actions">
+        <button type="button" data-close-panel>Close</button>
+        <button type="button" class="btn--ghost" id="campClearScores">Clear scores</button>
       </div>
     </section>
 

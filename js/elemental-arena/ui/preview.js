@@ -92,18 +92,26 @@ export function detachPreview(canvas) {
 function sizeCanvas(p) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const rect = p.canvas.getBoundingClientRect();
+  // A preview attached while its panel is still hidden measures 0, so fall
+  // back to a sane box rather than propagating zeroes into the sprite baker.
   const w = Math.max(24, Math.round(rect.width || p.canvas.clientWidth || 64));
   const h = Math.max(24, Math.round(rect.height || p.canvas.clientHeight || 64));
+
+  // These are recorded before the early-out on purpose: skipping them when the
+  // backing store already matched left cssW undefined, which turned every
+  // downstream size into NaN and baked a zero-width canvas.
+  p.cssW = w; p.cssH = h; p.dpr = dpr;
+
   if (p.canvas.width === Math.round(w * dpr) && p.canvas.height === Math.round(h * dpr)) return;
   p.canvas.width = Math.round(w * dpr);
   p.canvas.height = Math.round(h * dpr);
-  p.cssW = w; p.cssH = h; p.dpr = dpr;
 }
 
 function paint(p, t) {
   const { ctx, fighter } = p;
   if (!p.cssW) sizeCanvas(p);
   const w = p.cssW, h = p.cssH;
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w < 2 || h < 2) return;
   ctx.setTransform(p.dpr, 0, 0, p.dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
 
