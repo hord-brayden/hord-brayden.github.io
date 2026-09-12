@@ -28,7 +28,7 @@ Fighters.define({
   cosmetic: 'plating',
   // The one template that starts with real reach; everyone else earns it.
   tether: 1.15,
-  reach: 1.2, damage: 1.15, hp: 1.0, spin: 0.9,
+  reach: 1.2, damage: 1.14, hp: 1.02, spin: 0.92,
   strong: ['duelist', 'alchemist'],
   weak: ['knifethrower', 'bulwark'],
   particle: 'dust',
@@ -247,7 +247,7 @@ Fighters.define({
   colors: { core: '#15803d', dark: '#052e16', light: '#86efac', accent: '#fde047', ink: '#ffffff', trail: '#22c55e' },
   weapon: { id: 'bow', name: 'Farshot', palette: wpal('archer', '#a16207', '#fde047', '#3f2a06', '#86efac', '#3f2a12') },
   cosmetic: 'leaves',
-  hp: 0.9, damage: 0.78, speed: 1.05, spin: 0.9,
+  hp: 0.92, damage: 0.8, speed: 1.05, spin: 0.9,
   strong: ['alchemist', 'bombardier'],
   weak: ['knifethrower', 'lancer'],
   particle: 'leaf',
@@ -260,17 +260,17 @@ Fighters.define({
 
   passive: {
     name: 'Longshot',
-    desc: 'Looses an arrow every 1.6s at the furthest enemy; damage grows with distance.',
+    desc: 'Looses an arrow every 1.55s at the furthest enemy; damage grows with distance.',
     onTick(engine, ball, dt) {
       ball.arrowTimer = (ball.arrowTimer || 0) + dt;
-      if (ball.arrowTimer < 1.6) return;
+      if (ball.arrowTimer < 1.55) return;
       ball.arrowTimer = 0;
       const foes = engine.enemiesOf(ball);
       if (!foes.length) return;
       let far = foes[0], fd = engine.dist(ball, far);
       for (const f of foes) { const d = engine.dist(ball, f); if (d > fd) { fd = d; far = f; } }
       const span = Math.hypot(engine.arena.w, engine.arena.h);
-      const scale = 0.8 + (fd / span) * 1.8;
+      const scale = 0.85 + (fd / span) * 1.7;
       const dx = far.x - ball.x, dy = far.y - ball.y;
       const d = Math.hypot(dx, dy) || 1;
       engine.spawnProjectile({
@@ -410,7 +410,7 @@ Fighters.define({
     // Bouncing is something the orb does constantly and cannot control, which
     // makes this a steady drip of hazards rather than a burst.
     onBounce(engine, ball) {
-      if (engine.rng.chance(0.22)) engine.dropFlask(ball);
+      if (engine.rng.chance(0.17)) engine.dropFlask(ball);
     },
   },
 

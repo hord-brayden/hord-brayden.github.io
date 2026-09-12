@@ -233,16 +233,65 @@ export class Renderer {
         if (!team) continue;
         g.fillStyle = this.teamColor(team - 1);
         g.fillRect(x, y, t, t);
-        g.strokeStyle = 'rgba(0,0,0,0.28)';
-        g.lineWidth = 1;
-        g.strokeRect(x + 0.5, y + 0.5, t - 1, t - 1);
       }
       dirty.length = 0;
     }
 
-    ctx.globalAlpha = this.theme.id === 'neon' ? 0.55 : 1;
+    ctx.globalAlpha = this.theme.id === 'neon' ? 0.6 : 1;
     ctx.drawImage(this.gridCanvas, 0, 0);
     ctx.globalAlpha = 1;
+
+    this.drawGridLines(ctx, mode);
+    this.drawTerritoryBorders(ctx, mode);
+  }
+
+  /**
+   * The lattice is drawn over the whole board, claimed or not, in one path.
+   * Painting it per tile into the offscreen canvas made unclaimed ground read
+   * as empty white space; drawing it across everything is what gives the board
+   * its graph-paper look.
+   */
+  drawGridLines(ctx, mode) {
+    const t = mode.tile;
+    const w = mode.cols * t, h = mode.rows * t;
+    ctx.strokeStyle = this.theme.gridLine;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let c = 0; c <= mode.cols; c++) {
+      const x = Math.min(c * t, this.engine.arena.w) + 0.5;
+      ctx.moveTo(x, 0); ctx.lineTo(x, Math.min(h, this.engine.arena.h));
+    }
+    for (let r = 0; r <= mode.rows; r++) {
+      const y = Math.min(r * t, this.engine.arena.h) + 0.5;
+      ctx.moveTo(0, y); ctx.lineTo(Math.min(w, this.engine.arena.w), y);
+    }
+    ctx.stroke();
+  }
+
+  /**
+   * A heavy outline wherever a team's territory meets something that is not
+   * its own. Only boundary edges are stroked, so a solid region reads as one
+   * shape rather than a mosaic of bordered squares.
+   */
+  drawTerritoryBorders(ctx, mode) {
+    const t = mode.tile;
+    const { cols, rows, grid } = mode;
+    ctx.strokeStyle = this.theme.outline;
+    ctx.lineWidth = this.theme.pixelate ? 3 : 2;
+    ctx.lineCap = 'square';
+    ctx.beginPath();
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const v = grid[r * cols + c];
+        if (!v) continue;
+        const x = c * t, y = r * t;
+        if (r === 0 || grid[(r - 1) * cols + c] !== v) { ctx.moveTo(x, y); ctx.lineTo(x + t, y); }
+        if (r === rows - 1 || grid[(r + 1) * cols + c] !== v) { ctx.moveTo(x, y + t); ctx.lineTo(x + t, y + t); }
+        if (c === 0 || grid[r * cols + c - 1] !== v) { ctx.moveTo(x, y); ctx.lineTo(x, y + t); }
+        if (c === cols - 1 || grid[r * cols + c + 1] !== v) { ctx.moveTo(x + t, y); ctx.lineTo(x + t, y + t); }
+      }
+    }
+    ctx.stroke();
   }
 
   teamColor(teamId) {
@@ -308,6 +357,7 @@ export class Renderer {
     }
 
     this.drawStatusRing(ctx, ball, r);
+    this.drawHealthBar(ctx, ball, r);
 
     // HP, dead centre, the way the source art does it.
     const size = Math.max(11, Math.round(r * 0.95));
@@ -325,6 +375,25 @@ export class Renderer {
     ctx.restore();
 
     this.drawStatusTags(ctx, ball, x, y, r);
+  }
+
+  /**
+   * A slim health bar riding above the orb. The number inside says exactly how
+   * much is left; the bar says how much is left *relative to this orb*, which
+   * is the thing you actually read at a glance when four of them are moving.
+   */
+  drawHealthBar(ctx, ball, r) {
+    const ratio = ball.hpRatio;
+    const w = Math.max(18, r * 1.15);
+    const h = Math.max(4, r * 0.14);
+    const y = -r - h - Math.max(5, r * 0.22);
+
+    ctx.fillStyle = this.theme.hpStroke;
+    ctx.fillRect(-w / 2 - 1.5, y - 1.5, w + 3, h + 3);
+    ctx.fillStyle = this.theme.pixelate ? '#ffffff' : 'rgba(255,255,255,0.22)';
+    ctx.fillRect(-w / 2, y, w, h);
+    ctx.fillStyle = ratio > 0.5 ? '#3fae4b' : ratio > 0.22 ? '#e0a020' : '#d13b2f';
+    ctx.fillRect(-w / 2, y, w * ratio, h);
   }
 
   /** The thin arc around a ball showing its ultimate meter, plus coloured
@@ -378,8 +447,9 @@ export class Renderer {
     ctx.lineWidth = 3.5;
     ctx.strokeStyle = this.theme.hpStroke;
     ctx.fillStyle = pick.color;
-    ctx.strokeText(pick.short, x, y - r - 4);
-    ctx.fillText(pick.short, x, y - r - 4);
+    const top = y - r - Math.max(5, r * 0.22) - Math.max(4, r * 0.14) - 6;
+    ctx.strokeText(pick.short, x, top);
+    ctx.fillText(pick.short, x, top);
   }
 
   /* -------------------------------------------------------- cosmetics */

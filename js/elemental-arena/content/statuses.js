@@ -212,6 +212,16 @@ Statuses.defineAll([
     },
   },
   {
+    id: 'focus',
+    name: 'Focused',
+    short: 'FCS',
+    color: '#f0abfc',
+    beneficial: true,
+    modify(mods) {
+      mods.dmgMul *= 1.1;
+    },
+  },
+  {
     id: 'haste',
     name: 'Hastened',
     short: 'HST',

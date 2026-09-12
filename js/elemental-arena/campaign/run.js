@@ -21,7 +21,10 @@
 import { Rng, randomSeedPhrase } from '../core/rng.js';
 import { Fighters } from '../content/roster.js';
 import { emptyBuild, buildToProfile, rollOffers, upgradeCost, Upgrades } from './upgrades.js';
+import { defaultLoadout, normalizeLoadout } from '../content/loadouts.js';
 import { MODIFIERS, rollModifier } from './modifiers.js';
+import { Chassis } from '../content/parts.js';
+import { buildMultiplier } from '../content/loadouts.js';
 
 /*
  * The campaign orb is almost always outnumbered, and action economy in this
@@ -68,15 +71,19 @@ export const RunState = {
 };
 
 export class CampaignRun {
-  constructor({ seed, fighterId } = {}) {
+  constructor({ seed, fighterId, loadout } = {}) {
     this.seed = seed || randomSeedPhrase();
     this.rng = new Rng(`campaign:${this.seed}`);
     this.fighterId = fighterId || 'fire';
+    // The starting assembly is chosen up front and persists for the whole run;
+    // upgrades layer on top of it rather than replacing it.
+    this.loadout = normalizeLoadout(loadout || defaultLoadout());
 
     this.stage = 0;
     this.gold = 55;
     this.score = 0;
     this.build = emptyBuild(this.fighterId);
+    this.build.weaponId = this.loadout.weaponId;
     this.hp = null;            // null = full; set after the first battle
     this.state = RunState.CHOOSING;
 
@@ -243,7 +250,10 @@ export class CampaignRun {
   /** What the orb's maximum health will be with the current build. */
   previewMaxHp(baseHp = 100) {
     const f = Fighters.get(this.build.fighterId);
-    return baseHp * (f ? f.hp : 1) * this.build.maxHpMul * PLAYER_HP_BONUS;
+    const chassisHp = (Chassis.get(this.loadout.chassisId) || { hpMul: 1 }).hpMul;
+    const statHp = buildMultiplier(this.loadout, 'hp');
+    return baseHp * (f ? f.hp : 1) * chassisHp * statHp
+      * this.build.maxHpMul * PLAYER_HP_BONUS;
   }
 
   /* ------------------------------------------------------------ battle */
@@ -261,7 +271,7 @@ export class CampaignRun {
       fighterId: this.build.fighterId,
       teamId: 0,
       count: 1,
-      loadout: { weaponId: this.build.weaponId, perk: 'none', hp: 0, dmg: 0, spd: 0 },
+      loadout: { ...this.loadout, weaponId: this.build.weaponId },
       profile,
       startHp: this.hp,
     }];
@@ -342,7 +352,7 @@ export class CampaignRun {
   toJSON() {
     return {
       seed: this.seed, stage: this.stage, gold: this.gold, score: this.score,
-      build: this.build, hp: this.hp, state: this.state, stats: this.stats,
+      build: this.build, loadout: this.loadout, hp: this.hp, state: this.state, stats: this.stats,
       log: this.log, rngState: this.rng.state,
       choices: this.choices, encounter: this.encounter,
       offers: this.offers.map((o) => ({ id: o.def.id, cost: o.cost, bought: o.bought })),
@@ -353,7 +363,9 @@ export class CampaignRun {
   static fromJSON(raw) {
     if (!raw || !raw.seed) return null;
     try {
-      const run = new CampaignRun({ seed: raw.seed, fighterId: raw.build?.fighterId });
+      const run = new CampaignRun({
+        seed: raw.seed, fighterId: raw.build?.fighterId, loadout: raw.loadout,
+      });
       Object.assign(run, {
         stage: raw.stage ?? 0,
         gold: raw.gold ?? 55,

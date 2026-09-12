@@ -14,6 +14,7 @@ import { Fighters } from '../content/roster.js';
 import { Modes } from '../modes/index.js';
 import { Powerups } from '../content/powerups.js';
 import { Perks, defaultLoadout, normalizeLoadout, BUILD_STATS } from '../content/loadouts.js';
+import { Chassis, Drives } from '../content/parts.js';
 import { Weapons } from '../content/weapons.js';
 import { randomSeedPhrase } from './rng.js';
 
@@ -36,12 +37,12 @@ export function defaultConfig() {
     // threat circles overlap often, or the orbs never meet and the fight
     // stalls. Weapons are held against the orb now rather than swinging out
     // on a long chain, so this is tighter than it used to be.
-    arenaW: 480,
-    arenaH: 480,
+    arenaW: 620,
+    arenaH: 620,
     baseHp: 100,
     baseDamage: 7,
-    ballRadius: 34,
-    ballSpeed: 310,
+    ballRadius: 40,
+    ballSpeed: 395,
     gameSpeed: 1,
     timeLimit: 0,
 
@@ -148,17 +149,23 @@ export function loadConfig() {
 function loadoutToWire(l) {
   const d = defaultLoadout();
   const untouched = BUILD_STATS.every((s) => l[s.id] === d[s.id])
-    && l.perk === d.perk && !l.weaponId;
+    && l.perk === d.perk && !l.weaponId
+    && l.chassisId === d.chassisId && l.driveId === d.driveId;
   if (untouched) return 0;
-  return [l.weaponId || 0, Perks.ids.indexOf(l.perk), l.hp, l.dmg, l.spd];
+  return [l.weaponId || 0, Perks.ids.indexOf(l.perk), l.hp, l.dmg, l.spd,
+          Chassis.ids.indexOf(l.chassisId), Drives.ids.indexOf(l.driveId)];
 }
 
 function loadoutFromWire(w) {
   if (!w || !Array.isArray(w)) return defaultLoadout();
-  const [weaponId, perkIdx, hp, dmg, spd] = w;
+  // Positions 5 and 6 post-date the first share links, so they are optional
+  // and fall back to the stock parts rather than invalidating an old URL.
+  const [weaponId, perkIdx, hp, dmg, spd, chassisIdx, driveIdx] = w;
   return normalizeLoadout({
     weaponId: weaponId && Weapons.has(weaponId) ? weaponId : null,
     perk: Perks.ids[perkIdx] || 'none',
+    chassisId: Chassis.ids[chassisIdx] || 'standard',
+    driveId: Drives.ids[driveIdx] || 'orbit',
     hp, dmg, spd,
   });
 }

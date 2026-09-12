@@ -10,7 +10,8 @@
 
 import { Fighters, uiColor } from '../content/roster.js';
 import { Weapons, weaponLabel } from '../content/weapons.js';
-import { Perks } from '../content/loadouts.js';
+import { Perks, BUILD_STATS, defaultLoadout, normalizeLoadout, buildSpend, BUILD_BUDGET } from '../content/loadouts.js';
+import { Chassis, Drives, partsLabel } from '../content/parts.js';
 import { CampaignRun, RunState, loadScores, clearScores, saveRun, loadRun, clearRun } from '../campaign/run.js';
 import { TIERS, Upgrades } from '../campaign/upgrades.js';
 import { MODIFIERS } from '../campaign/modifiers.js';
@@ -58,11 +59,16 @@ export class Campaign {
 
   pickStarter() {
     this.phase = 'starter';
+    // A draft assembly, edited on the starter screen before the run begins.
+    this.draft = { fighterId: Fighters.ids[0], loadout: defaultLoadout() };
     this.render();
   }
 
-  startRun(fighterId) {
-    this.run = new CampaignRun({ fighterId });
+  startRun() {
+    this.run = new CampaignRun({
+      fighterId: this.draft.fighterId,
+      loadout: this.draft.loadout,
+    });
     this.lastResult = null;
     this.phase = null;
     saveRun(this.run);
@@ -120,6 +126,11 @@ export class Campaign {
       : 'No runs yet.';
   }
 
+  /**
+   * The starter screen is a full assembly bench, not a core picker. Whatever
+   * you can build in the Forge you can take into a run — the shop then layers
+   * upgrades on top of it.
+   */
   renderStarter() {
     $('#campIntro').hidden = true;
     $('#campRun').hidden = true;
@@ -127,23 +138,116 @@ export class Campaign {
     const wrap = $('#campStarter');
     wrap.hidden = false;
 
+    const d = this.draft;
+    const f = Fighters.get(d.fighterId);
+    const l = d.loadout;
+
     $$('canvas', wrap).forEach(detachPreview);
     $('#starterGrid').innerHTML = '';
-    for (const f of Fighters.all) {
+    for (const core of Fighters.all) {
       const card = document.createElement('button');
       card.type = 'button';
-      card.className = 'ea-lib-card';
-      card.style.setProperty('--ea-color', uiColor(f, false));
-      card.style.setProperty('--ea-color-dark', uiColor(f, true));
+      card.className = `ea-lib-card ${core.id === d.fighterId ? 'is-picked' : ''}`;
+      card.style.setProperty('--ea-color', uiColor(core, false));
+      card.style.setProperty('--ea-color-dark', uiColor(core, true));
       card.innerHTML = `
         <canvas class="ea-lib-orb" width="72" height="72" aria-hidden="true"></canvas>
-        <span class="ea-lib-name">${f.name}</span>
-        <span class="ea-lib-weapon">${f.weapon.name}</span>`;
-      card.title = f.blurb;
+        <span class="ea-lib-name">${core.name}</span>
+        <span class="ea-lib-weapon">${core.weapon.name}</span>`;
+      card.title = core.blurb;
       $('#starterGrid').appendChild(card);
-      attachPreview($('canvas', card), f, { themeId: this.app.config.themeId });
-      card.addEventListener('click', () => this.startRun(f.id));
+      attachPreview($('canvas', card), core, {
+        themeId: this.app.config.themeId,
+        loadout: core.id === d.fighterId ? l : null,
+      });
+      card.addEventListener('click', () => { d.fighterId = core.id; this.render(); });
     }
+
+    const spend = buildSpend(l);
+    $('#starterBench').innerHTML = `
+      <div class="ea-bench" style="--ea-color:${uiColor(f, false)};--ea-color-dark:${uiColor(f, true)}">
+        <div class="ea-bench-view">
+          <canvas id="benchOrb" class="ea-bench-orb" width="150" height="150" aria-hidden="true"></canvas>
+          <p class="ea-bench-name">${f.glyph} ${f.name}</p>
+          <p class="ea-bench-parts">${partsLabel(l)}</p>
+          <p class="ea-bench-blurb">${f.blurb}</p>
+        </div>
+        <div class="ea-bench-controls">
+          <label class="ea-row">
+            <span>Weapon</span>
+            <select id="benchWeapon">
+              ${Weapons.ids.map((id) => `<option value="${id}" ${(l.weaponId || f.weapon.id) === id ? 'selected' : ''}>${weaponLabel(id)}${id === f.weapon.id ? ' (stock)' : ''}</option>`).join('')}
+            </select>
+          </label>
+          <label class="ea-row">
+            <span>Chassis</span>
+            <select id="benchChassis">
+              ${Chassis.all.map((c) => `<option value="${c.id}" ${c.id === l.chassisId ? 'selected' : ''}>${c.name}</option>`).join('')}
+            </select>
+          </label>
+          <p class="ea-inspect-note">${Chassis.get(l.chassisId).desc}</p>
+          <label class="ea-row">
+            <span>Drive</span>
+            <select id="benchDrive">
+              ${Drives.all.map((x) => `<option value="${x.id}" ${x.id === l.driveId ? 'selected' : ''}>${x.name}</option>`).join('')}
+            </select>
+          </label>
+          <p class="ea-inspect-note">${Drives.get(l.driveId).desc}</p>
+          <div class="ea-build">
+            <div class="ea-build-head">
+              <span>Tuning</span>
+              <span class="ea-build-budget">${spend === 0 ? 'Balanced' : spend > 0 ? `${spend} over` : `${-spend} to spend`}</span>
+            </div>
+            ${BUILD_STATS.map((st) => `
+              <div class="ea-stepper" data-stat="${st.id}">
+                <span class="ea-stepper-name">${st.name}</span>
+                <button type="button" class="ea-step" data-dir="-1" aria-label="Lower ${st.name}">−</button>
+                <span class="ea-stepper-pips">${starterPips(l[st.id])}</span>
+                <button type="button" class="ea-step" data-dir="1" aria-label="Raise ${st.name}">+</button>
+              </div>`).join('')}
+          </div>
+          <div class="ea-panel-actions" style="border:0;padding:0;margin-top:6px">
+            <button type="button" id="benchStart">Begin the run →</button>
+            <button type="button" class="btn--ghost" id="benchRandom">Randomise</button>
+          </div>
+        </div>
+      </div>`;
+
+    attachPreview($('#benchOrb'), f, { loadout: l, themeId: this.app.config.themeId, spin: 1.15 });
+
+    $('#benchWeapon').addEventListener('change', (ev) => {
+      l.weaponId = ev.target.value === f.weapon.id ? null : ev.target.value;
+      this.render();
+    });
+    $('#benchChassis').addEventListener('change', (ev) => { l.chassisId = ev.target.value; this.render(); });
+    $('#benchDrive').addEventListener('change', (ev) => { l.driveId = ev.target.value; this.render(); });
+    $$('.ea-stepper', wrap).forEach((row) => row.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-dir]');
+      if (!btn) return;
+      const stat = row.dataset.stat;
+      const dir = Number(btn.dataset.dir);
+      const next = { ...l, [stat]: l[stat] + dir };
+      if (dir > 0 && buildSpend(next) > BUILD_BUDGET) {
+        const donors = BUILD_STATS.filter((x) => x.id !== stat && next[x.id] > -2)
+          .sort((x, y) => next[y.id] - next[x.id]);
+        if (!donors.length) return;
+        next[donors[0].id] -= 1;
+      }
+      d.loadout = normalizeLoadout(next);
+      this.render();
+    }));
+    $('#benchRandom').addEventListener('click', () => {
+      const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+      d.fighterId = pick(Fighters.ids);
+      d.loadout = normalizeLoadout({
+        weaponId: pick(Weapons.ids),
+        chassisId: pick(Chassis.ids),
+        driveId: pick(Drives.ids),
+        perk: 'none', hp: 0, dmg: 0, spd: 0,
+      });
+      this.render();
+    });
+    $('#benchStart').addEventListener('click', () => this.startRun());
   }
 
   renderHeader() {
@@ -156,7 +260,8 @@ export class Campaign {
     $('#campHeader').style.setProperty('--ea-color', uiColor(f, false));
     $('#campHeader').style.setProperty('--ea-color-dark', uiColor(f, true));
     $('#campFighter').textContent = `${f.glyph} ${f.name}`;
-    $('#campWeapon').textContent = weaponLabel(run.build.weaponId || f.weapon.id);
+    $('#campWeapon').textContent =
+      `${weaponLabel(run.build.weaponId || f.weapon.id)} · ${partsLabel(run.loadout)}`;
     $('#campStage').textContent = run.stage + 1;
     $('#campGold').textContent = run.gold.toLocaleString();
     $('#campScore').textContent = run.score.toLocaleString();
@@ -357,4 +462,14 @@ export class Campaign {
         </tbody>
       </table>`;
   }
+}
+
+function starterPips(v) {
+  let out = '';
+  for (let i = -2; i <= 2; i++) {
+    if (i === 0) continue;
+    const on = (v > 0 && i > 0 && i <= v) || (v < 0 && i < 0 && i >= v);
+    out += `<i class="ea-pip ${on ? (v > 0 ? 'is-up' : 'is-down') : ''}"></i>`;
+  }
+  return out;
 }

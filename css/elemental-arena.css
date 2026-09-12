@@ -232,7 +232,7 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--ea-color) 35%, transparent);
 }
 .ea-orb:focus-visible { outline: 2px solid var(--ea-color); outline-offset: 2px; }
-.ea-orb-canvas { width: 62px; height: 62px; display: block; margin: 0 auto; pointer-events: none; }
+.ea-orb-canvas { width: 62px; height: 62px; margin: 0 auto !important; pointer-events: none; }
 .ea-orb-name {
   display: block; font-family: var(--font-mono); font-weight: 700;
   font-size: .66rem; color: var(--ea-color);
@@ -373,7 +373,12 @@ body.ea-dragging .ea-team.is-empty { border-color: color-mix(in srgb, var(--ea-t
 
 /* ==================================================== ARENA screen === */
 
-#play { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
+#play { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; }
+body.ea-playing .ea-shell { padding-top: 8px; gap: 8px; }
+body.ea-playing .ea-mode-switch { display: none; }
+/* The arena is the whole point of this screen, so it gets more room than the
+   reading-width shell allows elsewhere. */
+body.ea-playing .ea-shell { max-width: 1500px; }
 
 .ea-title {
   display: flex; align-items: center; justify-content: center;
@@ -392,21 +397,38 @@ body.ea-dragging .ea-team.is-empty { border-color: color-mix(in srgb, var(--ea-t
   flex: 1;
   /* Cap the arena so the title, HUD and controls all stay above the fold on
      a laptop. The renderer fits the canvas to whatever this resolves to. */
-  min-height: 240px;
-  max-height: min(58vh, 680px);
+  min-height: 280px;
+  /* As tall as it can be while the title, meters and controls all still fit
+     above the fold on a laptop. Bigger than this and the HUD falls off. */
+  max-height: min(66vh, 860px);
   display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
 /* styles.css carries a global `canvas { width:100%; height:auto;
    max-height:500px; border; margin; background }` rule for the Game of Life
    background. The renderer's inline width/height beat the width/height there,
    but nothing overrides max-height — so a square canvas was being squashed to
-   500px tall and every orb rendered as an ellipse. Reset the rule here. */
-#arena {
+   500px tall and every orb rendered as an ellipse. Every canvas this page
+   owns opts out of that rule wholesale. */
+#arena,
+.ea-lib-orb,
+.ea-orb-canvas,
+.ea-inspect-orb,
+.ea-camp-orb,
+.ea-bench-orb {
   display: block;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+#arena {
   touch-action: manipulation;
   image-rendering: pixelated;
-  max-width: none; max-height: none;
-  margin: 0; border: 0; border-radius: 0; background: none;
+}
+.ea-lib-orb, .ea-orb-canvas, .ea-inspect-orb, .ea-camp-orb, .ea-bench-orb {
+  image-rendering: pixelated;
 }
 
 .ea-hud {
@@ -860,4 +882,43 @@ body.ea-dragging .ea-team.is-empty { border-color: color-mix(in srgb, var(--ea-t
   }
   .ea-camp-stats { justify-content: space-between; }
   .ea-camp-stats div { text-align: left; }
+}
+
+/* --- assembly bench (campaign starter) --- */
+
+.ea-lib-card.is-picked {
+  border-color: var(--ea-color) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ea-color) 40%, transparent);
+  background: color-mix(in srgb, var(--ea-color) 8%, var(--bg-sunken)) !important;
+}
+
+.ea-bench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(270px, 340px);
+  gap: 18px;
+  align-items: start;
+  margin-top: 12px;
+  padding: 16px 18px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--ea-color);
+  border-radius: var(--radius-lg);
+}
+.ea-bench-view { text-align: center; }
+.ea-bench-orb { width: 150px; height: 150px; margin: 0 auto !important; }
+.ea-bench-name { font-family: var(--font-mono); font-weight: 700; font-size: 1.15rem; color: var(--ea-color); margin: 4px 0 2px; }
+.ea-bench-parts {
+  font-family: var(--font-mono); font-size: .72rem; color: var(--muted-soft);
+  text-transform: uppercase; letter-spacing: .08em; margin: 0 0 8px;
+}
+.ea-bench-blurb {
+  font-size: .8rem; color: var(--muted); line-height: 1.5;
+  max-width: 42ch; margin: 0 auto;
+}
+.ea-bench-controls { min-width: 0; }
+.ea-bench-controls .ea-row select { max-width: 100%; }
+#benchStart { flex: 1; font-family: var(--font-mono); font-weight: 700; }
+
+@media (max-width: 860px) {
+  .ea-bench { grid-template-columns: 1fr; }
 }

@@ -20,7 +20,7 @@ Fighters.define({
   colors: { core: '#ef2b16', dark: '#7a0f06', light: '#ff8a3d', accent: '#ffd24a', ink: '#ffffff', trail: '#ff6a2a' },
   weapon: { id: 'sword', name: 'Cinderbrand', palette: wpal('fire', '#ff6a1f', '#ffd24a', '#9a2a06', '#fff0a8', '#3a2118') },
   cosmetic: 'wings',
-  damage: 1.05, hp: 0.95,
+  damage: 1.16, hp: 1.02,
   strong: ['nature', 'ice', 'metal'],
   weak: ['water', 'earth'],
   particle: 'ember',
@@ -85,7 +85,7 @@ Fighters.define({
   colors: { core: '#29c6f0', dark: '#0a5877', light: '#b6f0ff', accent: '#ffffff', ink: '#05323f', trail: '#8be9ff' },
   weapon: { id: 'axe', name: 'Rimehewer', palette: wpal('ice', '#9fe8ff', '#ffffff', '#2a7b9b', '#d8f7ff', '#4a3b2c') },
   cosmetic: 'frost',
-  hp: 1.18, speed: 1.0, damage: 1.22,
+  hp: 1.16, speed: 1.04, damage: 1.18,
   strong: ['nature', 'water', 'wind'],
   weak: ['fire', 'metal'],
   particle: 'frost',
@@ -157,7 +157,7 @@ Fighters.define({
   colors: { core: '#f7d417', dark: '#7a5c00', light: '#fff59a', accent: '#ffffff', ink: '#241d00', trail: '#ffe76b' },
   weapon: { id: 'spear', name: 'Stormpike', palette: wpal('lightning', '#ffe14a', '#fffbcc', '#8a6b00', '#ffffff', '#2e2a1a') },
   cosmetic: 'sparks',
-  speed: 1.18, spin: 1.2, hp: 1.0, damage: 1.06,
+  speed: 1.2, spin: 1.24, hp: 1.04, damage: 1.12,
   strong: ['water', 'wind', 'metal'],
   weak: ['earth'],
   particle: 'spark',
@@ -296,7 +296,7 @@ Fighters.define({
   colors: { core: '#1f7fd4', dark: '#06304f', light: '#7fc8ff', accent: '#c9f0ff', ink: '#ffffff', trail: '#4aa8e8' },
   weapon: { id: 'trident', name: 'Tidewarden', palette: wpal('water', '#4aa8e8', '#c9f0ff', '#0d4a72', '#ffffff', '#2a3a44') },
   cosmetic: 'bubbles',
-  hp: 1.05, speed: 1.06, damage: 1.15,
+  hp: 1.08, speed: 1.1, damage: 1.24,
   strong: ['fire', 'earth', 'metal'],
   weak: ['lightning', 'nature'],
   particle: 'droplet',
@@ -366,7 +366,7 @@ Fighters.define({
   colors: { core: '#3f9d3a', dark: '#1c4a1a', light: '#8fd96a', accent: '#d4f27a', ink: '#ffffff', trail: '#6bbf4a' },
   weapon: { id: 'scythe', name: 'Bramblereap', palette: wpal('nature', '#8fd96a', '#d4f27a', '#2f6b2a', '#c8a24a', '#4a3520') },
   cosmetic: 'leaves',
-  hp: 1.04, damage: 0.9,
+  hp: 1.0, damage: 0.88,
   strong: ['water', 'earth'],
   weak: ['fire', 'ice'],
   particle: 'leaf',
@@ -383,7 +383,7 @@ Fighters.define({
     desc: 'Regenerates continuously, faster the lower its health gets.',
     onTick(engine, ball, dt) {
       const missing = 1 - ball.hp / ball.maxHp;
-      engine.heal(ball, (0.04 + missing * 0.12) * dt);
+      engine.heal(ball, (0.03 + missing * 0.1) * dt);
     },
   },
 
@@ -425,7 +425,7 @@ Fighters.define({
   colors: { core: '#f5efc8', dark: '#8a7b2a', light: '#ffffff', accent: '#ffd34a', ink: '#3a3210', trail: '#fff4b8' },
   weapon: { id: 'gauntlet', name: 'Dawnbreaker', palette: wpal('light', '#ffe9a8', '#ffffff', '#a08430', '#ffd34a', '#6a5a24') },
   cosmetic: 'halo',
-  hp: 1.14, damage: 1.06,
+  hp: 1.08, damage: 0.98,
   strong: ['shadow', 'venom'],
   weak: ['arcane'],
   particle: 'mote',
@@ -498,7 +498,7 @@ Fighters.define({
   colors: { core: '#5b2d8a', dark: '#1a0b2e', light: '#a970e0', accent: '#e0a0ff', ink: '#ffffff', trail: '#7a45b5' },
   weapon: { id: 'dagger', name: 'Nightfang', palette: wpal('shadow', '#7a45b5', '#c79bea', '#2a1140', '#e0a0ff', '#241634') },
   cosmetic: 'smoke',
-  speed: 1.18, spin: 1.34, hp: 1.1, damage: 1.2,
+  speed: 1.22, spin: 1.38, hp: 1.14, damage: 1.3,
   strong: ['arcane', 'metal', 'knifethrower'],
   weak: ['light'],
   particle: 'smoke',
@@ -561,7 +561,7 @@ Fighters.define({
   colors: { core: '#7fd6c4', dark: '#1f5b52', light: '#d4fff6', accent: '#ffffff', ink: '#123a34', trail: '#a8ece0' },
   weapon: { id: 'chakram', name: 'Galecutter', palette: wpal('wind', '#a8ece0', '#ffffff', '#2f7a6c', '#d4fff6', '#3a4a48') },
   cosmetic: 'swirl',
-  speed: 1.32, spin: 1.4, hp: 0.9, damage: 0.98, reach: 1.12,
+  speed: 1.32, spin: 1.42, hp: 0.96, damage: 1.08, reach: 1.12,
   strong: ['earth', 'nature', 'duelist'],
   weak: ['lightning'],
   particle: 'gust',
@@ -765,7 +765,7 @@ Fighters.define({
   particle: 'toxin',
 
   onHit({ engine, attacker, victim, amount }) {
-    engine.applyStatus(victim, 'poison', 7, { power: amount * 0.068, sourceId: attacker.id });
+    engine.applyStatus(victim, 'poison', 7, { power: amount * 0.052, sourceId: attacker.id });
     engine.particles.burst('toxin', victim.x, victim.y, 8, 150);
   },
 

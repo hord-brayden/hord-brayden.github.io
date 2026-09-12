@@ -13,6 +13,7 @@
 import { Fighters, FAMILIES, uiColor } from '../content/roster.js';
 import { Weapons, weaponLabel } from '../content/weapons.js';
 import { Perks, BUILD_STATS, defaultLoadout, normalizeLoadout, buildSpend, BUILD_BUDGET } from '../content/loadouts.js';
+import { Chassis, Drives, partsLabel } from '../content/parts.js';
 import { Modes } from '../modes/index.js';
 import { attachPreview, updatePreview, detachPreview, refreshPreviews } from './preview.js';
 
@@ -264,7 +265,8 @@ export class Forge {
 
     const perk = Perks.get(entry.loadout.perk);
     const tweaked = buildSpend(entry.loadout) !== 0
-      || entry.loadout.perk !== 'none' || entry.loadout.weaponId;
+      || entry.loadout.perk !== 'none' || entry.loadout.weaponId
+      || entry.loadout.chassisId !== 'standard' || entry.loadout.driveId !== 'orbit';
 
     chip.innerHTML = `
       <canvas class="ea-orb-canvas" width="76" height="76" aria-hidden="true"></canvas>
@@ -349,7 +351,7 @@ export class Forge {
       <header class="ea-inspect-head" style="--ea-color:${uiColor(f, false)};--ea-color-dark:${uiColor(f, true)}">
         <canvas class="ea-inspect-orb" width="104" height="104" aria-hidden="true"></canvas>
         <div>
-          <p class="ea-inspect-kicker">${f.family}</p>
+          <p class="ea-inspect-kicker">${f.family} · ${partsLabel(l)}</p>
           <h3>${f.glyph} ${f.name}</h3>
           <p class="ea-inspect-blurb">${f.blurb}</p>
         </div>
@@ -362,6 +364,22 @@ export class Forge {
             ${Weapons.ids.map((id) => `<option value="${id}" ${id === weaponId ? 'selected' : ''}>${weaponLabel(id)}${id === f.weapon.id ? ' (stock)' : ''}</option>`).join('')}
           </select>
         </label>
+
+        <label class="ea-row">
+          <span>Chassis</span>
+          <select id="insChassis">
+            ${Chassis.all.map((c) => `<option value="${c.id}" ${c.id === l.chassisId ? 'selected' : ''}>${c.name}</option>`).join('')}
+          </select>
+        </label>
+        <p class="ea-inspect-note">${Chassis.get(l.chassisId)?.desc || ''}</p>
+
+        <label class="ea-row">
+          <span>Drive</span>
+          <select id="insDrive">
+            ${Drives.all.map((d) => `<option value="${d.id}" ${d.id === l.driveId ? 'selected' : ''}>${d.name}</option>`).join('')}
+          </select>
+        </label>
+        <p class="ea-inspect-note">${Drives.get(l.driveId)?.desc || ''}</p>
 
         <label class="ea-row">
           <span>Perk</span>
@@ -414,6 +432,14 @@ export class Forge {
 
     $('#insWeapon', panel).addEventListener('change', (ev) => {
       l.weaponId = ev.target.value === f.weapon.id ? null : ev.target.value;
+      this.commitLoadout(entry);
+    });
+    $('#insChassis', panel).addEventListener('change', (ev) => {
+      l.chassisId = ev.target.value;
+      this.commitLoadout(entry);
+    });
+    $('#insDrive', panel).addEventListener('change', (ev) => {
+      l.driveId = ev.target.value;
       this.commitLoadout(entry);
     });
     $('#insPerk', panel).addEventListener('change', (ev) => {

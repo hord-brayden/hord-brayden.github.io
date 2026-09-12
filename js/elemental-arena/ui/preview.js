@@ -11,6 +11,7 @@
  */
 
 import { bakeWeapon, Weapons } from '../content/weapons.js';
+import { Chassis, Drives } from '../content/parts.js';
 import { Themes } from '../render/themes.js';
 
 const TAU = Math.PI * 2;
@@ -118,18 +119,25 @@ function paint(p, t) {
   const theme = Themes.get(p.themeId) || Themes.get('pixel');
   const c = fighter.colors;
 
+  // The preview has to show the assembled orb, not just the core — a chassis
+  // that changes size and a drive that changes reach are exactly the choices
+  // someone is trying to compare here.
+  const chassis = Chassis.get(p.loadout?.chassisId) || Chassis.get('standard');
+  const drive = Drives.get(p.loadout?.driveId) || Drives.get('orbit');
+
   // The orb is sized so the orb plus its swung weapon fits the box.
-  const r = Math.min(w, h) * 0.26;
+  const r = Math.min(w, h) * 0.25 * chassis.radiusMul;
   const cx = w / 2, cy = h / 2;
-  const angle = p.phase + t * 1.5 * p.spin;
+  const angle = p.phase + t * 1.5 * p.spin * drive.spinMul;
 
   const weaponId = (p.loadout && p.loadout.weaponId && Weapons.has(p.loadout.weaponId))
     ? p.loadout.weaponId : fighter.weapon.id;
   const def = Weapons.require(weaponId);
 
-  const tether = fighter.tether + (p.loadout && p.loadout.perk === 'reach' ? 1.5 : 0);
-  const gripDist = r * (1 + tether);
-  const len = r * 1.55 * (def.w / 30);
+  const tether = fighter.tether + drive.tetherBonus
+    + (p.loadout && p.loadout.perk === 'reach' ? 1.5 : 0);
+  const gripDist = r * (0.82 + tether);
+  const len = r * 2.15 * (0.9 + ((def.w / 30) - 0.9) * 0.5);
 
   // Weapon first so the orb overlaps its grip, same order as the arena.
   const cos = Math.cos(angle), sin = Math.sin(angle);

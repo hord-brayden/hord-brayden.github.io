@@ -1,18 +1,17 @@
-/* Loadouts — the per-fighter customisation behind clicking an orb.
+/* Loadouts — everything about an orb that is not its core.
  *
- * A roster entry carries a loadout alongside its template. Two things are
- * adjustable:
+ * A roster entry pairs a core (the fighter template) with a loadout, and the
+ * loadout is the assembly: weapon, chassis, drive, one perk, and three stat
+ * steppers on a shared budget.
  *
- *  - A perk: one starting trait, applied the moment the match begins.
- *  - A build: three stat steppers on a shared budget, so raising one means
- *    lowering another. That constraint is the whole point — an unconstrained
- *    slider set just produces a roster of maxed-out orbs.
- *
- * Weapons can also be swapped freely, because watching a Bulwark swing a
- * scythe is funny and costs nothing to allow.
+ * The budget is the point. An unconstrained slider set just produces a roster
+ * of maxed-out orbs; a zero-sum one makes every choice a trade. Chassis and
+ * drive work the same way — see content/parts.js, where nothing is a straight
+ * upgrade because everything can pick anything.
  */
 
 import { Registry } from '../core/registry.js';
+import { Chassis, Drives } from './parts.js';
 
 export const Perks = new Registry('perk', {
   defaults: { desc: '', apply: null },
@@ -66,7 +65,13 @@ export const BUILD_STATS = [
 export const BUILD_BUDGET = 0;
 
 export function defaultLoadout() {
-  return { weaponId: null, perk: 'none', hp: 0, dmg: 0, spd: 0 };
+  return {
+    weaponId: null,
+    chassisId: 'standard',
+    driveId: 'orbit',
+    perk: 'none',
+    hp: 0, dmg: 0, spd: 0,
+  };
 }
 
 /** Clamp a loadout into legal territory — used on load, URL decode and edit. */
@@ -74,6 +79,8 @@ export function normalizeLoadout(raw) {
   const out = defaultLoadout();
   if (!raw || typeof raw !== 'object') return out;
   if (typeof raw.weaponId === 'string') out.weaponId = raw.weaponId;
+  if (Chassis.has(raw.chassisId)) out.chassisId = raw.chassisId;
+  if (Drives.has(raw.driveId)) out.driveId = raw.driveId;
   if (Perks.has(raw.perk)) out.perk = raw.perk;
   for (const s of BUILD_STATS) {
     const v = Math.round(Number(raw[s.id]) || 0);

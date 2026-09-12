@@ -25,6 +25,7 @@ import { Fighters, effectiveness } from '../content/roster.js';
 import { Powerups } from '../content/powerups.js';
 import { Weapons } from '../content/weapons.js';
 import { Perks, defaultLoadout, normalizeLoadout, buildMultiplier } from '../content/loadouts.js';
+import { Chassis, Drives } from '../content/parts.js';
 
 export const SIM_HZ = 120;
 const SIM_DT = 1 / SIM_HZ;
@@ -33,7 +34,7 @@ const MAX_STEPS_PER_FRAME = 6;   // spiral-of-death guard after a tab stall
 /* A weapon 30 art-pixels wide is this many orb radii long in the world.
  * Geometry and rendering both derive from it, so the sprite you see is
  * exactly the segment that gets hit-tested. */
-const WEAPON_LENGTH_PER_RADIUS = 1.95;
+const WEAPON_LENGTH_PER_RADIUS = 2.15;
 const WEAPON_REF_WIDTH = 30;
 
 /*
@@ -115,17 +116,28 @@ export class Ball {
     this.x = x; this.y = y;
     this.px = x; this.py = y;          // previous state, for render interpolation
 
+    // Chassis and drive are pure modifier bundles folded in at construction.
+    // Nothing reads them again after this, which is what keeps a combination
+    // space of nineteen cores by twenty-three weapons by six by six free of
+    // per-frame cost.
+    const chassis = Chassis.get(loadout.chassisId) || Chassis.get('standard');
+    const drive = Drives.get(loadout.driveId) || Drives.get('orbit');
+    this.chassis = chassis;
+    this.drive = drive;
+
     const a = engine.rng.next() * Math.PI * 2;
-    this.targetSpeed = speed * el.speed * buildMultiplier(loadout, 'spd');
+    this.targetSpeed = speed * el.speed * buildMultiplier(loadout, 'spd')
+      * chassis.speedMul * drive.speedMul;
     this.vx = Math.cos(a) * this.targetSpeed;
     this.vy = Math.sin(a) * this.targetSpeed;
 
-    this.baseRadius = radius;
-    this.radius = radius;
-    this.baseMaxHp = hp * el.hp * buildMultiplier(loadout, 'hp');
+    this.baseRadius = radius * chassis.radiusMul;
+    this.radius = this.baseRadius;
+    this.baseMaxHp = hp * el.hp * buildMultiplier(loadout, 'hp') * chassis.hpMul;
     this.maxHp = this.baseMaxHp;
     this.hp = this.maxHp;
-    this.baseDamage = damage * el.damage * buildMultiplier(loadout, 'dmg');
+    this.baseDamage = damage * el.damage * buildMultiplier(loadout, 'dmg')
+      * chassis.damageMul * drive.damageMul;
     this.startHp = opts.startHp;   // campaign carries damage between stages
 
     this.statuses = new Map();
@@ -136,13 +148,18 @@ export class Ball {
     this.ultCharge = 0;
     this.ultMax = 100;
     this.ultCount = 0;
-    this.ultRate = 1;
+    this.ultRate = chassis.ultRate;
+    this.spinScale = chassis.spinMul * drive.spinMul;
+    this.cooldownScale = drive.cooldownMul;
+    this.chassisEvasion = chassis.evasion;
+    this.chassisKnockbackResist = chassis.knockbackResist;
+    this.chassisDmgTakenMul = chassis.dmgTakenMul;
 
     this.spinDir = engine.rng.chance(0.5) ? 1 : -1;
     // How far the grip sits beyond the orb's surface, in radii. Zero — the
     // default — means the weapon is held against the orb. Reach is something
     // a template or a powerup grants, never the baseline.
-    this.tetherBonus = 0;
+    this.tetherBonus = drive.tetherBonus;
     this.weaponId = loadout.weaponId && Weapons.has(loadout.weaponId)
       ? loadout.weaponId : el.weapon.id;
 
@@ -201,10 +218,16 @@ export class Ball {
     if (engine && !silent) engine.announce(this, 'TWIN ARMS', this.element.colors.light);
   }
 
-  /** Distance from orb centre to the weapon grip. */
+  /**
+   * Distance from orb centre to the weapon grip.
+   *
+   * The baseline sits slightly *inside* the shell rather than exactly on it,
+   * so the grip is visually swallowed by the orb and the weapon reads as part
+   * of the piece instead of a sprite floating alongside it.
+   */
   gripDistance() {
     const tether = this.element.tether + (this.tetherBonus || 0);
-    return this.radius * (1 + tether * this.mods.reachMul);
+    return this.radius * (0.82 + tether * this.mods.reachMul);
   }
 
   /** World-space length of the weapon blade itself. */
@@ -272,6 +295,8 @@ export class Engine {
   }
 
   applyPerk(ball) {
+    const start = ball.chassis && ball.chassis.startStatus;
+    if (start) this.applyStatus(ball, start.id, start.duration, { sourceId: ball.id });
     const perk = Perks.get(ball.loadout.perk);
     if (perk && perk.apply) perk.apply(this, ball);
   }
@@ -293,7 +318,7 @@ export class Engine {
     if (p.speedMul) ball.targetSpeed *= p.speedMul;
     if (p.radiusMul) { ball.baseRadius *= p.radiusMul; ball.radius = ball.baseRadius; }
     if (p.reachBonus) ball.tetherBonus = (ball.tetherBonus || 0) + p.reachBonus;
-    if (p.spinMul) ball.spinScale = p.spinMul;
+    if (p.spinMul) ball.spinScale = (ball.spinScale || 1) * p.spinMul;
     if (p.ultRate) ball.ultRate = p.ultRate;
     if (p.resists) ball.resists = { ...p.resists };
     if (p.ccResist) ball.ccResist = p.ccResist;
@@ -442,6 +467,12 @@ export class Engine {
       for (const [id, inst] of ball.statuses) {
         const def = Statuses.get(id);
         if (def && def.modify) def.modify(m, inst, ball);
+      }
+
+      if (ball.chassisDmgTakenMul) m.dmgTakenMul *= ball.chassisDmgTakenMul;
+      if (ball.chassisEvasion) m.evasion = Math.max(m.evasion, ball.chassisEvasion);
+      if (ball.chassisKnockbackResist) {
+        m.knockbackResist = Math.max(m.knockbackResist, ball.chassisKnockbackResist);
       }
 
       // Loadout perks that behave like permanent passives.
@@ -737,6 +768,12 @@ export class Engine {
     this.shake(6);
     this.sfx('parry');
 
+    for (const [ball, w] of [[a, wa], [b, wb]]) {
+      if (!ball.drive || !ball.drive.reversesOnParry) continue;
+      ball.spinDir *= -1;
+      this.applyStatus(ball, 'focus', 1.4, { sourceId: ball.id });
+    }
+
     if (a.element.onParry) a.element.onParry(this, a, b);
     if (b.element.onParry) b.element.onParry(this, b, a);
     this.emit('parry', { a, b, x: cx, y: cy });
@@ -756,7 +793,7 @@ export class Engine {
           // One hit per target per swing. Without this a slow orbit would
           // grind a target down at the simulation rate, not the swing rate.
           const last = w.lastHit.get(target.id) || -99;
-          const cooldown = (w.heavy ? 0.34 : 0.24) * w.cdScale;
+          const cooldown = (w.heavy ? 0.34 : 0.24) * w.cdScale * (owner.cooldownScale || 1);
           if (this.time - last < cooldown) continue;
           w.lastHit.set(target.id, this.time);
 
