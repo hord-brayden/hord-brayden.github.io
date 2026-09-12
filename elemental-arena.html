@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-MKKD62VLDH"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-MKKD62VLDH');
+  </script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Elemental Arena — Brayden Hord</title>
+  <meta name="description" content="A deterministic battle simulator. Twelve elements, flail-chained weapons, ultimates that fire themselves. Three modes, two visual themes, and every match reproducible from a seed.">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="img/apple-icon-180x180.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+  <link rel="manifest" href="img/manifest.json">
+  <meta name="theme-color" content="#f7f4ee">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,400..600,30..100,0..1;1,9..144,400..600,30..100,0..1&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+
+  <style>
+    /* ---- Elemental Arena page-local styles ----
+       The arena is a fixed-aspect stage that fills whatever space the
+       viewport gives it; everything else is chrome sized around it.
+       Colours come from the global design tokens except inside the
+       arena chrome, where each element supplies its own via --ea-color. */
+
+    .ea-page {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    .ea-shell {
+      flex: 1;
+      width: 100%;
+      max-width: var(--max-wide);
+      margin: 0 auto;
+      padding: 18px 20px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    /* ---- title strip ---- */
+
+    .ea-title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: clamp(1.05rem, 3.2vw, 1.9rem);
+      letter-spacing: -0.02em;
+      text-align: center;
+      line-height: 1.1;
+      min-height: 2.2em;
+    }
+    /* Element colours are picked for the arena, not for page chrome, so each
+       one ships a second variant with enough contrast against the dark page.
+       See uiColor() in content/elements.js. */
+    .dark-mode .ea-title-side,
+    .dark-mode .ea-hud-row,
+    .dark-mode .ea-roster-row,
+    .dark-mode .ea-codex-card { --ea-color: var(--ea-color-dark, var(--ea-color)); }
+
+    .ea-title-side {
+      color: var(--ea-color);
+      -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.35);
+      paint-order: stroke fill;
+    }
+    .dark-mode .ea-title-side { -webkit-text-stroke: 0; }
+    .ea-vs { color: var(--muted); font-size: 0.72em; }
+    .ea-amp { color: var(--muted-soft); font-size: 0.66em; }
+
+    /* ---- stage ---- */
+
+    #stage {
+      position: relative;
+      flex: 1;
+      min-height: 320px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    #arena {
+      display: block;
+      touch-action: manipulation;
+      image-rendering: pixelated;
+    }
+    .ea-error {
+      font-family: var(--font-mono);
+      color: var(--bad);
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    /* ---- HUD ---- */
+
+    .ea-hud {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: start;
+      gap: 8px 16px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.82rem;
+    }
+    .ea-hud-edge { color: var(--muted); white-space: nowrap; padding-top: 4px; }
+
+    #hudRows {
+      display: grid;
+      gap: 6px;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    }
+    .ea-hud-row { min-width: 0; transition: opacity .3s var(--ease); }
+    .dark-mode .ea-meter { --ea-halo: rgba(0, 0, 0, 0.65); }
+    .ea-hud-row.is-dead { opacity: 0.3; }
+
+    .ea-meter {
+      --ea-halo: rgba(255, 255, 255, 0.6);
+      position: relative;
+      height: 20px;
+      border: 2px solid var(--ink);
+      background: var(--bg-elev);
+      overflow: hidden;
+      border-radius: 3px;
+    }
+    .ea-meter-fill {
+      position: absolute;
+      inset: 0;
+      background: var(--ea-color);
+      transform: scaleX(0);
+      transform-origin: left center;
+      /* transform-only animation keeps meter updates off the layout path */
+      transition: transform .08s linear;
+      will-change: transform;
+    }
+    .ea-meter-label {
+      position: relative;
+      display: block;
+      padding: 0 7px;
+      line-height: 16px;
+      font-size: 0.72rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--ink);
+      /* The label sits on top of the fill, which is an arbitrary element
+         colour, so it needs a halo to stay readable over both the filled and
+         the empty half of the meter. */
+      text-shadow: 0 1px 0 var(--ea-halo), 0 -1px 0 var(--ea-halo),
+                   1px 0 0 var(--ea-halo), -1px 0 0 var(--ea-halo);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ea-hud-stat {
+      color: var(--ea-color);
+      font-size: 0.76rem;
+      padding-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ---- toolbar ---- */
+
+    .ea-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .ea-bar button {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      padding: 7px 13px;
+    }
+    .ea-spacer { flex: 1 1 40px; }
+    .ea-speed {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--muted);
+    }
+    .ea-speed input { width: 110px; }
+    #seedReadout {
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      color: var(--muted);
+      background: var(--bg-sunken);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 4px 9px;
+    }
+    #statsReadout {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--muted-soft);
+      text-align: center;
+    }
+
+    /* ---- overlay panels ---- */
+
+    /* An id selector beats the UA stylesheet's [hidden] { display: none },
+       so the display value here has to be undone explicitly or the overlay
+       covers the whole page forever. */
+    #overlay[hidden], .ea-panel[hidden] { display: none !important; }
+
+    #overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter: blur(6px);
+      overflow-y: auto;
+    }
+    .ea-panel {
+      width: min(760px, 100%);
+      max-height: 88vh;
+      overflow-y: auto;
+      background: var(--bg-elev);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      padding: 26px 28px 24px;
+    }
+    .ea-panel h2 {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      margin: 0 0 4px;
+    }
+    .ea-panel > p.ea-lede { color: var(--muted); margin: 0 0 18px; line-height: 1.5; }
+    .ea-panel h3 {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--muted);
+      margin: 22px 0 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    .ea-panel-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+
+    .ea-field { display: block; margin-bottom: 14px; }
+    .ea-field > span {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    .ea-field select,
+    .ea-field input[type="text"],
+    .ea-field input[type="number"] {
+      width: 100%;
+      font-family: var(--font-mono);
+      font-size: 0.86rem;
+    }
+    .ea-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0 18px; }
+    .ea-range { display: flex; align-items: center; gap: 10px; }
+    .ea-range input[type="range"] { flex: 1; }
+    .ea-range output {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      min-width: 3.4em;
+      text-align: right;
+      color: var(--ink);
+    }
+    .ea-toggle {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+    .ea-note { color: var(--muted); font-size: 0.82rem; line-height: 1.5; margin: 0 0 14px; }
+
+    /* ---- roster editor ---- */
+
+    #rosterList { display: grid; gap: 9px; margin-bottom: 12px; }
+    .ea-roster-row {
+      display: grid;
+      grid-template-columns: 10px 1fr 1fr 74px 38px;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 11px;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--ea-color);
+      border-radius: var(--radius-sm);
+      background: var(--bg-sunken);
+    }
+    .ea-roster-row select, .ea-roster-row input {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      width: 100%;
+    }
+    .ea-swatch {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--ea-color);
+      border: 1px solid rgba(0,0,0,.35);
+    }
+    .ea-remove { padding: 3px 8px !important; line-height: 1; font-size: 1rem !important; }
+    .ea-roster-blurb {
+      grid-column: 2 / -1;
+      margin: 0;
+      font-size: 0.74rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    /* ---- powerup checklist ---- */
+
+    #powerupList {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+      gap: 6px;
+    }
+    .ea-check {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .ea-check:hover { border-color: var(--ea-color); }
+    .ea-check-glyph {
+      width: 19px; height: 19px;
+      display: grid; place-items: center;
+      background: var(--ea-color);
+      color: #fff;
+      border-radius: 3px;
+      font-weight: 700;
+      text-shadow: 0 1px 1px rgba(0,0,0,.5);
+      flex: none;
+    }
+
+    /* ---- codex ---- */
+
+    #codexElements {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 11px;
+    }
+    .ea-codex-card {
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--ea-color);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      background: var(--bg-sunken);
+    }
+    .ea-codex-card h4 { margin: 0 0 4px; font-size: 0.98rem; font-family: var(--font-mono); }
+    .ea-codex-blurb { margin: 0 0 9px; font-size: 0.78rem; color: var(--muted); line-height: 1.45; }
+    .ea-codex-card dl {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 3px 9px;
+      margin: 0;
+      font-size: 0.74rem;
+      line-height: 1.4;
+    }
+    .ea-codex-card dt { color: var(--muted-soft); font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; }
+    .ea-codex-card dd { margin: 0; }
+
+    .ea-list { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 5px; font-size: 0.8rem; }
+    .ea-list li { display: flex; align-items: center; gap: 7px; }
+    .ea-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; border: 1px solid rgba(0,0,0,.3); display: inline-block; }
+
+    /* ---- result ---- */
+
+    #resultTitle { font-family: var(--font-mono); font-weight: 800; font-size: 1.7rem; margin: 0 0 4px; }
+    #resultReason { color: var(--muted); margin: 0 0 18px; font-family: var(--font-mono); font-size: 0.84rem; }
+    #resultTable { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.78rem; }
+    #resultTable th {
+      text-align: left;
+      font-size: 0.66rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      padding: 5px 8px 5px 0;
+    }
+    #resultTable td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--border); }
+    #resultTable td:first-child { display: flex; align-items: center; gap: 7px; }
+
+    /* ---- toast ---- */
+
+    #toast {
+      position: fixed;
+      left: 50%;
+      bottom: 26px;
+      transform: translate(-50%, 14px);
+      background: var(--ink);
+      color: var(--bg);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      padding: 9px 16px;
+      border-radius: 999px;
+      box-shadow: var(--shadow-md);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s var(--ease), transform .2s var(--ease);
+      z-index: 70;
+    }
+    #toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+    /* ---- narrow screens ---- */
+
+    @media (max-width: 640px) {
+      .ea-shell { padding: 12px 12px 20px; }
+      .ea-hud { grid-template-columns: 1fr; }
+      .ea-hud-edge { padding-top: 0; }
+      #hudRows { grid-template-columns: 1fr 1fr; }
+      .ea-roster-row { grid-template-columns: 10px 1fr 60px 34px; }
+      .ea-roster-row .ea-team { grid-column: 2 / 4; }
+      .ea-panel { padding: 20px 18px 18px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #toast, .ea-meter-fill, .ea-hud-row { transition: none; }
+    }
+  </style>
+</head>
+
+<body class="ea-page">
+  <header-component></header-component>
+
+  <main class="ea-shell">
+    <h1 id="matchTitle" class="ea-title">Elemental Arena</h1>
+
+    <div id="stage">
+      <canvas id="arena" aria-label="Elemental Arena battle simulation"></canvas>
+    </div>
+
+    <div class="ea-hud">
+      <span class="ea-hud-edge" id="hudLeft"></span>
+      <div id="hudRows"></div>
+      <span class="ea-hud-edge" id="hudRight"></span>
+    </div>
+
+    <div class="ea-bar">
+      <button type="button" id="pauseBtn">Pause</button>
+      <button type="button" id="restartBtn" class="btn--ghost">Replay seed</button>
+      <button type="button" id="rerollBtn" class="btn--ghost">New seed</button>
+      <span id="seedReadout"></span>
+      <span class="ea-spacer"></span>
+      <label class="ea-speed">
+        Speed
+        <input type="range" id="speedRange" min="0.25" max="3" step="0.05" value="1">
+        <output id="speedReadout">1.00×</output>
+      </label>
+      <span class="ea-spacer"></span>
+      <button type="button" id="newGameBtn">New game</button>
+      <button type="button" id="settingsBtn" class="btn--ghost">Settings</button>
+      <button type="button" id="codexBtn" class="btn--ghost">Codex</button>
+      <button type="button" id="shareBtn" class="btn--ghost">Share match</button>
+    </div>
+
+    <p id="statsReadout"></p>
+  </main>
+
+  <!-- ============================ overlays ============================ -->
+  <div id="overlay" hidden>
+
+    <!-- NEW GAME -->
+    <section class="ea-panel" id="panelNew" hidden>
+      <h2>New game</h2>
+      <p class="ea-lede">Pick a mode, build a roster, and set a seed. The same seed with the same roster always produces the same fight.</p>
+
+      <label class="ea-field">
+        <span>Mode</span>
+        <select id="modeSelect"></select>
+      </label>
+      <p class="ea-note" id="modeDesc"></p>
+
+      <h3>Roster</h3>
+      <div id="rosterList"></div>
+      <div class="ea-bar">
+        <button type="button" id="addFighterBtn" class="btn--ghost">+ Add fighter</button>
+        <button type="button" id="randomRosterBtn" class="btn--ghost">Randomise</button>
+      </div>
+      <p class="ea-note" id="survivalNote" hidden>Survival puts your whole roster on one team against endless waves. Team assignments are ignored.</p>
+
+      <div id="territoryOpts" hidden>
+        <h3>Territory</h3>
+        <div class="ea-grid2">
+          <label class="ea-field">
+            <span>Tile size (px)</span>
+            <input type="number" id="tileSize" min="8" max="80" step="2">
+          </label>
+          <label class="ea-toggle">
+            <input type="checkbox" id="territoryRespawn">
+            Respawn fighters after a knockout
+          </label>
+        </div>
+      </div>
+
+      <h3>Seed</h3>
+      <div class="ea-bar">
+        <input type="text" id="seedInput" style="flex:1;min-width:180px;font-family:var(--font-mono)" aria-label="Match seed">
+        <button type="button" id="seedShuffle" class="btn--ghost">Shuffle</button>
+      </div>
+
+      <div class="ea-panel-actions">
+        <button type="button" id="startMatchBtn">Start match</button>
+        <button type="button" class="btn--ghost" data-close-panel>Cancel</button>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="ea-panel" id="panelSettings" hidden>
+      <h2>Settings</h2>
+      <p class="ea-lede">These apply to the next match you start. Presentation options take effect immediately.</p>
+
+      <h3>Presentation</h3>
+      <label class="ea-field">
+        <span>Theme</span>
+        <select id="themeSelect"></select>
+      </label>
+      <label class="ea-toggle"><input type="checkbox" id="particlesOn"> Particles</label>
+      <label class="ea-toggle"><input type="checkbox" id="shakeOn"> Screen shake</label>
+      <label class="ea-toggle"><input type="checkbox" id="showStats"> Show live stats</label>
+      <label class="ea-toggle"><input type="checkbox" id="soundEnabled"> Sound</label>
+      <label class="ea-field">
+        <span>Volume</span>
+        <span class="ea-range"><input type="range" id="volume" min="0" max="1" step="0.05"><output id="volumeReadout"></output></span>
+      </label>
+
+      <h3>Fighters</h3>
+      <div class="ea-grid2">
+        <label class="ea-field">
+          <span>Starting health</span>
+          <span class="ea-range"><input type="range" id="baseHp" min="20" max="500" step="5"><output id="baseHpReadout"></output></span>
+        </label>
+        <label class="ea-field">
+          <span>Base damage per hit</span>
+          <span class="ea-range"><input type="range" id="baseDamage" min="1" max="40" step="0.5"><output id="baseDamageReadout"></output></span>
+        </label>
+        <label class="ea-field">
+          <span>Ball size</span>
+          <span class="ea-range"><input type="range" id="ballRadius" min="12" max="70" step="1"><output id="ballRadiusReadout"></output></span>
+        </label>
+        <label class="ea-field">
+          <span>Ball speed</span>
+          <span class="ea-range"><input type="range" id="ballSpeed" min="60" max="800" step="10"><output id="ballSpeedReadout"></output></span>
+        </label>
+      </div>
+
+      <h3>Match</h3>
+      <div class="ea-grid2">
+        <label class="ea-field">
+          <span>Arena size</span>
+          <span class="ea-range"><input type="range" id="arenaSize" min="400" max="1400" step="20"><output id="arenaSizeReadout"></output></span>
+        </label>
+        <label class="ea-field">
+          <span>Time limit (0 = none)</span>
+          <span class="ea-range"><input type="range" id="timeLimit" min="0" max="300" step="5"><output id="timeLimitReadout"></output></span>
+        </label>
+      </div>
+
+      <h3>Powerups</h3>
+      <label class="ea-toggle"><input type="checkbox" id="powerupsEnabled"> Spawn powerups</label>
+      <div id="powerupOpts">
+        <div class="ea-grid2">
+          <label class="ea-field">
+            <span>Seconds between spawns</span>
+            <span class="ea-range"><input type="range" id="powerupInterval" min="2" max="40" step="1"><output id="powerupIntervalReadout"></output></span>
+          </label>
+          <label class="ea-field">
+            <span>Max on the board</span>
+            <span class="ea-range"><input type="range" id="maxPickups" min="1" max="12" step="1"><output id="maxPickupsReadout"></output></span>
+          </label>
+        </div>
+        <p class="ea-note">Untick any powerup to keep it out of the pool. <strong>Elemental Overload</strong> resolves differently for every element — Fire gets Wildfire, Metal becomes a Juggernaut, and so on.</p>
+        <div id="powerupList"></div>
+      </div>
+
+      <div class="ea-panel-actions">
+        <button type="button" data-close-panel>Done</button>
+        <button type="button" id="resetSettingsBtn" class="btn--ghost">Reset to defaults</button>
+      </div>
+    </section>
+
+    <!-- CODEX -->
+    <section class="ea-panel" id="panelCodex" hidden>
+      <h2>Codex</h2>
+      <p class="ea-lede">Generated from the game's own registries, so it cannot drift out of date with the code.</p>
+
+      <h3>Elements</h3>
+      <div id="codexElements"></div>
+
+      <h3>Status effects</h3>
+      <ul class="ea-list" id="codexStatuses"></ul>
+
+      <h3>Powerups</h3>
+      <ul class="ea-list" id="codexPowerups"></ul>
+
+      <h3>How a match works</h3>
+      <p class="ea-note">
+        Nobody is driving. Each fighter is a ball bouncing inside the arena with a weapon
+        on a chain — the weapon is a free point mass held at a fixed distance and driven
+        tangentially, so it whips and lags rather than being pinned to a rotating transform.
+        When a weapon head overlaps an enemy ball it lands a hit, capped to one hit per
+        target per swing. Damage runs through a matchup multiplier, the attacker's passive,
+        and the defender's armour, then the attacking element's <em>onHit</em> applies its
+        signature effect. Ultimate meters fill from hits and from time, and fire the instant
+        they cap. The whole simulation is a fixed 120&nbsp;Hz and draws every random number
+        from a seeded generator, which is why a seed replays exactly.
+      </p>
+      <p class="ea-note">
+        Keyboard: <code>Space</code> pause · <code>R</code> replay seed · <code>N</code> new seed · <code>T</code> swap theme.
+      </p>
+
+      <div class="ea-panel-actions">
+        <button type="button" data-close-panel>Close</button>
+      </div>
+    </section>
+
+    <!-- RESULT -->
+    <section class="ea-panel" id="panelResult" hidden>
+      <h2 id="resultTitle"></h2>
+      <p id="resultReason"></p>
+      <table id="resultTable">
+        <thead>
+          <tr><th>Fighter</th><th>Team</th><th>Damage</th><th>Hits</th><th>Kills</th><th>Ults</th><th>HP left</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="ea-panel-actions">
+        <button type="button" id="resultAgainBtn">Run it back</button>
+        <button type="button" id="resultRematchBtn" class="btn--ghost">Replay same seed</button>
+        <button type="button" id="resultNewBtn" class="btn--ghost">Change setup</button>
+        <button type="button" class="btn--ghost" data-close-panel>Close</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <footer-component></footer-component>
+  <script src="js/site.js"></script>
+  <script type="module" src="js/elemental-arena/main.js"></script>
+</body>
+</html>
