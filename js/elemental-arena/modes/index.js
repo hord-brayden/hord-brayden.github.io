@@ -16,7 +16,7 @@
  */
 
 import { Registry } from '../core/registry.js';
-import { Elements } from '../content/elements.js';
+import { Fighters } from '../content/roster.js';
 
 export const Modes = new Registry('mode', {
   defaults: { supportsTeams: true, defaultFighters: 2, timeLimit: 0 },
@@ -37,13 +37,13 @@ function ringSpawn(engine, count, index, inset = 0.32) {
 
 /**
  * Turn the roster from the config into live fighters.
- * `roster` is [{ elementId, teamId, count }].
+ * `roster` is [{ fighterId, teamId, count, loadout }].
  */
 function spawnRoster(engine, roster) {
   const flat = [];
   roster.forEach((entry) => {
     for (let i = 0; i < (entry.count || 1); i++) {
-      flat.push({ elementId: entry.elementId, teamId: entry.teamId });
+      flat.push({ fighterId: entry.fighterId, teamId: entry.teamId, loadout: entry.loadout });
     }
   });
 
@@ -51,8 +51,9 @@ function spawnRoster(engine, roster) {
   flat.forEach((f, i) => {
     const pos = ringSpawn(engine, flat.length, i);
     engine.spawnBall({
-      elementId: f.elementId,
+      fighterId: f.fighterId,
       teamId: f.teamId,
+      loadout: f.loadout,
       x: pos.x, y: pos.y,
       hp: c.baseHp,
       damage: c.baseDamage,
@@ -277,10 +278,10 @@ Modes.define({
     this.wave = 0;
     this.nextWaveAt = 3;
     this.survived = 0;
-    this.enemyPool = Elements.ids.filter(
-      (id) => !engine.config.roster.some((r) => r.elementId === id)
+    this.enemyPool = Fighters.ids.filter(
+      (id) => !engine.config.roster.some((r) => r.fighterId === id)
     );
-    if (!this.enemyPool.length) this.enemyPool = Elements.ids.slice();
+    if (!this.enemyPool.length) this.enemyPool = Fighters.ids.slice();
   },
 
   update(engine, dt) {
@@ -298,7 +299,7 @@ Modes.define({
     const c = engine.config;
 
     for (let i = 0; i < size; i++) {
-      const elementId = engine.rng.pick(this.enemyPool);
+      const fighterId = engine.rng.pick(this.enemyPool);
       // Spawn at the edge, away from wherever the defenders currently are.
       const edge = engine.rng.int(0, 3);
       const { w, h } = engine.arena;
@@ -309,7 +310,7 @@ Modes.define({
         : { x: pad, y: engine.rng.range(pad, h - pad) };
 
       const ball = engine.spawnBall({
-        elementId,
+        fighterId,
         teamId: 1,
         x: pos.x, y: pos.y,
         hp: c.baseHp * 0.65 * scale,

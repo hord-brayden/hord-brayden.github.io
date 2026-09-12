@@ -1,56 +1,18 @@
-/* Elements — the identity layer.
+/* The elemental pack.
  *
- * An element bundles everything that makes a fighter feel like *that* thing:
- * its palette, the weapon it carries and what that weapon is called, the
- * damage flavour it inflicts, the passive it always has, the ultimate its
- * meter charges toward, and what happens when it eats an elemental powerup.
+ * Twelve elements. Each one owns a status effect that nothing else applies
+ * the same way, so a matchup is really a question of which status lands first
+ * and whether the other template can answer it.
  *
- * This is the file to edit to add a new element. Define it here and it
- * immediately appears in the roster picker, the matchup matrix, the sprite
- * baker and the shareable match URLs — nothing else needs touching.
- *
- * Element hooks:
- *   onHit({ engine, attacker, victim, amount })   land your signature effect
- *   passive.onTick(engine, ball, dt)              always-on behaviour
- *   ult.cast(engine, owner)                       the meter payoff
- *   overload.apply(engine, ball)                  element-specific powerup
+ * To add an element: copy the shape of any block below. It joins the roster
+ * builder, the matchup matrix, the codex and the share-URL codec on its own.
  */
 
-import { Registry } from '../core/registry.js';
-
-export const Elements = new Registry('element', {
-  defaults: {
-    // Stat multipliers against the mode's baseline. Kept close to 1 —
-    // identity should come from effects, not from raw number inflation.
-    hp: 1, damage: 1, speed: 1, spin: 1, reach: 1,
-    cosmetic: null,
-    strong: [], weak: [],
-  },
-  required: ['name', 'glyph', 'colors', 'weapon', 'ult'],
-});
-
-/** Build a weapon palette, filling in the derived grip shades. */
-function wpal(key, mid, light, dark, accent, hilt) {
-  return {
-    key, mid, light, dark, accent,
-    hilt,
-    hiltLight: shade(hilt, 1.35),
-    hiltDark: shade(hilt, 0.6),
-  };
-}
-
-/** Multiply a #rrggbb by a factor, clamped. Cheap, good enough for shading. */
-function shade(hex, f) {
-  const n = parseInt(hex.slice(1), 16);
-  const r = Math.min(255, Math.round(((n >> 16) & 255) * f));
-  const g = Math.min(255, Math.round(((n >> 8) & 255) * f));
-  const b = Math.min(255, Math.round((n & 255) * f));
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
-}
+import { Fighters, wpal } from '../fighters.js';
 
 /* ================================================================= FIRE */
 
-Elements.define({
+Fighters.define({
   id: 'fire',
   name: 'Fire',
   glyph: '🔥',
@@ -68,7 +30,7 @@ Elements.define({
     const mult = victim.mods.burnMul;
     if (mult <= 0.01) return;
     engine.applyStatus(victim, 'burn', 3.2, {
-      power: amount * 0.22 * mult,
+      power: amount * 0.27 * mult,
       sourceId: attacker.id,
     });
     engine.particles.burst('ember', victim.x, victim.y, 8, 170);
@@ -115,7 +77,7 @@ Elements.define({
 
 /* ================================================================== ICE */
 
-Elements.define({
+Fighters.define({
   id: 'ice',
   name: 'Ice',
   glyph: '❄️',
@@ -123,7 +85,7 @@ Elements.define({
   colors: { core: '#29c6f0', dark: '#0a5877', light: '#b6f0ff', accent: '#ffffff', ink: '#05323f', trail: '#8be9ff' },
   weapon: { id: 'axe', name: 'Rimehewer', palette: wpal('ice', '#9fe8ff', '#ffffff', '#2a7b9b', '#d8f7ff', '#4a3b2c') },
   cosmetic: 'frost',
-  hp: 1.1, speed: 0.94, damage: 1.06,
+  hp: 1.18, speed: 1.0, damage: 1.22,
   strong: ['nature', 'water', 'wind'],
   weak: ['fire', 'metal'],
   particle: 'frost',
@@ -151,7 +113,7 @@ Elements.define({
     damageBonus(engine, attacker, victim) {
       if (victim.statuses.has('freeze')) return 2;
       const chill = victim.statuses.get('chill');
-      return chill ? 1 + 0.14 * chill.stacks : 1;
+      return chill ? 1 + 0.2 * chill.stacks : 1;
     },
   },
 
@@ -187,7 +149,7 @@ Elements.define({
 
 /* ============================================================ LIGHTNING */
 
-Elements.define({
+Fighters.define({
   id: 'lightning',
   name: 'Lightning',
   glyph: '⚡',
@@ -195,7 +157,7 @@ Elements.define({
   colors: { core: '#f7d417', dark: '#7a5c00', light: '#fff59a', accent: '#ffffff', ink: '#241d00', trail: '#ffe76b' },
   weapon: { id: 'spear', name: 'Stormpike', palette: wpal('lightning', '#ffe14a', '#fffbcc', '#8a6b00', '#ffffff', '#2e2a1a') },
   cosmetic: 'sparks',
-  speed: 1.18, spin: 1.2, hp: 0.94,
+  speed: 1.18, spin: 1.2, hp: 1.0, damage: 1.06,
   strong: ['water', 'wind', 'metal'],
   weak: ['earth'],
   particle: 'spark',
@@ -265,7 +227,7 @@ Elements.define({
 
 /* ================================================================ EARTH */
 
-Elements.define({
+Fighters.define({
   id: 'earth',
   name: 'Earth',
   glyph: '🪨',
@@ -273,7 +235,7 @@ Elements.define({
   colors: { core: '#8b5e34', dark: '#40281a', light: '#c89b6a', accent: '#5b8c3a', ink: '#ffffff', trail: '#a97c50' },
   weapon: { id: 'hammer', name: 'Terrafall', palette: wpal('earth', '#8d7355', '#c4a683', '#4a3a28', '#5b8c3a', '#3a2a1c') },
   cosmetic: 'rocks',
-  hp: 1.18, speed: 0.78, damage: 1.12, spin: 0.82,
+  hp: 1.26, speed: 0.9, damage: 1.2, spin: 0.9,
   strong: ['lightning', 'fire', 'metal'],
   weak: ['nature', 'wind'],
   particle: 'rubble',
@@ -290,9 +252,9 @@ Elements.define({
 
   passive: {
     name: 'Bedrock',
-    desc: 'Takes 16% less damage, and cannot be knocked around easily.',
+    desc: 'Takes 20% less damage, and cannot be knocked around easily.',
     onTick(engine, ball) {
-      ball.mods.dmgTakenMul *= 0.84;
+      ball.mods.dmgTakenMul *= 0.8;
       ball.mods.knockbackResist = 0.55;
     },
   },
@@ -326,7 +288,7 @@ Elements.define({
 
 /* ================================================================ WATER */
 
-Elements.define({
+Fighters.define({
   id: 'water',
   name: 'Water',
   glyph: '💧',
@@ -353,7 +315,7 @@ Elements.define({
     // Water needs to cash in its own debuff. Without this the element is
     // pure utility for whoever it is standing next to, and loses every duel.
     damageBonus(engine, attacker, victim) {
-      return victim.statuses.has('wet') ? 1.6 : 1;
+      return victim.statuses.has('wet') ? 1.8 : 1;
     },
     onTick(engine, ball, dt) {
       for (const foe of engine.enemiesOf(ball)) {
@@ -396,7 +358,7 @@ Elements.define({
 
 /* =============================================================== NATURE */
 
-Elements.define({
+Fighters.define({
   id: 'nature',
   name: 'Nature',
   glyph: '🌿',
@@ -404,15 +366,15 @@ Elements.define({
   colors: { core: '#3f9d3a', dark: '#1c4a1a', light: '#8fd96a', accent: '#d4f27a', ink: '#ffffff', trail: '#6bbf4a' },
   weapon: { id: 'scythe', name: 'Bramblereap', palette: wpal('nature', '#8fd96a', '#d4f27a', '#2f6b2a', '#c8a24a', '#4a3520') },
   cosmetic: 'leaves',
-  hp: 1.08, damage: 0.92,
+  hp: 1.04, damage: 0.9,
   strong: ['water', 'earth'],
   weak: ['fire', 'ice'],
   particle: 'leaf',
 
   onHit({ engine, attacker, victim, amount }) {
     // Entangle rather than poison — Venom owns damage-over-time.
-    engine.applyStatus(victim, 'chill', 2.5, { sourceId: attacker.id });
-    engine.heal(attacker, amount * 0.05);
+    engine.applyStatus(victim, 'chill', 2, { sourceId: attacker.id });
+    engine.heal(attacker, amount * 0.03);
     engine.particles.burst('leaf', victim.x, victim.y, 7, 150);
   },
 
@@ -421,7 +383,7 @@ Elements.define({
     desc: 'Regenerates continuously, faster the lower its health gets.',
     onTick(engine, ball, dt) {
       const missing = 1 - ball.hp / ball.maxHp;
-      engine.heal(ball, (0.1 + missing * 0.35) * dt);
+      engine.heal(ball, (0.04 + missing * 0.12) * dt);
     },
   },
 
@@ -455,7 +417,7 @@ Elements.define({
 
 /* ================================================================ LIGHT */
 
-Elements.define({
+Fighters.define({
   id: 'light',
   name: 'Light',
   glyph: '🛡️',
@@ -463,7 +425,7 @@ Elements.define({
   colors: { core: '#f5efc8', dark: '#8a7b2a', light: '#ffffff', accent: '#ffd34a', ink: '#3a3210', trail: '#fff4b8' },
   weapon: { id: 'gauntlet', name: 'Dawnbreaker', palette: wpal('light', '#ffe9a8', '#ffffff', '#a08430', '#ffd34a', '#6a5a24') },
   cosmetic: 'halo',
-  hp: 1.1, damage: 0.98,
+  hp: 1.14, damage: 1.06,
   strong: ['shadow', 'venom'],
   weak: ['arcane'],
   particle: 'mote',
@@ -528,7 +490,7 @@ Elements.define({
 
 /* =============================================================== SHADOW */
 
-Elements.define({
+Fighters.define({
   id: 'shadow',
   name: 'Shadow',
   glyph: '🌑',
@@ -536,13 +498,13 @@ Elements.define({
   colors: { core: '#5b2d8a', dark: '#1a0b2e', light: '#a970e0', accent: '#e0a0ff', ink: '#ffffff', trail: '#7a45b5' },
   weapon: { id: 'dagger', name: 'Nightfang', palette: wpal('shadow', '#7a45b5', '#c79bea', '#2a1140', '#e0a0ff', '#241634') },
   cosmetic: 'smoke',
-  speed: 1.14, spin: 1.25, hp: 0.9, damage: 0.96,
-  strong: ['arcane'],
-  weak: ['light', 'venom'],
+  speed: 1.18, spin: 1.34, hp: 1.1, damage: 1.2,
+  strong: ['arcane', 'metal', 'knifethrower'],
+  weak: ['light'],
   particle: 'smoke',
 
   onHit({ engine, attacker, victim, amount }) {
-    engine.heal(attacker, amount * 0.4);
+    engine.heal(attacker, amount * 0.58);
     engine.applyStatus(victim, 'corrode', 5, { sourceId: attacker.id });
     engine.particles.burst('smoke', victim.x, victim.y, 7, 130);
   },
@@ -591,7 +553,7 @@ Elements.define({
 
 /* ================================================================= WIND */
 
-Elements.define({
+Fighters.define({
   id: 'wind',
   name: 'Wind',
   glyph: '🌪️',
@@ -599,9 +561,9 @@ Elements.define({
   colors: { core: '#7fd6c4', dark: '#1f5b52', light: '#d4fff6', accent: '#ffffff', ink: '#123a34', trail: '#a8ece0' },
   weapon: { id: 'chakram', name: 'Galecutter', palette: wpal('wind', '#a8ece0', '#ffffff', '#2f7a6c', '#d4fff6', '#3a4a48') },
   cosmetic: 'swirl',
-  speed: 1.32, spin: 1.4, hp: 0.86, damage: 0.9, reach: 1.12,
-  strong: ['earth', 'nature'],
-  weak: ['lightning', 'ice'],
+  speed: 1.32, spin: 1.4, hp: 0.9, damage: 0.98, reach: 1.12,
+  strong: ['earth', 'nature', 'duelist'],
+  weak: ['lightning'],
   particle: 'gust',
 
   onHit({ engine, attacker, victim }) {
@@ -612,9 +574,9 @@ Elements.define({
 
   passive: {
     name: 'Slipstream',
-    desc: 'A quarter of incoming hits simply miss.',
+    desc: 'Three in ten incoming hits simply miss.',
     onTick(engine, ball) {
-      ball.mods.evasion = Math.max(ball.mods.evasion || 0, 0.25);
+      ball.mods.evasion = Math.max(ball.mods.evasion || 0, 0.3);
     },
   },
 
@@ -654,7 +616,7 @@ Elements.define({
 
 /* ================================================================ METAL */
 
-Elements.define({
+Fighters.define({
   id: 'metal',
   name: 'Metal',
   glyph: '⚙️',
@@ -662,7 +624,7 @@ Elements.define({
   colors: { core: '#9aa5b1', dark: '#3a444f', light: '#e2e8ee', accent: '#f0a020', ink: '#1b2027', trail: '#c0cad4' },
   weapon: { id: 'wrench', name: 'Ironjaw', palette: wpal('metal', '#b8c2cc', '#eef3f7', '#4a5560', '#f0a020', '#2e3640') },
   cosmetic: 'plating',
-  hp: 1.12, damage: 1.0, speed: 0.9,
+  hp: 1.18, damage: 1.08, speed: 0.94,
   strong: ['ice', 'venom'],
   weak: ['fire', 'lightning', 'earth'],
   particle: 'shard',
@@ -679,7 +641,7 @@ Elements.define({
     name: 'Plating',
     desc: 'Each landed hit adds a layer of armour, up to 20%. Layers rust away if it stops hitting.',
     onTick(engine, ball, dt) {
-      ball.plating = Math.max(0, (ball.plating || 0) - dt * 0.45);
+      ball.plating = Math.max(0, (ball.plating || 0) - dt * 0.3);
       ball.mods.dmgTakenMul *= 1 - 0.04 * ball.plating;
     },
   },
@@ -722,7 +684,7 @@ Elements.define({
 
 /* =============================================================== ARCANE */
 
-Elements.define({
+Fighters.define({
   id: 'arcane',
   name: 'Arcane',
   glyph: '🔮',
@@ -789,7 +751,7 @@ Elements.define({
 
 /* ================================================================ VENOM */
 
-Elements.define({
+Fighters.define({
   id: 'venom',
   name: 'Venom',
   glyph: '🧪',
@@ -803,7 +765,7 @@ Elements.define({
   particle: 'toxin',
 
   onHit({ engine, attacker, victim, amount }) {
-    engine.applyStatus(victim, 'poison', 7, { power: amount * 0.085, sourceId: attacker.id });
+    engine.applyStatus(victim, 'poison', 7, { power: amount * 0.068, sourceId: attacker.id });
     engine.particles.burst('toxin', victim.x, victim.y, 8, 150);
   },
 
@@ -840,46 +802,3 @@ Elements.define({
     },
   },
 });
-
-/* ================================================================ ORDER */
-
-/* An element's core colour is chosen to read well inside the arena, which has
- * its own background. It does not automatically read well as HUD text on the
- * site's cream or near-black page — Light's pale gold on cream is effectively
- * invisible. These pick a variant with enough contrast for each page theme,
- * so the chrome stays legible without dulling the in-arena palette. */
-
-/** Perceived brightness, 0 (black) to 1 (white). */
-function luminance(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-}
-
-const uiCache = new Map();
-
-/**
- * The colour to use for this element in page chrome.
- * @param {object} el      element definition
- * @param {boolean} onDark true when the page is in dark mode
- */
-export function uiColor(el, onDark) {
-  const key = `${el.id}|${onDark ? 'd' : 'l'}`;
-  let v = uiCache.get(key);
-  if (v) return v;
-  const c = el.colors;
-  v = onDark
-    ? (luminance(c.core) < 0.22 ? c.light : c.core)   // too dark on near-black
-    : (luminance(c.core) > 0.62 ? c.dark : c.core);   // too pale on cream
-  uiCache.set(key, v);
-  return v;
-}
-
-
-
-/** The matchup multiplier applied on top of raw damage. */
-export function effectiveness(attackerElement, defenderElement) {
-  if (attackerElement.strong.includes(defenderElement.id)) return 1.25;
-  if (attackerElement.weak.includes(defenderElement.id)) return 0.8;
-  return 1;
-}

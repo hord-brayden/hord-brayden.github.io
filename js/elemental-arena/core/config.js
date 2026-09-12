@@ -5,16 +5,19 @@
  * is exactly what gets packed into the URL hash so a link replays the same
  * match on someone else's machine.
  *
- * The codec is deliberately terse (single-letter keys, elements as registry
- * indices) so links stay short enough to paste into a message.
+ * The codec is deliberately terse (single-letter keys, templates as registry
+ * indices, loadouts omitted entirely when they sit at defaults) so links stay
+ * short enough to paste into a message.
  */
 
-import { Elements } from '../content/elements.js';
+import { Fighters } from '../content/roster.js';
 import { Modes } from '../modes/index.js';
 import { Powerups } from '../content/powerups.js';
+import { Perks, defaultLoadout, normalizeLoadout, BUILD_STATS } from '../content/loadouts.js';
+import { Weapons } from '../content/weapons.js';
 import { randomSeedPhrase } from './rng.js';
 
-const STORE_KEY = 'elementalArena.settings.v1';
+const STORE_KEY = 'elementalArena.settings.v2';
 
 export function defaultConfig() {
   return {
@@ -23,21 +26,22 @@ export function defaultConfig() {
     themeId: 'pixel',
 
     roster: [
-      { elementId: 'fire', teamId: 0, count: 1 },
-      { elementId: 'ice', teamId: 1, count: 1 },
+      { fighterId: 'fire', teamId: 0, count: 1, loadout: defaultLoadout() },
+      { fighterId: 'ice', teamId: 1, count: 1, loadout: defaultLoadout() },
     ],
 
-    // Arena size is tuned against ball size rather than chosen for its own
-    // sake. A fighter's footprint is its radius plus its chain reach — about
-    // 120px at these numbers — and the arena has to stay small enough that
-    // two footprints overlap most of the time, or the balls simply never meet
-    // and the fight stalls. Roughly 5 footprints across is the sweet spot.
-    arenaW: 560,
-    arenaH: 560,
+    // Arena size is tuned against orb size rather than chosen for its own
+    // sake. A fighter threatens its radius plus the length of its weapon —
+    // roughly 2.5 radii — and the arena has to stay small enough that two
+    // threat circles overlap often, or the orbs never meet and the fight
+    // stalls. Weapons are held against the orb now rather than swinging out
+    // on a long chain, so this is tighter than it used to be.
+    arenaW: 480,
+    arenaH: 480,
     baseHp: 100,
     baseDamage: 7,
     ballRadius: 34,
-    ballSpeed: 300,
+    ballSpeed: 310,
     gameSpeed: 1,
     timeLimit: 0,
 
@@ -59,6 +63,15 @@ export function defaultConfig() {
   };
 }
 
+function normalizeRosterEntry(e) {
+  return {
+    fighterId: e.fighterId,
+    teamId: Number.isInteger(e.teamId) ? Math.max(0, Math.min(7, e.teamId)) : 0,
+    count: Math.max(1, Math.min(8, Number(e.count) || 1)),
+    loadout: normalizeLoadout(e.loadout),
+  };
+}
+
 /** Merge stored/URL values over the defaults, dropping anything unknown. */
 export function normalizeConfig(raw) {
   const base = defaultConfig();
@@ -77,12 +90,11 @@ export function normalizeConfig(raw) {
 
   if (Array.isArray(raw.roster) && raw.roster.length) {
     const roster = raw.roster
-      .filter((e) => e && Elements.has(e.elementId))
-      .map((e) => ({
-        elementId: e.elementId,
-        teamId: Number.isInteger(e.teamId) ? Math.max(0, Math.min(7, e.teamId)) : 0,
-        count: Math.max(1, Math.min(8, Number(e.count) || 1)),
-      }));
+      // Accept the pre-arsenal `elementId` spelling so saved settings and
+      // links shared before the arsenal pack existed keep working.
+      .map((e) => (e && !e.fighterId && e.elementId ? { ...e, fighterId: e.elementId } : e))
+      .filter((e) => e && Fighters.has(e.fighterId))
+      .map(normalizeRosterEntry);
     if (roster.length) out.roster = roster;
   }
 
@@ -132,14 +144,34 @@ export function loadConfig() {
 
 /* -------------------------------------------------------- URL codec */
 
-/** Compact wire form: single-letter keys, elements as registry indices. */
+/** A loadout at defaults encodes as 0, which keeps the common link short. */
+function loadoutToWire(l) {
+  const d = defaultLoadout();
+  const untouched = BUILD_STATS.every((s) => l[s.id] === d[s.id])
+    && l.perk === d.perk && !l.weaponId;
+  if (untouched) return 0;
+  return [l.weaponId || 0, Perks.ids.indexOf(l.perk), l.hp, l.dmg, l.spd];
+}
+
+function loadoutFromWire(w) {
+  if (!w || !Array.isArray(w)) return defaultLoadout();
+  const [weaponId, perkIdx, hp, dmg, spd] = w;
+  return normalizeLoadout({
+    weaponId: weaponId && Weapons.has(weaponId) ? weaponId : null,
+    perk: Perks.ids[perkIdx] || 'none',
+    hp, dmg, spd,
+  });
+}
+
+/** Compact wire form: single-letter keys, templates as registry indices. */
 function toWire(cfg) {
-  const ids = Elements.ids;
+  const ids = Fighters.ids;
   return {
+    v: 2,
     m: cfg.modeId,
     s: cfg.seed,
     t: cfg.themeId,
-    r: cfg.roster.map((e) => [ids.indexOf(e.elementId), e.teamId, e.count]),
+    r: cfg.roster.map((e) => [ids.indexOf(e.fighterId), e.teamId, e.count, loadoutToWire(e.loadout)]),
     a: [cfg.arenaW, cfg.arenaH],
     n: [cfg.baseHp, cfg.baseDamage, cfg.ballRadius, cfg.ballSpeed, cfg.gameSpeed, cfg.timeLimit],
     p: cfg.powerupsEnabled ? [cfg.powerupInterval, cfg.maxPickups, cfg.powerupIds] : 0,
@@ -148,13 +180,13 @@ function toWire(cfg) {
 }
 
 function fromWire(w) {
-  const ids = Elements.ids;
+  const ids = Fighters.ids;
   const cfg = {
     modeId: w.m,
     seed: w.s,
     themeId: w.t,
-    roster: (w.r || []).map(([i, team, count]) => ({
-      elementId: ids[i] || ids[0], teamId: team, count,
+    roster: (w.r || []).map(([i, team, count, load]) => ({
+      fighterId: ids[i] || ids[0], teamId: team, count, loadout: loadoutFromWire(load),
     })),
   };
   if (Array.isArray(w.a)) { cfg.arenaW = w.a[0]; cfg.arenaH = w.a[1]; }

@@ -86,10 +86,12 @@ Powerups.defineAll([
     color: '#a3a3a3',
     glyph: '—',
     weight: 2,
-    // Reach is quietly one of the strongest stats: it widens the arc the
-    // weapon sweeps, so it raises hit rate rather than hit damage.
+    // Weapons are held against the orb by default, so this is the pickup that
+    // pushes one out onto a chain. Reach is quietly one of the strongest
+    // stats: it widens the arc the weapon sweeps, raising hit *rate* rather
+    // than hit damage.
     apply(engine, ball) {
-      ball.chainLength *= 1.22;
+      ball.tetherBonus = (ball.tetherBonus || 0) + 0.75;
       ball.permMods.reach = (ball.permMods.reach || 0) + 1;
     },
   },

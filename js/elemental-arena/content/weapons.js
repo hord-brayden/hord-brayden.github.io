@@ -359,6 +359,148 @@ Weapons.defineAll([
   },
 ]);
 
+/* ------------------------------------------------------------ arsenal */
+
+Weapons.defineAll([
+  {
+    id: 'rapier',
+    w: 36, h: 12,
+    hitRadius: 0.26,
+    draw(p, pal) {
+      grip(p, 6, pal);
+      // Swept bell guard — the silhouette that says "rapier" and not "sword".
+      for (let a = -1.5; a <= 1.5; a += 0.12) {
+        p.px(6 + Math.cos(a) * 3, p.cy + Math.sin(a) * 4, pal.accent);
+        p.px(7 + Math.cos(a) * 3, p.cy + Math.sin(a) * 4, pal.accent);
+      }
+      // Needle blade: near-constant width, tapering only at the very tip.
+      for (let x = 9; x < 35; x++) {
+        const thin = x > 31 ? 0 : 1;
+        for (let y = p.cy - thin; y <= p.cy + thin; y++) {
+          p.px(x, y, y < p.cy ? pal.light : y > p.cy ? pal.dark : pal.mid);
+        }
+      }
+    },
+  },
+  {
+    id: 'bow',
+    w: 26, h: 28,
+    hitRadius: 0.34,
+    draw(p, pal) {
+      // Limbs drawn as an arc, string as a straight chord across it.
+      const cx = 8, cy = p.cy, r = 12;
+      for (let a = -1.15; a <= 1.15; a += 0.03) {
+        const x = cx + Math.cos(a) * r;
+        const y = cy + Math.sin(a) * r;
+        p.px(x, y, pal.mid);
+        p.px(x + 1, y, pal.light);
+      }
+      p.line(cx + Math.cos(-1.15) * r, cy + Math.sin(-1.15) * r,
+             cx + Math.cos(1.15) * r, cy + Math.sin(1.15) * r, pal.hiltLight);
+      // Nocked arrow.
+      p.rect(6, cy, 18, 1, pal.hilt);
+      p.rect(22, cy - 1, 3, 3, pal.accent);
+      p.px(25, cy, pal.light);
+    },
+  },
+  {
+    id: 'vial',
+    w: 20, h: 20,
+    hitRadius: 0.42,
+    draw(p, pal) {
+      grip(p, 4, pal);
+      p.rect(5, p.cy - 2, 3, 5, pal.hiltDark);      // cork and neck
+      p.rect(4, p.cy - 3, 2, 7, pal.hilt);
+      // Round-bottomed flask with the brew sitting in the lower half.
+      const cx = 13, cy = p.cy, r = 6;
+      for (let y = -r; y <= r; y++) {
+        for (let x = -r; x <= r; x++) {
+          const d = Math.hypot(x, y);
+          if (d > r) continue;
+          p.px(cx + x, cy + y, d > r - 1 ? pal.dark : y > 0 ? pal.accent : pal.light);
+        }
+      }
+      p.px(cx - 2, cy - 3, pal.light);              // glass glint
+    },
+  },
+  {
+    id: 'flask',
+    w: 20, h: 20,
+    hitRadius: 0.42,
+    draw(p, pal) {
+      grip(p, 4, pal);
+      p.rect(5, p.cy - 2, 3, 5, pal.hiltDark);
+      // Conical flask — visually distinct from the round vial at a glance.
+      for (let i = 0; i < 11; i++) {
+        const half = 1 + Math.round((i / 11) * 5);
+        const x = 8 + i;
+        for (let y = p.cy - half; y <= p.cy + half; y++) {
+          p.px(x, y, y === p.cy - half ? pal.light : i > 6 ? pal.accent : pal.mid);
+        }
+      }
+      p.rect(17, p.cy - 6, 2, 13, pal.dark);
+      p.px(11, p.cy - 2, pal.light);
+    },
+  },
+  {
+    id: 'shield',
+    w: 22, h: 26,
+    hitRadius: 0.46, heavy: true,
+    draw(p, pal) {
+      grip(p, 5, pal);
+      // Heater shield: square shoulders tapering to a point.
+      for (let i = 0; i < 16; i++) {
+        const x = 5 + i;
+        const half = i < 9 ? 11 : Math.max(1, 11 - Math.round((i - 9) * 1.6));
+        for (let y = p.cy - half; y <= p.cy + half; y++) {
+          const edge = y === p.cy - half || y === p.cy + half || i === 15;
+          p.px(x, y, edge ? pal.dark : i < 3 ? pal.light : pal.mid);
+        }
+      }
+      p.rect(9, p.cy - 1, 9, 3, pal.accent);        // boss
+      p.rect(7, p.cy - 9, 2, 18, pal.light);
+    },
+  },
+  {
+    id: 'caltrop',
+    w: 18, h: 18,
+    hitRadius: 0.44,
+    draw(p, pal) {
+      const c = 9;
+      for (let i = 0; i < 3; i++) {
+        const a = (i * Math.PI * 2) / 3 - Math.PI / 2;
+        for (let r = 0; r < 8; r++) {
+          const half = Math.max(0, 2 - Math.round(r * 0.28));
+          const dx = Math.cos(a), dy = Math.sin(a);
+          for (let o = -half; o <= half; o++) {
+            p.px(c + dx * r - dy * o, c + dy * r + dx * o, r > 5 ? pal.light : pal.mid);
+          }
+        }
+      }
+      p.rect(c - 2, c - 2, 4, 4, pal.dark);
+      p.px(c, c, pal.accent);
+    },
+  },
+]);
+
+/* ------------------------------------------------------------ labels */
+
+/* Ids are terse because they are typed in definitions and packed into share
+ * URLs; these are what a person should actually read in a dropdown. */
+const LABELS = {
+  sword: 'Sword', katana: 'Katana', dagger: 'Dagger', greatsword: 'Greatsword',
+  axe: 'Axe', hammer: 'Warhammer', spear: 'Spear', trident: 'Trident',
+  scythe: 'Scythe', pitchfork: 'Pitchfork', club: 'Club', staff: 'Staff',
+  shuriken: 'Shuriken', chakram: 'Chakram', wrench: 'Wrench',
+  gauntlet: 'Gauntlet', bone: 'Bone', rapier: 'Rapier', bow: 'Bow',
+  vial: 'Potion Vial', flask: 'Throwing Flask', shield: 'Shield',
+  caltrop: 'Caltrop',
+};
+
+export function weaponLabel(id) {
+  return LABELS[id] || id.replace(/(^|[-_])(\w)/g, (_, s, c) => (s ? ' ' : '') + c.toUpperCase());
+}
+
 /* ------------------------------------------------------------ baking */
 
 const bakeCache = new Map();

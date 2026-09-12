@@ -120,6 +120,57 @@ export class Audio {
         this._tone({ freq: 930, type: 'square', dur: 0.09, gain: 0.14, delay: 0.06 });
         this._tone({ freq: 1240, type: 'square', dur: 0.11, gain: 0.12, delay: 0.12 });
         break;
+      case 'parry': {
+        if (!this._throttle('parry', 40)) return;
+        // Two close metallic partials — the classic 'ting' of a blade clash.
+        this._tone({ freq: 2100, type: 'triangle', dur: 0.16, gain: 0.13, sweep: -700 });
+        this._tone({ freq: 3050, type: 'sine', dur: 0.12, gain: 0.09, sweep: -900 });
+        this._noise({ dur: 0.07, gain: 0.1, freq: 5200, q: 2.5 });
+        break;
+      }
+      case 'throw':
+        if (!this._throttle('throw', 55)) return;
+        this._noise({ dur: 0.09, gain: 0.07, filter: 'bandpass', freq: 3000, q: 1.2 });
+        break;
+      case 'bow':
+        if (!this._throttle('bow', 70)) return;
+        this._tone({ freq: 240, type: 'triangle', dur: 0.12, gain: 0.09, sweep: -120 });
+        this._noise({ dur: 0.08, gain: 0.06, filter: 'highpass', freq: 2600 });
+        break;
+      case 'shatter':
+        if (!this._throttle('shatter', 60)) return;
+        this._noise({ dur: 0.22, gain: 0.16, freq: 4200, q: 1.1 });
+        this._tone({ freq: 900, type: 'triangle', dur: 0.14, gain: 0.08, sweep: -520 });
+        break;
+      case 'ult_lancer':
+        this._tone({ freq: 130, type: 'sawtooth', dur: 0.5, gain: 0.24, sweep: 320 });
+        this._noise({ dur: 0.4, gain: 0.16, filter: 'bandpass', freq: 1200, q: 0.7 });
+        break;
+      case 'ult_duelist':
+        for (let i = 0; i < 5; i++) {
+          this._tone({ freq: 1500 + i * 220, type: 'triangle', dur: 0.1, gain: 0.1, delay: i * 0.06, sweep: -400 });
+        }
+        break;
+      case 'ult_knife':
+        this._noise({ dur: 0.35, gain: 0.2, filter: 'highpass', freq: 3000 });
+        this._tone({ freq: 600, type: 'square', dur: 0.25, gain: 0.12, sweep: -380 });
+        break;
+      case 'ult_archer':
+        this._tone({ freq: 300, type: 'triangle', dur: 0.3, gain: 0.14, sweep: -160 });
+        this._noise({ dur: 0.6, gain: 0.16, filter: 'highpass', freq: 2200 });
+        break;
+      case 'ult_alchemist':
+        [440, 554, 659, 880].forEach((f, i) =>
+          this._tone({ freq: f, type: 'sine', dur: 0.4, gain: 0.12, delay: i * 0.07 }));
+        break;
+      case 'ult_bombardier':
+        this._noise({ dur: 0.5, gain: 0.26, filter: 'lowpass', freq: 1100 });
+        this._tone({ freq: 80, type: 'square', dur: 0.4, gain: 0.2, sweep: -40 });
+        break;
+      case 'ult_bulwark':
+        this._tone({ freq: 160, type: 'square', dur: 0.5, gain: 0.24, sweep: -90 });
+        this._noise({ dur: 0.35, gain: 0.18, freq: 1800, q: 1.4 });
+        break;
       case 'death':
         this._tone({ freq: 300, type: 'sawtooth', dur: 0.5, gain: 0.22, sweep: -260 });
         this._noise({ dur: 0.4, gain: 0.2, filter: 'lowpass', freq: 900 });

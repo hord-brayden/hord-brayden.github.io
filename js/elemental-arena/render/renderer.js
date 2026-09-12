@@ -13,7 +13,7 @@
  *    smooth at any refresh rate even though the sim is locked to 120Hz.
  */
 
-import { bakeWeapon } from '../content/weapons.js';
+import { bakeWeapon, Weapons } from '../content/weapons.js';
 import { Themes } from './themes.js';
 import { STYLES } from '../core/particles.js';
 
@@ -125,11 +125,20 @@ export class Renderer {
     return c;
   }
 
-  weaponSprite(ball) {
-    const spec = ball.element.weapon;
-    const px = Math.max(2, Math.round(2 * this.scale));
-    return bakeWeapon(spec.id, spec.palette, px,
+  /**
+   * Bake at whatever art-pixel size lands closest to the blade's on-screen
+   * length, so upscaling stays chunky instead of blurring. `worldLength` is
+   * the same number the engine hit-tests against, which is what keeps the
+   * drawn weapon and its hitbox identical.
+   */
+  weaponSprite(ball, worldLength) {
+    const def = Weapons.require(ball.weaponId);
+    const wantDevice = Math.max(8, worldLength * this.scale);
+    const px = Math.max(1, Math.min(6, Math.round(wantDevice / def.w)));
+    const sprite = bakeWeapon(ball.weaponId, ball.element.weapon.palette, px,
       this.theme.pixelate ? this.theme.outline : null);
+    sprite.artWidth = def.w * px;
+    return sprite;
   }
 
   /* ------------------------------------------------------------ frame */
@@ -158,6 +167,7 @@ export class Renderer {
 
     this.theme.background(ctx, e, e.arena.w, e.arena.h);
     this.drawTerritory(ctx);
+    this.drawHazards(ctx);
     this.drawFields(ctx);
     this.drawPickups(ctx);
     if (this.showParticles) this.drawParticles(ctx);
@@ -276,6 +286,16 @@ export class Renderer {
     ctx.drawImage(sprite, -drawR, -drawR, drawR * 2, drawR * 2);
     ctx.shadowBlur = 0;
     ctx.imageSmoothingEnabled = true;
+
+    if (ball.parryFlash > 0) {
+      ctx.globalAlpha = Math.min(0.9, ball.parryFlash);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(3, r * 0.2);
+      ctx.beginPath();
+      ctx.arc(0, 0, r + ctx.lineWidth, 0, TAU);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
 
     // Damage flash — a white wash the moment a hit lands.
     if (ball.hitFlash > 0) {
@@ -456,41 +476,54 @@ export class Renderer {
   /* ---------------------------------------------------- chain + weapon */
 
   drawChainAndWeapons(ctx, ball, bx, by) {
-    const sprite = this.weaponSprite(ball);
+    const gripDist = ball.gripDistance();
     for (const w of ball.weapons) {
-      // Chain first, so the weapon overlaps it at the grip.
-      if (this.theme.chainStyle === 'beads') {
-        const dx = w.hx - bx, dy = w.hy - by;
-        const len = Math.hypot(dx, dy);
-        const beads = Math.max(3, Math.round(len / 7));
-        ctx.fillStyle = this.theme.chainColor;
-        for (let i = 1; i < beads; i++) {
-          const t = i / beads;
+      const len = w.length || ball.weaponLength(w);
+      const sprite = this.weaponSprite(ball, len);
+      const cos = Math.cos(w.angle), sin = Math.sin(w.angle);
+      // Derive grip and tip from the interpolated orb centre rather than the
+      // simulation's own copy, so the weapon never lags the orb by a frame.
+      const gx = bx + cos * gripDist;
+      const gy = by + sin * gripDist;
+
+      // A chain is only drawn when there is actually a gap to span. By
+      // default the weapon is held against the orb and there is nothing to
+      // draw — reach is something a template or a powerup grants.
+      const gap = gripDist - ball.radius;
+      if (gap > 2) {
+        if (this.theme.chainStyle === 'beads') {
+          const beads = Math.max(2, Math.round(gap / 7));
+          ctx.fillStyle = this.theme.chainColor;
+          for (let i = 0; i <= beads; i++) {
+            const t = i / beads;
+            const px = bx + cos * (ball.radius * 0.7 + gap * t);
+            const py = by + sin * (ball.radius * 0.7 + gap * t);
+            ctx.beginPath();
+            ctx.arc(px, py, 2.4, 0, TAU);
+            ctx.fill();
+          }
+        } else {
+          ctx.strokeStyle = this.theme.chainColor;
+          ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.arc(bx + dx * t, by + dy * t, 2.4, 0, TAU);
-          ctx.fill();
+          ctx.moveTo(bx + cos * ball.radius * 0.7, by + sin * ball.radius * 0.7);
+          ctx.lineTo(gx, gy);
+          ctx.stroke();
         }
-      } else {
-        ctx.strokeStyle = this.theme.chainColor;
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(bx, by);
-        ctx.lineTo(w.hx, w.hy);
-        ctx.stroke();
       }
 
       ctx.save();
-      ctx.translate(w.hx, w.hy);
+      ctx.translate(gx, gy);
       ctx.rotate(w.angle);
       if (this.theme.glow) {
         ctx.shadowColor = ball.element.colors.light;
         ctx.shadowBlur = 14;
       }
+      // Scale the baked sprite so its art width equals the blade length the
+      // engine uses for hit tests — what you see is exactly what can hit you.
+      const k = len / sprite.artWidth;
+      ctx.scale(k, k);
       ctx.imageSmoothingEnabled = false;
-      // Sprites are baked in device pixels; undo the view scale so a weapon
-      // is the same physical size regardless of how the arena is fitted.
-      const inv = 1 / this.scale;
-      ctx.scale(inv, inv);
       ctx.drawImage(sprite, -sprite.anchorX, -sprite.anchorY);
       ctx.imageSmoothingEnabled = true;
       ctx.shadowBlur = 0;
@@ -506,7 +539,26 @@ export class Renderer {
       const y = p.py + (p.y - p.py) * alpha;
       ctx.fillStyle = p.color;
       if (this.theme.glow) { ctx.shadowColor = p.color; ctx.shadowBlur = 14; }
-      if (p.style === 'shard' && this.theme.pixelate) {
+      if (p.style === 'arrow') {
+        // Drawn along its heading so a volley reads as direction, not dots.
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(p.angle);
+        ctx.fillRect(-p.radius * 2.4, -1.5, p.radius * 4, 3);
+        ctx.beginPath();
+        ctx.moveTo(p.radius * 2.4, 0);
+        ctx.lineTo(p.radius * 0.8, -p.radius);
+        ctx.lineTo(p.radius * 0.8, p.radius);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      } else if (p.style === 'flask') {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(this.engine.time * 7);
+        ctx.fillRect(-p.radius, -p.radius, p.radius * 2, p.radius * 2);
+        ctx.restore();
+      } else if (p.style === 'shard' && this.theme.pixelate) {
         ctx.fillRect(x - p.radius, y - p.radius, p.radius * 2, p.radius * 2);
       } else {
         ctx.beginPath();
@@ -514,7 +566,7 @@ export class Renderer {
         ctx.fill();
       }
       ctx.shadowBlur = 0;
-      if (this.theme.pixelate) {
+      if (this.theme.pixelate && p.style !== 'arrow') {
         ctx.strokeStyle = this.theme.outline;
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -615,6 +667,47 @@ export class Renderer {
   }
 
   /* ---------------------------------------------------------- effects */
+
+  /** Brews and poison pools. Drawn beneath the orbs so they read as floor. */
+  drawHazards(ctx) {
+    for (const hz of this.engine.hazards) {
+      const t = hz.age / hz.life;
+      const fade = t > 0.75 ? 1 - (t - 0.75) / 0.25 : 1;
+      const grow = hz.once ? 1 : Math.min(1, hz.age * 5);
+      const r = hz.radius * grow;
+
+      ctx.globalAlpha = fade * (hz.kind === 'potion' ? 0.5 : 0.34);
+      ctx.fillStyle = hz.color;
+      if (this.theme.glow) { ctx.shadowColor = hz.color; ctx.shadowBlur = 18; }
+      ctx.beginPath();
+      ctx.arc(hz.x, hz.y, r, 0, TAU);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.globalAlpha = fade * 0.9;
+      ctx.strokeStyle = hz.color;
+      ctx.lineWidth = this.theme.pixelate ? 3 : 2;
+      ctx.setLineDash(hz.once ? [] : [7, 5]);
+      ctx.beginPath();
+      ctx.arc(hz.x, hz.y, r, 0, TAU);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // A brew is a single pickup, so it gets a mark; a pool does not.
+      if (hz.once) {
+        ctx.font = this.theme.textFont(16);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = 3;
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = this.theme.hpStroke;
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeText('⚗', hz.x, hz.y + 1);
+        ctx.fillText('⚗', hz.x, hz.y + 1);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
 
   drawFields(ctx) {
     for (const f of this.engine.fields) {

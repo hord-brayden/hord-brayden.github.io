@@ -3,51 +3,129 @@
  * Deterministic, fixed-timestep, and completely headless — the engine never
  * touches the DOM or a canvas. Rendering reads engine state; it never writes
  * it. That separation is what lets the same match run identically under two
- * different visual themes, and what would let a match be replayed from a
- * seed on a server one day.
+ * different visual themes, and what lets the balance harness run thousands of
+ * matches with no browser painting at all.
  *
  * Timestep is fixed at SIM_HZ regardless of display refresh, so a 144Hz
  * monitor and a 60Hz monitor produce byte-identical fights. Frames render
  * interpolated between the last two simulation states.
+ *
+ * Weapon model: a weapon is a *segment*, not a point. It runs from a grip —
+ * held against the orb's surface by default — outward along the swing angle.
+ * The angle comes from a pendulum bob simulated at the weapon's tip, which is
+ * what makes the swing lag and whip instead of looking pinned to a rotating
+ * transform. Hit tests are segment-versus-circle, and two enemy weapon
+ * segments overlapping is a parry rather than a hit.
  */
 
 import { Rng } from './rng.js';
 import { Particles } from './particles.js';
 import { Statuses, baseModifiers } from '../content/statuses.js';
-import { Elements, effectiveness } from '../content/elements.js';
+import { Fighters, effectiveness } from '../content/roster.js';
 import { Powerups } from '../content/powerups.js';
 import { Weapons } from '../content/weapons.js';
+import { Perks, defaultLoadout, normalizeLoadout, buildMultiplier } from '../content/loadouts.js';
 
 export const SIM_HZ = 120;
 const SIM_DT = 1 / SIM_HZ;
 const MAX_STEPS_PER_FRAME = 6;   // spiral-of-death guard after a tab stall
 
+/* A weapon 30 art-pixels wide is this many orb radii long in the world.
+ * Geometry and rendering both derive from it, so the sprite you see is
+ * exactly the segment that gets hit-tested. */
+const WEAPON_LENGTH_PER_RADIUS = 1.95;
+const WEAPON_REF_WIDTH = 30;
+
+/*
+ * Weapon size is a trade, not a ranking.
+ *
+ * Reach drives hit *rate* more than any other number — a longer blade sweeps a
+ * bigger circle, so it simply meets more orbs. Left raw, that made the
+ * shortest weapon in the roster strictly worse than the longest, and every
+ * template carrying a dagger sat at the bottom of the win table regardless of
+ * what its kit did.
+ *
+ * So the drawn length is compressed toward the mean, and the leftover
+ * difference is paid back as damage and recovery: a long weapon hits harder
+ * and recovers slower, a short one hits softer and recovers faster.
+ */
+const LENGTH_COMPRESSION = 0.5;   // 0 = all weapons identical, 1 = raw art size
+
+function compressedRatio(raw) {
+  return 0.9 + (raw - 0.9) * LENGTH_COMPRESSION;
+}
+
+/** Longer weapons hit harder. */
+function weaponDamageScale(raw) {
+  return 0.86 + raw * 0.24;
+}
+
+/** Longer weapons take longer to come back around. */
+function weaponCooldownScale(raw) {
+  return 0.74 + raw * 0.32;
+}
+
 let nextId = 1;
+
+/* ------------------------------------------------------------- geometry */
+
+/** Shortest distance from point C to segment AB. */
+function segPointDist(ax, ay, bx, by, cx, cy) {
+  const dx = bx - ax, dy = by - ay;
+  const l2 = dx * dx + dy * dy;
+  let t = l2 ? ((cx - ax) * dx + (cy - ay) * dy) / l2 : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  const px = ax + dx * t, py = ay + dy * t;
+  return Math.hypot(cx - px, cy - py);
+}
+
+/** Shortest distance between segments AB and CD. Zero when they cross. */
+function segSegDist(ax, ay, bx, by, cx, cy, dx2, dy2) {
+  const r1x = bx - ax, r1y = by - ay;
+  const r2x = dx2 - cx, r2y = dy2 - cy;
+  const denom = r1x * r2y - r1y * r2x;
+  if (Math.abs(denom) > 1e-9) {
+    const t = ((cx - ax) * r2y - (cy - ay) * r2x) / denom;
+    const u = ((cx - ax) * r1y - (cy - ay) * r1x) / denom;
+    if (t >= 0 && t <= 1 && u >= 0 && u <= 1) return 0;
+  }
+  return Math.min(
+    segPointDist(ax, ay, bx, by, cx, cy),
+    segPointDist(ax, ay, bx, by, dx2, dy2),
+    segPointDist(cx, cy, dx2, dy2, ax, ay),
+    segPointDist(cx, cy, dx2, dy2, bx, by)
+  );
+}
 
 /* ============================================================== fighter */
 
 export class Ball {
-  constructor(engine, { elementId, teamId, x, y, hp, damage, radius, speed }) {
-    const el = Elements.require(elementId);
+  constructor(engine, opts) {
+    const { fighterId, teamId, x, y, hp, damage, radius, speed } = opts;
+    const el = Fighters.require(fighterId);
+    const loadout = normalizeLoadout(opts.loadout || defaultLoadout());
+
     this.id = nextId++;
-    this.element = el;
-    this.elementId = elementId;
+    this.element = el;           // kept as `element` — every hook reads it
+    this.elementId = fighterId;
+    this.fighterId = fighterId;
     this.teamId = teamId;
+    this.loadout = loadout;
 
     this.x = x; this.y = y;
     this.px = x; this.py = y;          // previous state, for render interpolation
 
     const a = engine.rng.next() * Math.PI * 2;
-    this.targetSpeed = speed * el.speed;
+    this.targetSpeed = speed * el.speed * buildMultiplier(loadout, 'spd');
     this.vx = Math.cos(a) * this.targetSpeed;
     this.vy = Math.sin(a) * this.targetSpeed;
 
     this.baseRadius = radius;
     this.radius = radius;
-    this.baseMaxHp = hp * el.hp;
+    this.baseMaxHp = hp * el.hp * buildMultiplier(loadout, 'hp');
     this.maxHp = this.baseMaxHp;
     this.hp = this.maxHp;
-    this.baseDamage = damage * el.damage;
+    this.baseDamage = damage * el.damage * buildMultiplier(loadout, 'dmg');
 
     this.statuses = new Map();
     this.mods = baseModifiers();
@@ -57,44 +135,70 @@ export class Ball {
     this.ultCharge = 0;
     this.ultMax = 100;
     this.ultCount = 0;
+    this.ultRate = 1;
 
     this.spinDir = engine.rng.chance(0.5) ? 1 : -1;
-    // Chain length drives the encounter rate more than anything else: the
-    // weapon sweeps a circle of this radius, so the area a fighter threatens
-    // grows with its square. Three ball-radii is where two fighters meet
-    // often enough to stay interesting without the arena turning into soup.
-    this.chainLength = radius * 3.1 * el.reach;
+    // How far the grip sits beyond the orb's surface, in radii. Zero — the
+    // default — means the weapon is held against the orb. Reach is something
+    // a template or a powerup grants, never the baseline.
+    this.tetherBonus = 0;
+    this.weaponId = loadout.weaponId && Weapons.has(loadout.weaponId)
+      ? loadout.weaponId : el.weapon.id;
+
     this.weapons = [];
-    this.addWeapon(engine);
+    this.addWeapon(engine, true);
 
     this.dead = false;
     this.deathTime = 0;
     this.damageDealt = 0;
     this.hitsLanded = 0;
+    this.parries = 0;
     this.kills = 0;
     this.hitFlash = 0;
+    this.parryFlash = 0;
     this.charge = 0;
     this.plating = 0;
   }
 
-  addWeapon(engine) {
+  /** @param {boolean} silent suppress the callout (used during setup) */
+  addWeapon(engine, silent = false) {
     if (this.weapons.length >= 4) return;
-    // Extra arms are spaced evenly so a twin-armed ball sweeps a full circle.
+    const def = Weapons.require(this.weaponId);
+    // Extra arms are spaced evenly so a twin-armed orb sweeps a full circle.
     const share = (Math.PI * 2) / (this.weapons.length + 1);
-    const def = Weapons.require(this.element.weapon.id);
+    const angle = this.weapons.length * share;
     const w = {
-      angle: this.weapons.length * share,
-      hx: this.x, hy: this.y,
-      hvx: 0, hvy: 0,
+      angle,
+      bx: this.x + Math.cos(angle), by: this.y + Math.sin(angle),   // pendulum bob
+      bvx: 0, bvy: 0,
+      gripX: this.x, gripY: this.y,
+      tipX: this.x, tipY: this.y,
+      length: 1, half: 1,
       lastHit: new Map(),
-      hitScale: def.hitRadius,
+      lastParry: -99,
+      rawRatio: def.w / WEAPON_REF_WIDTH,
+      widthRatio: compressedRatio(def.w / WEAPON_REF_WIDTH),
+      dmgScale: weaponDamageScale(def.w / WEAPON_REF_WIDTH),
+      cdScale: weaponCooldownScale(def.w / WEAPON_REF_WIDTH),
+      thickRatio: (def.h * def.hitRadius) / def.w,
       heavy: def.heavy,
     };
-    const a = w.angle;
-    w.hx = this.x + Math.cos(a) * this.chainLength;
-    w.hy = this.y + Math.sin(a) * this.chainLength;
     this.weapons.push(w);
-    if (engine) engine.announce(this, 'TWIN ARMS', this.element.colors.light);
+    // Re-space the existing arms so two weapons sit opposite, three at 120°.
+    const n = this.weapons.length;
+    this.weapons.forEach((weapon, i) => { weapon.angle = (i / n) * Math.PI * 2; });
+    if (engine && !silent) engine.announce(this, 'TWIN ARMS', this.element.colors.light);
+  }
+
+  /** Distance from orb centre to the weapon grip. */
+  gripDistance() {
+    const tether = this.element.tether + (this.tetherBonus || 0);
+    return this.radius * (1 + tether * this.mods.reachMul);
+  }
+
+  /** World-space length of the weapon blade itself. */
+  weaponLength(w) {
+    return this.radius * WEAPON_LENGTH_PER_RADIUS * w.widthRatio * this.mods.reachMul;
   }
 
   get hpRatio() { return Math.max(0, this.hp / this.maxHp); }
@@ -110,10 +214,11 @@ export class Engine {
     this.rng = new Rng(config.seed);
     this.cosmeticRng = this.rng.fork('cosmetic');
 
-    this.arena = { w: config.arenaW || 900, h: config.arenaH || 900 };
+    this.arena = { w: config.arenaW || 560, h: config.arenaH || 560 };
     this.balls = [];
     this.projectiles = [];
     this.pickups = [];
+    this.hazards = [];       // potion brews, poison pools
     this.effects = [];       // transient visuals: beams, pillars, rings
     this.texts = [];         // floating combat text
     this.fields = [];        // vortices and other timed force fields
@@ -137,7 +242,7 @@ export class Engine {
     this.listeners = new Map();
     this.mode = null;
     this.pickupTimer = config.powerupFirstDelay ?? 6;
-    this.stats = { hits: 0, kills: 0, ults: 0, pickups: 0, bounces: 0 };
+    this.stats = { hits: 0, kills: 0, ults: 0, pickups: 0, bounces: 0, parries: 0 };
   }
 
   /* ---------------------------------------------------------- lifecycle */
@@ -145,7 +250,15 @@ export class Engine {
   setMode(mode) {
     this.mode = mode;
     mode.init(this);
+    // Perks are applied once every fighter exists, so a perk may safely look
+    // at the rest of the board.
+    for (const ball of this.balls) this.applyPerk(ball);
     return this;
+  }
+
+  applyPerk(ball) {
+    const perk = Perks.get(ball.loadout.perk);
+    if (perk && perk.apply) perk.apply(this, ball);
   }
 
   on(event, fn) {
@@ -233,7 +346,10 @@ export class Engine {
     this.integrateBalls(dt);
     this.resolveBallCollisions();
     this.updateWeapons(dt);
+    this.resolveParries();
+    this.resolveWeaponHits();
     this.updateProjectiles(dt);
+    this.updateHazards(dt);
     this.updateFields(dt);
     this.updatePickups(dt);
     this.updateUlts(dt);
@@ -270,12 +386,18 @@ export class Engine {
       m.healMul = 1; m.sizeMul = 1; m.reachMul = 1; m.lifesteal = 0;
       m.burnMul = 1; m.freezeMul = 1; m.shockMul = 1;
       m.ccImmune = false; m.canUlt = true;
-      m.evasion = 0; m.knockbackResist = 0;
+      m.evasion = 0; m.knockbackResist = 0; m.parryWins = false;
 
       for (const [id, inst] of ball.statuses) {
         const def = Statuses.get(id);
         if (def && def.modify) def.modify(m, inst, ball);
       }
+
+      // Loadout perks that behave like permanent passives.
+      if (ball.flags.plated) { m.dmgTakenMul *= 0.75; m.speedMul *= 0.88; }
+      if (ball.flags.berserk && ball.hp / ball.maxHp < 0.5) m.dmgMul *= 1.5;
+      if (ball.flags.immovable) m.knockbackResist = 1;
+
       const passive = ball.element.passive;
       if (passive && passive.onTick) passive.onTick(this, ball, dt);
 
@@ -315,8 +437,6 @@ export class Engine {
     // Diminishing returns on hard crowd control. Without this, one lucky
     // freeze leads to another — a stunned fighter cannot swing, so it cannot
     // break the chain, and the match is decided by whoever landed CC first.
-    // After any hard stop, the victim gets a grace window during which no
-    // further hard stop can land.
     if (def.hardCC) {
       if (this.time < (ball.ccImmuneUntil || 0)) {
         this.announce(ball, 'RESIST', '#ffffff', 0.8);
@@ -389,11 +509,14 @@ export class Engine {
         ball.vy = vx * s + vy * c;
         this.particles.spray('dust', ball.x, ball.y, ball.vx, ball.vy, 3, 90, 0.9,
           ball.element.colors.trail);
+        const passive = ball.element.passive;
+        if (passive && passive.onBounce) passive.onBounce(this, ball);
         this.emit('bounce', ball);
         if (this.mode && this.mode.onBounce) this.mode.onBounce(this, ball);
       }
 
       if (ball.hitFlash > 0) ball.hitFlash -= dt * 4;
+      if (ball.parryFlash > 0) ball.parryFlash -= dt * 3;
     }
   }
 
@@ -440,73 +563,153 @@ export class Engine {
   /* ----------------------------------------------------------- weapons */
 
   /**
-   * The flail. Each weapon head is a free point mass held at a fixed distance
-   * from its ball by a hard constraint, driven tangentially so it orbits, and
-   * coupled to the ball's own motion so it trails convincingly when the ball
-   * changes direction. That coupling is the whole trick — a weapon pinned to
-   * a rotating transform looks like clip art; one that lags and whips looks
-   * alive.
+   * Swing every weapon.
+   *
+   * The tip is a free point mass held at a fixed distance from its orb by a
+   * hard constraint, driven tangentially so it orbits, and coupled to the
+   * orb's own motion so it trails when the orb changes direction. That
+   * coupling is the whole trick — a weapon pinned to a rotating transform
+   * looks like clip art; one that lags and whips looks alive.
    */
   updateWeapons(dt) {
     for (const ball of this.balls) {
       if (ball.dead) continue;
-      const reach = ball.chainLength * ball.mods.reachMul;
-      const drive = 2600 * ball.element.spin * ball.mods.spinMul * ball.spinDir
+      const grip = ball.gripDistance();
+      const drive = 2400 * ball.element.spin * ball.mods.spinMul * ball.spinDir
         * (1 + (ball.spinBoost || 0) * 0.2);
       if (ball.spinBoost) ball.spinBoost = Math.max(0, ball.spinBoost - dt * 2);
 
       for (const w of ball.weapons) {
-        let dx = w.hx - ball.x, dy = w.hy - ball.y;
+        const len = ball.weaponLength(w);
+        const reach = grip + len;          // the bob rides at the weapon tip
+
+        let dx = w.bx - ball.x, dy = w.by - ball.y;
         let d = Math.hypot(dx, dy);
-        if (d < 0.001) { dx = reach; dy = 0; d = reach; }
+        if (d < 0.001) { dx = Math.cos(w.angle) * reach; dy = Math.sin(w.angle) * reach; d = reach; }
         const nx = dx / d, ny = dy / d;
 
-        // Tangential drive + coupling to the ball's velocity.
-        w.hvx += -ny * drive * dt + (ball.vx - w.hvx) * 2.2 * dt;
-        w.hvy += nx * drive * dt + (ball.vy - w.hvy) * 2.2 * dt;
+        // Tangential drive + coupling to the orb's velocity.
+        w.bvx += -ny * drive * dt + (ball.vx - w.bvx) * 2.2 * dt;
+        w.bvy += nx * drive * dt + (ball.vy - w.bvy) * 2.2 * dt;
 
-        // Cap tangential speed so a stacked haste buff cannot spin the
-        // weapon fast enough to tunnel through targets between steps.
+        // Cap tangential speed so stacked haste cannot spin the weapon fast
+        // enough to sweep past a target between two simulation steps.
         const maxTan = reach * 26;
-        const sp = Math.hypot(w.hvx, w.hvy);
-        if (sp > maxTan) { w.hvx *= maxTan / sp; w.hvy *= maxTan / sp; }
+        const sp = Math.hypot(w.bvx, w.bvy);
+        if (sp > maxTan) { w.bvx *= maxTan / sp; w.bvy *= maxTan / sp; }
 
-        w.hx += w.hvx * dt;
-        w.hy += w.hvy * dt;
+        w.bx += w.bvx * dt;
+        w.by += w.bvy * dt;
 
-        // Hard distance constraint, then strip the radial velocity so the
-        // chain never stretches or pumps energy into the system.
-        dx = w.hx - ball.x; dy = w.hy - ball.y;
+        // Hard distance constraint, then strip radial velocity so the arm
+        // never stretches or pumps energy into the system.
+        dx = w.bx - ball.x; dy = w.by - ball.y;
         d = Math.hypot(dx, dy) || 0.001;
         const ux = dx / d, uy = dy / d;
-        w.hx = ball.x + ux * reach;
-        w.hy = ball.y + uy * reach;
-        const radial = w.hvx * ux + w.hvy * uy;
-        w.hvx -= radial * ux;
-        w.hvy -= radial * uy;
-        w.angle = Math.atan2(uy, ux);
+        w.bx = ball.x + ux * reach;
+        w.by = ball.y + uy * reach;
+        const radial = w.bvx * ux + w.bvy * uy;
+        w.bvx -= radial * ux;
+        w.bvy -= radial * uy;
 
-        this.checkWeaponHits(ball, w, reach);
+        w.angle = Math.atan2(uy, ux);
+        w.length = len;
+        w.half = Math.max(3, len * w.thickRatio);
+        w.gripX = ball.x + ux * grip;
+        w.gripY = ball.y + uy * grip;
+        w.tipX = w.bx;
+        w.tipY = w.by;
       }
     }
   }
 
-  checkWeaponHits(owner, w, reach) {
-    const hitR = reach * w.hitScale + 6;
-    for (const target of this.balls) {
-      if (target.dead || target.teamId === owner.teamId) continue;
-      const dx = target.x - w.hx, dy = target.y - w.hy;
-      const rr = hitR + target.radius;
-      if (dx * dx + dy * dy > rr * rr) continue;
+  /**
+   * Weapon versus weapon. Two enemy weapons crossing is a parry: neither
+   * lands, both rebound, and each side's onParry fires. This is what stops
+   * the fight from being a pure race of who swings into whom first.
+   */
+  resolveParries() {
+    const balls = this.balls;
+    for (let i = 0; i < balls.length; i++) {
+      const a = balls[i];
+      if (a.dead) continue;
+      for (let j = i + 1; j < balls.length; j++) {
+        const b = balls[j];
+        if (b.dead || b.teamId === a.teamId) continue;
 
-      // One hit per target per swing. Without this a slow orbit would grind
-      // a target down at the simulation rate rather than the swing rate.
-      const last = w.lastHit.get(target.id) || -99;
-      const cooldown = w.heavy ? 0.34 : 0.24;
-      if (this.time - last < cooldown) continue;
-      w.lastHit.set(target.id, this.time);
+        for (const wa of a.weapons) {
+          for (const wb of b.weapons) {
+            if (this.time - wa.lastParry < 0.28 || this.time - wb.lastParry < 0.28) continue;
+            const gap = segSegDist(wa.gripX, wa.gripY, wa.tipX, wa.tipY,
+                                   wb.gripX, wb.gripY, wb.tipX, wb.tipY);
+            if (gap > wa.half + wb.half) continue;
 
-      this.landWeaponHit(owner, target, w);
+            wa.lastParry = this.time;
+            wb.lastParry = this.time;
+            this.doParry(a, wa, b, wb);
+          }
+        }
+      }
+    }
+  }
+
+  doParry(a, wa, b, wb) {
+    const cx = (wa.tipX + wb.tipX) / 2;
+    const cy = (wa.tipY + wb.tipY) / 2;
+
+    // Whoever "wins" the clash keeps their swing; the loser is knocked back
+    // and briefly cannot land a hit. If neither wins, both rebound.
+    const aWins = a.mods.parryWins && !b.mods.parryWins;
+    const bWins = b.mods.parryWins && !a.mods.parryWins;
+
+    const rebound = (ball, w, hard) => {
+      w.bvx *= -0.75; w.bvy *= -0.75;
+      ball.spinDir *= hard ? -1 : 1;
+      // A clash briefly locks the weapon out, so a parry actually costs tempo.
+      for (const [k] of w.lastHit) w.lastHit.set(k, this.time - 0.1);
+      ball.parryFlash = 1;
+      ball.parries++;
+    };
+
+    if (!aWins) rebound(a, wa, !bWins);
+    if (!bWins) rebound(b, wb, !aWins);
+    if (aWins) this.knockback(b, a, 260);
+    if (bWins) this.knockback(a, b, 260);
+
+    this.stats.parries++;
+    this.particles.burst('spark', cx, cy, 16, 260, '#ffffff');
+    this.particles.burst('spark', cx, cy, 8, 160, a.element.colors.light);
+    this.effects.push({ type: 'ring', x: cx, y: cy, r: 4, maxR: 46, age: 0, life: 0.3, color: '#ffffff' });
+    this.hitStop = Math.max(this.hitStop, 0.03);
+    this.shake(6);
+    this.sfx('parry');
+
+    if (a.element.onParry) a.element.onParry(this, a, b);
+    if (b.element.onParry) b.element.onParry(this, b, a);
+    this.emit('parry', { a, b, x: cx, y: cy });
+  }
+
+  resolveWeaponHits() {
+    for (const owner of this.balls) {
+      if (owner.dead) continue;
+      for (const w of owner.weapons) {
+        // A weapon that just clashed is momentarily out of the fight.
+        if (this.time - w.lastParry < 0.18) continue;
+        for (const target of this.balls) {
+          if (target.dead || target.teamId === owner.teamId) continue;
+          const gap = segPointDist(w.gripX, w.gripY, w.tipX, w.tipY, target.x, target.y);
+          if (gap > w.half + target.radius) continue;
+
+          // One hit per target per swing. Without this a slow orbit would
+          // grind a target down at the simulation rate, not the swing rate.
+          const last = w.lastHit.get(target.id) || -99;
+          const cooldown = (w.heavy ? 0.34 : 0.24) * w.cdScale;
+          if (this.time - last < cooldown) continue;
+          w.lastHit.set(target.id, this.time);
+
+          this.landWeaponHit(owner, target, w);
+        }
+      }
     }
   }
 
@@ -517,13 +720,14 @@ export class Engine {
     if (passive && passive.damageBonus) {
       amount *= passive.damageBonus(this, attacker, victim);
     }
-    if (w.heavy) amount *= 1.15;
+    amount *= w.dmgScale;
+    if (w.heavy) amount *= 1.12;
 
     const dealt = this.damage(victim, amount, {
       sourceId: attacker.id,
       kind: 'weapon',
       knockback: w.heavy ? 200 : 90,
-      fromX: w.hx, fromY: w.hy,
+      fromX: w.tipX, fromY: w.tipY,
     });
     if (dealt <= 0) return;   // evaded
 
@@ -535,7 +739,7 @@ export class Engine {
     }
     if (passive && passive.onHitExtra) passive.onHitExtra(this, attacker, victim);
 
-    // Element-specific powerup behaviours that key off landing a hit.
+    // Powerup behaviours that key off landing a hit.
     if (attacker.flags.wildfire) {
       for (const foe of this.enemiesOf(attacker)) {
         if (foe !== victim && this.dist(foe, victim) < 200) {
@@ -597,7 +801,7 @@ export class Engine {
       }
     }
 
-    for (const [id, inst] of target.statuses) {
+    for (const [id] of target.statuses) {
       const def = Statuses.get(id);
       if (def && def.onHitTaken) def.onHitTaken(this, target, { amount: dealt, kind, sourceId });
     }
@@ -657,7 +861,7 @@ export class Engine {
     for (const ball of this.balls) {
       if (ball.dead) continue;
       ball.ultCharge = Math.min(ball.ultMax,
-        ball.ultCharge + (ball.element.ult.chargePerSecond || 2) * dt);
+        ball.ultCharge + (ball.element.ult.chargePerSecond || 2) * (ball.ultRate || 1) * dt);
       if (ball.ultCharge >= ball.ultMax && ball.mods.canUlt) {
         ball.ultCharge = 0;
         ball.ultCount++;
@@ -667,6 +871,163 @@ export class Engine {
         this.emit('ult', ball);
       }
     }
+  }
+
+  /* ------------------------------------------- arsenal-pack behaviours */
+
+  /** A thrown blade that homes loosely on its mark. */
+  throwKnife(owner, target, damage) {
+    const dx = target.x - owner.x, dy = target.y - owner.y;
+    const d = Math.hypot(dx, dy) || 1;
+    this.spawnProjectile({
+      x: owner.x, y: owner.y,
+      vx: (dx / d) * 560, vy: (dy / d) * 560,
+      ownerId: owner.id, teamId: owner.teamId,
+      damage, radius: 5, life: 3, style: 'shard',
+      color: owner.element.colors.light,
+      statusId: 'bleed', statusPower: damage * 0.2,
+      homing: owner.flags.rapidKnives ? 180 : 90, seekId: target.id,
+      pierce: owner.flags.rapidKnives ? 1 : 0,
+    });
+    this.sfx('throw');
+  }
+
+  /** A flask arcing toward a target, shattering into a pool where it lands. */
+  throwFlask(owner, target) {
+    const dx = target.x - owner.x, dy = target.y - owner.y;
+    const d = Math.hypot(dx, dy) || 1;
+    this.spawnProjectile({
+      x: owner.x, y: owner.y,
+      vx: (dx / d) * 340, vy: (dy / d) * 340,
+      ownerId: owner.id, teamId: owner.teamId,
+      damage: owner.baseDamage * 0.3,
+      radius: 8, life: 2.2, style: 'flask',
+      color: owner.element.colors.accent,
+      shatter: true,
+    });
+  }
+
+  /** Drop a flask straight onto the floor where the orb currently is. */
+  dropFlask(owner) {
+    const n = owner.flags.clusterFlasks ? 3 : 1;
+    for (let i = 0; i < n; i++) {
+      const jitter = n > 1 ? 46 : 0;
+      this.spawnHazard({
+        x: owner.x + this.rng.range(-jitter, jitter),
+        y: owner.y + this.rng.range(-jitter, jitter),
+        radius: 48, life: 5, kind: 'poison',
+        ownerId: owner.id, teamId: owner.teamId, affects: 'enemies',
+        color: owner.element.colors.accent,
+        dps: owner.baseDamage * 0.3,
+      });
+    }
+    this.particles.burst('toxin', owner.x, owner.y, 14, 140, owner.element.colors.accent);
+    this.sfx('shatter');
+  }
+
+  /**
+   * Drop a brew. It buffs whoever rolls over it — which by default includes
+   * the enemy, and is the Alchemist's whole risk/reward.
+   */
+  dropPotion(owner, fromUlt = false) {
+    const pad = 40;
+    const jitter = fromUlt ? 190 : 70;
+    this.spawnHazard({
+      x: Math.max(pad, Math.min(this.arena.w - pad, owner.x + this.rng.range(-jitter, jitter))),
+      y: Math.max(pad, Math.min(this.arena.h - pad, owner.y + this.rng.range(-jitter, jitter))),
+      radius: 34, life: 14, kind: 'potion',
+      ownerId: owner.id, teamId: owner.teamId,
+      affects: owner.flags.selfishBrews ? 'allies' : 'all',
+      color: owner.element.colors.light,
+      once: true,
+      heal: owner.maxHp * 0.12,
+    });
+  }
+
+  /* ---------------------------------------------------------- hazards */
+
+  spawnHazard(h) {
+    this.hazards.push({
+      x: h.x, y: h.y, radius: h.radius, life: h.life, age: 0,
+      kind: h.kind || 'poison',
+      ownerId: h.ownerId, teamId: h.teamId,
+      affects: h.affects || 'enemies',
+      color: h.color || '#ffffff',
+      dps: h.dps || 0,
+      heal: h.heal || 0,
+      once: !!h.once,
+      touched: null,
+      dead: false,
+    });
+  }
+
+  hazardAffects(hz, ball) {
+    if (hz.affects === 'all') return true;
+    if (hz.affects === 'enemies') return ball.teamId !== hz.teamId;
+    return ball.teamId === hz.teamId;
+  }
+
+  updateHazards(dt) {
+    // Pools do not stack. Standing where three flasks happen to have landed
+    // used to deal triple damage, which made a hazard template beat everything
+    // by carpeting the floor rather than by fighting. Only the strongest pool
+    // covering an orb applies.
+    const worst = this._hazardDamage || (this._hazardDamage = new Map());
+    worst.clear();
+
+    for (let i = this.hazards.length - 1; i >= 0; i--) {
+      const hz = this.hazards[i];
+      hz.age += dt;
+      if (hz.age >= hz.life || hz.dead) { this.hazards.splice(i, 1); continue; }
+
+      if (this.cosmeticRng.chance(dt * 18)) {
+        this.particles.emit(hz.kind === 'potion' ? 'mote' : 'toxin',
+          hz.x, hz.y, hz.radius * 0.85, 1, hz.color);
+      }
+
+      for (const ball of this.balls) {
+        if (ball.dead || !this.hazardAffects(hz, ball)) continue;
+        const rr = hz.radius + ball.radius;
+        const dx = ball.x - hz.x, dy = ball.y - hz.y;
+        if (dx * dx + dy * dy > rr * rr) continue;
+
+        if (hz.once) {
+          // A brew is consumed by the first orb to reach it.
+          this.grantBrew(hz, ball);
+          hz.dead = true;
+          break;
+        }
+        if (hz.dps) {
+          const cur = worst.get(ball);
+          if (!cur || hz.dps > cur.dps) worst.set(ball, { dps: hz.dps, ownerId: hz.ownerId });
+          if (!hz.touched) hz.touched = new Set();
+          if (!hz.touched.has(ball.id)) {
+            hz.touched.add(ball.id);
+            this.applyStatus(ball, 'poison', 4, { power: hz.dps * 0.35, sourceId: hz.ownerId });
+          }
+        }
+      }
+    }
+
+    for (const [ball, hit] of worst) {
+      this.damage(ball, hit.dps * dt, { sourceId: hit.ownerId, kind: 'hazard', silent: true });
+    }
+  }
+
+  /**
+   * A potion's payoff: heal plus one random short buff. The brewer's own side
+   * gets more out of it — without that edge the Alchemist is just handing free
+   * buffs to whoever rolls past, which is a losing proposition.
+   */
+  grantBrew(hz, ball) {
+    const friendly = ball.teamId === hz.teamId;
+    const scale = friendly ? 1.7 : 0.65;
+    this.heal(ball, hz.heal * scale);
+    const buff = this.rng.pick(['haste', 'shield', 'enrage', 'swift', 'regen']);
+    this.applyStatus(ball, buff, friendly ? 9 : 4.5, { power: ball.maxHp * 0.02, sourceId: hz.ownerId });
+    this.announce(ball, 'BREW', hz.color, 1.1);
+    this.particles.burst('mote', hz.x, hz.y, 26, 200, hz.color);
+    this.sfx('pickup');
   }
 
   /* ------------------------------------------------- flagged behaviours */
@@ -708,6 +1069,33 @@ export class Engine {
         }
       }
 
+      if (ball.flags.rapidKnives) {
+        ball.rapidTimer = (ball.rapidTimer || 0) + dt;
+        if (ball.rapidTimer > 0.45) {
+          ball.rapidTimer = 0;
+          const foes = this.enemiesOf(ball);
+          if (foes.length) this.throwKnife(ball, this.rng.pick(foes), ball.baseDamage * 0.35);
+        }
+      }
+
+      if (ball.flags.rapidArrows) {
+        ball.rapidArrowTimer = (ball.rapidArrowTimer || 0) + dt;
+        if (ball.rapidArrowTimer > 0.6) {
+          ball.rapidArrowTimer = 0;
+          for (const foe of this.enemiesOf(ball)) {
+            const dx = foe.x - ball.x, dy = foe.y - ball.y;
+            const d = Math.hypot(dx, dy) || 1;
+            this.spawnProjectile({
+              x: ball.x, y: ball.y,
+              vx: (dx / d) * 660, vy: (dy / d) * 660,
+              ownerId: ball.id, teamId: ball.teamId,
+              damage: ball.baseDamage * 0.5, radius: 6, life: 3, style: 'arrow',
+              color: ball.element.colors.accent, homing: 200, seekId: foe.id,
+            });
+          }
+        }
+      }
+
       if (ball.flags.wake || ball.flags.debrisTrail) {
         const style = ball.flags.wake ? 'droplet' : 'rubble';
         if (this.cosmeticRng.chance(dt * 26)) {
@@ -736,35 +1124,6 @@ export class Engine {
     }
   }
 
-  /**
-   * Idle element flavour — embers off Fire, frost off Ice, and a trail behind
-   * anything moving fast. Drawn from the cosmetic RNG so turning particles off
-   * cannot desync a match, and rate-limited by speed so a still arena stays
-   * calm instead of fogging up.
-   */
-  ambient(dt) {
-    for (const ball of this.balls) {
-      if (ball.dead) continue;
-      const style = ball.element.particle;
-      if (!style) continue;
-      const speed = Math.hypot(ball.vx, ball.vy);
-      const rate = 5 + (speed / ball.targetSpeed) * 6;
-      if (this.cosmeticRng.chance(dt * rate)) {
-        this.particles.emit(style, ball.x, ball.y, ball.radius * 0.9, 1,
-          ball.element.colors.trail);
-      }
-      // A faint wake off the weapon head sells how fast it is actually moving.
-      for (const w of ball.weapons) {
-        const wsp = Math.hypot(w.hvx, w.hvy);
-        if (wsp > 320 && this.cosmeticRng.chance(dt * 14)) {
-          this.particles.spawn(style, w.hx, w.hy,
-            this.cosmeticRng.range(-30, 30), this.cosmeticRng.range(-30, 30),
-            ball.element.colors.light);
-        }
-      }
-    }
-  }
-
   /* ------------------------------------------------------ projectiles */
 
   spawnProjectile(p) {
@@ -778,6 +1137,8 @@ export class Engine {
       homing: p.homing || 0, seekId: p.seekId || 0,
       statusId: p.statusId || null, statusPower: p.statusPower || 0,
       pierce: p.pierce || 0,
+      shatter: !!p.shatter,
+      angle: Math.atan2(p.vy, p.vx),
       dead: false,
     });
   }
@@ -787,7 +1148,11 @@ export class Engine {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
       p.age += dt;
-      if (p.age >= p.life || p.dead) { this.projectiles.splice(i, 1); continue; }
+      if (p.age >= p.life || p.dead) {
+        if (p.shatter && !p.dead) this.shatterFlask(p);
+        this.projectiles.splice(i, 1);
+        continue;
+      }
 
       if (p.homing && p.seekId) {
         const t = this.byId(p.seekId);
@@ -797,7 +1162,7 @@ export class Engine {
           p.vx += (dx / d) * p.homing * dt;
           p.vy += (dy / d) * p.homing * dt;
           const sp = Math.hypot(p.vx, p.vy);
-          const cap = p.homing * 1.6;
+          const cap = Math.max(p.homing * 1.6, 420);
           if (sp > cap) { p.vx *= cap / sp; p.vy *= cap / sp; }
         }
       }
@@ -805,6 +1170,7 @@ export class Engine {
       p.px = p.x; p.py = p.y;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
+      p.angle = Math.atan2(p.vy, p.vx);
 
       if (p.x < 0 || p.x > w) { p.vx *= -1; p.x = Math.max(0, Math.min(w, p.x)); }
       if (p.y < 0 || p.y > h) { p.vy *= -1; p.y = Math.max(0, Math.min(h, p.y)); }
@@ -819,10 +1185,24 @@ export class Engine {
           this.applyStatus(b, p.statusId, 5, { power: p.statusPower, sourceId: p.ownerId });
         }
         this.particles.burst('spark', p.x, p.y, 6, 160, p.color);
-        if (p.pierce > 0) p.pierce--; else p.dead = true;
+        if (p.shatter) { this.shatterFlask(p); p.dead = true; }
+        else if (p.pierce > 0) p.pierce--;
+        else p.dead = true;
         break;
       }
     }
+  }
+
+  shatterFlask(p) {
+    const owner = this.byId(p.ownerId);
+    this.spawnHazard({
+      x: p.x, y: p.y, radius: 52, life: 4.5, kind: 'poison',
+      ownerId: p.ownerId, teamId: p.teamId, affects: 'enemies',
+      color: p.color,
+      dps: (owner ? owner.baseDamage : 6) * 0.2,
+    });
+    this.particles.burst('toxin', p.x, p.y, 22, 200, p.color);
+    this.sfx('shatter');
   }
 
   /* ----------------------------------------------------------- fields */
@@ -890,7 +1270,7 @@ export class Engine {
       vy: -46, vx: this.cosmeticRng.range(-18, 18), big: false });
   }
 
-  /** A named callout that rides above a ball — 'FROZEN', 'INFERNAL RAGE'. */
+  /** A named callout that rides above an orb — 'FROZEN', 'INFERNAL RAGE'. */
   announce(ball, text, color, life = 1.2) {
     this.texts.push({ x: ball.x, y: ball.y - ball.radius - 18, text, color,
       age: 0, life, vy: -26, vx: 0, big: true, followId: ball.id });
@@ -937,6 +1317,33 @@ export class Engine {
       t.x += t.vx * dt;
       t.y += t.vy * dt;
       t.vy += 40 * dt;
+    }
+  }
+
+  /**
+   * Idle flavour — embers off Fire, frost off Ice, sparks off a fast weapon.
+   * Drawn from the cosmetic RNG so turning particles off cannot desync a
+   * match, and rate-limited by speed so a still arena stays calm.
+   */
+  ambient(dt) {
+    for (const ball of this.balls) {
+      if (ball.dead) continue;
+      const style = ball.element.particle;
+      if (!style) continue;
+      const speed = Math.hypot(ball.vx, ball.vy);
+      const rate = 5 + (speed / ball.targetSpeed) * 6;
+      if (this.cosmeticRng.chance(dt * rate)) {
+        this.particles.emit(style, ball.x, ball.y, ball.radius * 0.9, 1,
+          ball.element.colors.trail);
+      }
+      for (const w of ball.weapons) {
+        const wsp = Math.hypot(w.bvx, w.bvy);
+        if (wsp > 320 && this.cosmeticRng.chance(dt * 14)) {
+          this.particles.spawn(style, w.tipX, w.tipY,
+            this.cosmeticRng.range(-30, 30), this.cosmeticRng.range(-30, 30),
+            ball.element.colors.light);
+        }
+      }
     }
   }
 
