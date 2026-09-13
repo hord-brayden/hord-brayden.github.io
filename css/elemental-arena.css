@@ -922,3 +922,58 @@ body.ea-playing .ea-shell { max-width: 1500px; }
 @media (max-width: 860px) {
   .ea-bench { grid-template-columns: 1fr; }
 }
+
+/* ============================================= fullscreen + recording === */
+
+/* In fullscreen the play screen *is* the page, so it supplies its own ground
+   and hands almost all of the height to the arena. */
+#play:fullscreen {
+  background: var(--bg);
+  padding: 14px 18px calc(10px + env(safe-area-inset-bottom));
+  gap: 10px;
+  justify-content: center;
+}
+#play:fullscreen #stage { max-height: 82vh; }
+#play:fullscreen .ea-title { font-size: clamp(1.1rem, 2.4vw, 1.8rem); }
+
+/* Chrome exposes the backdrop separately; without this it is white. */
+#play::backdrop { background: var(--bg); }
+
+#recordBtn.is-recording {
+  background: var(--bad) !important;
+  border-color: var(--bad) !important;
+  color: #fff !important;
+}
+#recordBtn.is-recording::before {
+  content: '';
+  display: inline-block;
+  width: 7px; height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #fff;
+  animation: ea-rec-pulse 1.1s steps(2, end) infinite;
+  vertical-align: middle;
+}
+@keyframes ea-rec-pulse { 0%, 49% { opacity: 1; } 50%, 100% { opacity: .15; } }
+
+/* A recording indicator that survives fullscreen, where the toolbar may be
+   the only chrome on screen. */
+body.ea-recording #stage::after {
+  content: 'REC';
+  position: absolute;
+  top: 10px; right: 12px;
+  font-family: var(--font-mono);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  color: #fff;
+  background: var(--bad);
+  padding: 3px 8px;
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #recordBtn.is-recording::before { animation: none; }
+}

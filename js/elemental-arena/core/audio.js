@@ -16,9 +16,9 @@
  *    a flurry rather than one sample machine-gunning.
  */
 
-import { weaponVoice, CORE_ACCENTS, clashMaterial, clashUnderlay } from '../content/sounds.js';
+import { weaponVoice, coreVoice, clashParts } from '../content/sounds.js';
 
-const MAX_VOICES = 28;
+const MAX_VOICES = 64;
 
 export class Audio {
   constructor() {
@@ -30,6 +30,7 @@ export class Audio {
     this.noiseBuffer = null;
     this.voices = 0;
     this.drift = 1;      // per-event pitch jitter, set before a recipe runs
+    this.pan = 0;        // per-event stereo placement, likewise
   }
 
   /** Must be called from inside a user gesture handler. */
@@ -43,14 +44,28 @@ export class Audio {
     this.ctx = new AC();
     this.master = this.ctx.createGain();
     this.master.gain.value = this.volume;
-    // A limiter-ish compressor keeps a ten-orb brawl from clipping.
+    // Catches peaks in a ten-orb brawl without squashing everything else —
+    // the old settings were aggressive enough to flatten impacts into clicks.
     const comp = this.ctx.createDynamicsCompressor();
-    comp.threshold.value = -20;
-    comp.ratio.value = 14;
-    comp.attack.value = 0.003;
-    comp.release.value = 0.14;
-    this.master.connect(comp);
+    comp.threshold.value = -9;
+    comp.ratio.value = 5;
+    comp.knee.value = 14;
+    comp.attack.value = 0.006;
+    comp.release.value = 0.22;
+
+    // A gentle high shelf cut takes the brittle, chiptune edge off the top
+    // without dulling the transient that makes an impact read as an impact.
+    const tame = this.ctx.createBiquadFilter();
+    tame.type = 'highshelf';
+    tame.frequency.value = 7000;
+    tame.gain.value = -5;
+
+    this.master.connect(tame);
+    tame.connect(comp);
     comp.connect(this.ctx.destination);
+    // Held so a screen recording can tap the finished mix rather than the
+    // raw master, i.e. exactly what the speakers get.
+    this.outputBus = comp;
     this.noiseBuffer = this._makeNoise();
   }
 
@@ -94,6 +109,20 @@ export class Audio {
 
   _release(n = 1) {
     this.voices = Math.max(0, this.voices - n);
+  }
+
+  /**
+   * A MediaStream of the finished mix, for recording the match with sound.
+   * Returns null when audio has never been unlocked, in which case the
+   * recording is simply silent rather than failing.
+   */
+  captureStream() {
+    if (!this.ctx || !this.outputBus) return null;
+    if (!this._streamDest) {
+      this._streamDest = this.ctx.createMediaStreamDestination();
+      this.outputBus.connect(this._streamDest);
+    }
+    return this._streamDest.stream;
   }
 
   /* ---------------------------------------------------------- primitives */
@@ -177,19 +206,102 @@ export class Audio {
     car.onended = () => this._release(2);
   }
 
+  /**
+   * Where a stereo voice goes. A little width per impact stops a flurry piling
+   * up in the centre of the image and sounding like one flat source.
+   */
+  _dest(pan = 0) {
+    if (!pan || !this.ctx.createStereoPanner) return this.master;
+    const p = this.ctx.createStereoPanner();
+    p.pan.value = Math.max(-1, Math.min(1, pan));
+    p.connect(this.master);
+    return p;
+  }
+
+  /**
+   * Modal synthesis — the ringing modes of a struck object.
+   *
+   * This is the difference between a clank and a beep. A struck metal object
+   * rings in many inharmonic modes at once, each decaying at its own rate;
+   * two-operator FM can only ever make a clean bell, which is why the first
+   * version of this sounded synthetic.
+   *
+   * The modes are additive sine partials rather than resonant filters. A
+   * bandpass *selects* energy instead of adding any, and its ring time is
+   * fixed by Q — a Q of 34 at 340Hz dies in about 30ms no matter what
+   * envelope you draw on it, so the filter version was inaudible under its
+   * own transient. Oscillators give exact control of both pitch and decay.
+   *
+   * @param {object} o
+   *   base     fundamental in Hz
+   *   partials [{ ratio, gain, decay }] — inharmonic ratios make it metal
+   *   dur      ring length of the fundamental, in seconds
+   *   strike   length of the noise transient that opens the sound
+   *   noisy    how much of that transient is heard
+   */
+  modal({ base = 400, partials = [], dur = 0.5, gain = 0.3, strike = 0.006,
+          pan = 0, delay = 0, noisy = 1 }) {
+    const n = partials.length;
+    if (!this.ready || !this._claim(n + 1)) return;
+    const t0 = this.ctx.currentTime + delay;
+    const out = this._dest(pan);
+
+    // The strike: a few milliseconds of filtered noise. This is the sound of
+    // contact, as distinct from the ring that follows it.
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.noiseBuffer;
+    src.playbackRate.value = 0.7 + Math.random() * 0.6;
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = Math.min(14000, base * 3.2 * this.drift);
+    bp.Q.value = 0.7;
+    const hitGain = this.ctx.createGain();
+    hitGain.gain.setValueAtTime(gain * 0.85 * noisy, t0);
+    hitGain.gain.exponentialRampToValueAtTime(0.0001, t0 + Math.max(0.01, strike * 3));
+    src.connect(bp); bp.connect(hitGain); hitGain.connect(out);
+    src.start(t0);
+    src.stop(t0 + 0.12);
+    src.onended = () => this._release();
+
+    for (const pt of partials) {
+      const f = Math.min(15000, Math.max(28, base * pt.ratio * this.drift));
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = f;
+      // A few cents of detune per partial stops a stack of pure sines reading
+      // as one synthetic tone.
+      osc.detune.value = (Math.random() - 0.5) * 14;
+
+      // Higher modes die faster in any real object.
+      const life = Math.max(0.04, dur * (pt.decay ?? 1) / Math.pow(pt.ratio, 0.3));
+      const amp = gain * (pt.gain ?? 1);
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(amp, t0 + 0.002);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + life);
+
+      osc.connect(g); g.connect(out);
+      osc.start(t0);
+      osc.stop(t0 + life + 0.02);
+      osc.onended = () => this._release();
+    }
+  }
+
   /** A low pitched-down sine — the body of any heavy impact. */
-  thud({ freq = 90, dur = 0.18, gain = 0.2, delay = 0 }) {
+  thud({ freq = 90, dur = 0.18, gain = 0.2, delay = 0, drop = 2.2, pan = 0 }) {
     if (!this.ready || !this._claim()) return;
     const t0 = this.ctx.currentTime + delay;
     const f = Math.max(24, freq * this.drift);
     const osc = this.ctx.createOscillator();
     const g = this.ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(f * 2.2, t0);
-    osc.frequency.exponentialRampToValueAtTime(f, t0 + dur * 0.55);
+    // The pitch drop is what gives weight. A flat sine reads as a tone; one
+    // that falls an octave in 50ms reads as something heavy landing.
+    osc.frequency.setValueAtTime(f * drop, t0);
+    osc.frequency.exponentialRampToValueAtTime(f, t0 + dur * 0.5);
     g.gain.setValueAtTime(gain, t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    osc.connect(g); g.connect(this.master);
+    osc.connect(g); g.connect(this._dest(pan));
     osc.start(t0);
     osc.stop(t0 + dur + 0.02);
     osc.onended = () => this._release();
@@ -207,13 +319,29 @@ export class Audio {
     // in the same instant should both be heard, or a crowded fight collapses
     // back to one repeated sound.
     if (!this.ready || !this._throttle(`hit:${weaponId}`, 34)) return;
-    const voice = weaponVoice(weaponId);
+    const w = weaponVoice(weaponId);
+    const c = coreVoice(coreId);
     // A little drift per hit so a flurry sounds like many strikes rather than
     // one sample retriggering.
     this.drift = 0.94 + Math.random() * 0.12;
-    voice.material.impact(this, { pitch: voice.pitch, power, t: voice.t });
-    const accent = CORE_ACCENTS[coreId];
-    if (accent) accent(this, { power });
+    const pan = (Math.random() - 0.5) * 0.5;
+
+    // 1. Body — the "ouch". Pitched to the core's own note, dropping an
+    //    octave as it lands. This is the loudest layer of every hit, and the
+    //    reason an impact has weight instead of just brightness.
+    this.thud({
+      freq: c.note * 0.82,
+      dur: 0.2 + power * 0.16,
+      gain: 0.3 + power * 0.24,
+      drop: 2.6,
+      pan: pan * 0.4,
+    });
+
+    // 2. Ring — the weapon's material, tinted by how bright the core is.
+    w.material.impact(this, { base: w.base * c.bright, power, t: w.t, pan });
+
+    // 3. Accent — a short elemental flourish over the top.
+    if (c.accent) c.accent(this, { power });
     this.drift = 1;
   }
 
@@ -225,20 +353,39 @@ export class Audio {
     if (!this.ready || !this._throttle(`parry:${aWeaponId}:${bWeaponId}`, 55)) return;
     const a = weaponVoice(aWeaponId);
     const b = weaponVoice(bWeaponId);
-    const pitch = (a.pitch + b.pitch) / 2;
+    const { lead, under } = clashParts(aWeaponId, bWeaponId);
+    const base = (a.base + b.base) / 2;
     this.drift = 0.96 + Math.random() * 0.09;
-    clashMaterial(aWeaponId, bWeaponId).clash(this, { pitch, power: 1 });
-    const under = clashUnderlay(aWeaponId, bWeaponId);
-    if (under) under.impact(this, { pitch: pitch * 0.9, power: 0.4, t: b.t });
+    const pan = (Math.random() - 0.5) * 0.4;
+
+    lead.clash(this, { base, pan });
+    // The duller material is heard underneath as the body of the collision,
+    // which is what makes a sword on a shield sound different from two swords.
+    if (under) under.impact(this, { base: base * 0.7, power: 0.5, t: b.t, pan: -pan });
     this.drift = 1;
   }
 
-  /** A wall bounce. Pitched by orb size so a heavy orb lands lower. */
-  bounce({ size = 1 } = {}) {
-    if (!this.ready || !this._throttle('bounce', 42)) return;
-    this.drift = 0.9 + Math.random() * 0.2;
-    this.tone({ freq: 300 / size, type: 'triangle', dur: 0.05, gain: 0.045, sweep: -130 });
-    this.noise({ dur: 0.03, gain: 0.025, filter: 'lowpass', freq: 900 });
+  /**
+   * A wall bounce — a soft "dong" on the core's own note, so every orb has a
+   * recognisable pitch as it rattles around. Bigger orbs ring lower.
+   *
+   * Kept quiet on purpose: bounces are the most frequent event in the game by
+   * a wide margin, and anything assertive here would bury the actual fighting.
+   */
+  bounce({ coreId, size = 1 } = {}) {
+    if (!this.ready || !this._throttle(`bounce:${coreId}`, 110)) return;
+    const c = coreVoice(coreId);
+    this.drift = 0.97 + Math.random() * 0.06;
+    const pan = (Math.random() - 0.5) * 0.6;
+    this.modal({
+      base: c.note / Math.max(0.7, Math.pow(size, 0.6)),
+      partials: c.bell,
+      dur: c.bounceDur,
+      gain: 0.2,
+      strike: 0.007,
+      noisy: 0.3,
+      pan,
+    });
     this.drift = 1;
   }
 

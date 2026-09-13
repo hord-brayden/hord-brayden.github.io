@@ -595,7 +595,7 @@ export class Engine {
           ball.element.colors.trail);
         const passive = ball.element.passive;
         if (passive && passive.onBounce) passive.onBounce(this, ball);
-        this.sfx('bounce', { size: ball.radius / 40 });
+        this.sfx('bounce', { coreId: ball.fighterId, size: ball.radius / 40 });
         this.emit('bounce', ball);
         if (this.mode && this.mode.onBounce) this.mode.onBounce(this, ball);
       }

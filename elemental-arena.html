@@ -177,6 +177,8 @@
           <output id="speedReadout">1.00×</output>
         </label>
         <span class="ea-spacer"></span>
+        <button type="button" class="btn--ghost" id="fullscreenBtn" title="Fullscreen (F)">⛶ Fullscreen</button>
+        <button type="button" class="btn--ghost" id="recordBtn" title="Record this match (V)">● Record</button>
         <button type="button" class="btn--ghost" data-open-panel="panelSettings">Settings</button>
         <button type="button" class="btn--ghost" data-open-panel="panelCodex">Codex</button>
         <button type="button" class="btn--ghost" data-share>Share</button>
@@ -303,7 +305,14 @@
         random number from a seeded generator, which is why a seed replays exactly.
       </p>
       <p class="ea-note">
-        Keyboard: <code>Enter</code> launch · <code>Space</code> pause · <code>R</code> replay seed · <code>N</code> new seed · <code>T</code> swap theme · <code>Esc</code> back.
+        Keyboard: <code>Enter</code> launch · <code>Space</code> pause · <code>R</code> replay seed ·
+        <code>N</code> new seed · <code>T</code> swap theme · <code>F</code> fullscreen ·
+        <code>V</code> record · <code>Esc</code> back.
+      </p>
+      <p class="ea-note">
+        <strong>Recording</strong> captures the arena and the audio mix together and saves a
+        <code>.webm</code> when you stop, or automatically when the match ends. Turn Sound on
+        first if you want the clip to have any — the video is recorded silent otherwise.
       </p>
 
       <div class="ea-panel-actions">

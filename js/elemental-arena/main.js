@@ -24,6 +24,7 @@ import { randomSeedPhrase } from './core/rng.js';
 import { Forge, TEAM_NAMES, TEAM_TINTS } from './ui/forge.js';
 import { Campaign } from './ui/campaign.js';
 import { refreshPreviews } from './ui/preview.js';
+import { Recorder, recordingSupported } from './ui/recorder.js';
 import {
   defaultConfig, normalizeConfig, loadConfig, saveConfig,
   shareUrl, configFromLocation,
@@ -57,6 +58,8 @@ class App {
 
     this.forge = new Forge(this);
     this.campaign = new Campaign(this);
+    this.recorder = new Recorder(this.canvas, this.audio);
+    this.recorder.onStop = (blob) => this.saveRecording(blob);
     this.campaignBattle = null;   // set while a campaign fight is running
 
     if (shared) this.startMatch();
@@ -319,6 +322,8 @@ class App {
         </tr>`).join('');
 
     this.audio.play('win');
+    // Let the last moment land, then close the file on its own.
+    if (this.recorder.active) setTimeout(() => this.recorder.stop(), 1200);
 
     if (this.campaignBattle) {
       const { run } = this.campaignBattle;
@@ -406,6 +411,22 @@ class App {
       this.persist();
     });
 
+    $('#fullscreenBtn').addEventListener('click', () => this.toggleFullscreen());
+    $('#recordBtn').addEventListener('click', () => this.toggleRecording());
+    if (!recordingSupported()) {
+      $('#recordBtn').disabled = true;
+      $('#recordBtn').title = 'This browser cannot record canvas video';
+    }
+    // The canvas has to be re-fitted on the way into and out of fullscreen,
+    // because the space it is being fitted to just changed.
+    document.addEventListener('fullscreenchange', () => {
+      const on = !!document.fullscreenElement;
+      document.body.classList.toggle('ea-fullscreen', on);
+      $('#fullscreenBtn').textContent = on ? '⛶ Exit' : '⛶ Fullscreen';
+      this.renderer.hostW = -1;
+      requestAnimationFrame(() => this.fitCanvas());
+    });
+
     $$('[data-share]').forEach((b) => b.addEventListener('click', async () => {
       const url = shareUrl(this.config);
       window.history.replaceState(null, '', url);
@@ -459,6 +480,8 @@ class App {
         case ' ': ev.preventDefault(); $('#pauseBtn').click(); break;
         case 'r': this.restartSameSeed(); break;
         case 'n': this.restartNewSeed(); break;
+        case 'f': ev.preventDefault(); this.toggleFullscreen(); break;
+        case 'v': this.toggleRecording(); break;
         case 't': {
           const ids = Themes.ids;
           const next = ids[(ids.indexOf(this.config.themeId) + 1) % ids.length];
@@ -474,6 +497,54 @@ class App {
         default: break;
       }
     });
+  }
+
+  /* ------------------------------------------------- fullscreen + video */
+
+  /** Fullscreen the play screen itself, so the arena gets the whole display
+   *  and the site chrome goes away with it. */
+  async toggleFullscreen() {
+    const target = $('#play');
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else if (target.requestFullscreen) await target.requestFullscreen({ navigationUI: 'hide' });
+      else this.toast('This browser will not allow fullscreen here');
+    } catch (e) {
+      this.toast('Fullscreen was refused by the browser');
+    }
+  }
+
+  toggleRecording() {
+    if (this.recorder.active) {
+      this.recorder.stop();
+      this.toast('Saving the clip…');
+      this.setRecordUi(false);
+      return;
+    }
+    if (!recordingSupported()) {
+      this.toast('This browser cannot record canvas video');
+      return;
+    }
+    // Recording silently without audio is a worse surprise than being told.
+    if (!this.audio.ready) this.toast('Recording — enable Sound first if you want audio');
+    if (this.recorder.start()) this.setRecordUi(true);
+    else this.toast('Could not start recording');
+  }
+
+  setRecordUi(on) {
+    const btn = $('#recordBtn');
+    btn.classList.toggle('is-recording', on);
+    btn.textContent = on ? '■ Stop' : '● Record';
+    document.body.classList.toggle('ea-recording', on);
+  }
+
+  saveRecording(blob) {
+    this.setRecordUi(false);
+    if (!blob || !blob.size) { this.toast('Nothing was captured'); return; }
+    const ext = (blob.type || '').includes('mp4') ? 'mp4' : 'webm';
+    const seed = (this.config.seed || 'match').replace(/[^a-z0-9-]+/gi, '-');
+    Recorder.save(blob, `elemental-arena-${seed}.${ext}`);
+    this.toast(`Saved · ${(blob.size / 1e6).toFixed(1)} MB`);
   }
 
   toast(msg) {

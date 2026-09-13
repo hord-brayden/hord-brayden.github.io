@@ -1,128 +1,203 @@
 /* Sound design — what every impact actually sounds like.
  *
- * A hit is two layers stacked, not one sample:
+ * A hit is three layers, not one sample:
  *
- *   the WEAPON gives the impact  — what struck what, and how heavy it was.
- *                                  Driven by material and size: a dagger is a
- *                                  small bright tink, a warhammer is a low
- *                                  bang, a flask is breaking glass.
- *   the CORE gives the accent    — the elemental flavour riding on top. Fire
- *                                  sizzles, Ice cracks, Lightning snaps,
- *                                  Earth thuds, Venom squelches.
+ *   BODY    a deep, pitch-dropping thump at the core's own note. This is the
+ *           "ouch" — the weight of being struck — and it is the loudest part
+ *           of every impact. It is why nothing here sounds thin.
+ *   RING    the weapon's material resonating. Modal synthesis: a short noise
+ *           strike exciting a bank of inharmonic resonators, which is how a
+ *           struck object actually behaves. Steel clanks, iron clunks, wood
+ *           knocks, bone clacks, glass tinks.
+ *   ACCENT  a short elemental flourish on top — a sizzle, a crack, a squelch.
  *
- * That is why there is no combinatorial explosion: twenty-three weapons and
- * nineteen cores produce four hundred-odd recognisably different hits from
- * about thirty short recipes.
+ * Every core owns a NOTE, and that note is its identity across the whole mix:
+ * the body of its hits, and the "dong" when it bounces off a wall. Earth and
+ * Shadow sit near the bottom of the register, Fire and Venom low, Ice and
+ * Light at the top. Nothing is bright unless brightness suits it — a fire orb
+ * that pings like a wine glass is simply wrong.
  *
- * A parry is the same idea with two weapons and no accent — the materials of
- * both blades decide whether you get a CLANG, a CLOK or a TINK.
- *
- * Every recipe receives the Audio instance and composes its primitives
- * (`tone`, `noise`, `fm`, `thud`). Nothing here touches the AudioContext
- * directly, so the whole file is safe to edit without knowing WebAudio.
+ * To retune a core: change its note and brightness. To retune a weapon:
+ * change its material or its tweak. No WebAudio knowledge needed either way.
  */
 
 import { Weapons } from './weapons.js';
 
-/* ============================================================ materials */
-
-/* Pitch scales inversely with weapon size — a small blade rings high, a big
- * one rings low — so one recipe covers a whole family of weapons. */
 const REF_WIDTH = 30;
 
+/* ============================================================ materials */
+
+/*
+ * Partial ratios are what make a material recognisable. A harmonic series
+ * (1, 2, 3…) sounds like a musical note; these deliberately are not, because
+ * struck metal, wood and glass all ring in inharmonic modes. The bar-like
+ * ratios under `steel` are close to the real modes of a free steel bar.
+ */
 export const MATERIALS = {
-  /** Bladed steel: bright, inharmonic, with a long thin ring. */
+  /** Bladed steel: a bright clank over a solid body. */
   steel: {
-    impact(A, { pitch, power, t }) {
-      A.fm({ carrier: 1500 * pitch, ratio: t.ratio, index: 620 * t.bright,
-             dur: 0.13 * t.decay, gain: (0.1 + power * 0.1) * t.gain });
-      A.noise({ dur: 0.05 * t.decay, gain: (0.06 + power * 0.06) * t.noise,
-                filter: 'bandpass', freq: 4200 * pitch * t.bright, q: 1.4 });
-      A.tone({ freq: 320 * pitch * t.body, type: 'triangle', dur: 0.07 * t.decay,
-               gain: 0.05 * t.body, sweep: -160 });
-      // A second detuned partial is what separates a three-pronged trident
-      // from a single blade of the same size and metal.
+    base: 340,
+    impact(A, { base, power, t, pan }) {
+      A.modal({
+        base,
+        partials: [
+          { ratio: 1, gain: 1, decay: 1 },
+          { ratio: 2.76, gain: 0.72, decay: 0.72 },
+          { ratio: 5.4, gain: 0.4, decay: 0.42 },
+          { ratio: 8.93, gain: 0.2 * t.bright, decay: 0.25 },
+        ],
+        dur: (0.34 + power * 0.2) * t.decay,
+        gain: (0.26 + power * 0.2) * t.gain,
+        strike: 0.005,
+        noisy: t.noise,
+        pan,
+      });
       if (t.chorus) {
-        A.fm({ carrier: 1500 * pitch * 1.19, ratio: t.ratio * 0.83, index: 400,
-               dur: 0.1 * t.decay, gain: 0.05, delay: 0.01 });
+        A.modal({ base: base * 1.17, partials: [{ ratio: 1, gain: 0.6 }, { ratio: 2.76, gain: 0.3 }],
+                  dur: 0.22, gain: 0.12, delay: 0.012, pan: -pan });
       }
       if (t.rattle) {
-        A.noise({ dur: 0.12, gain: 0.05, filter: 'bandpass', freq: 5200 * pitch, q: 5 });
+        A.noise({ dur: 0.16, gain: 0.06, filter: 'bandpass', freq: base * 6, q: 6 });
       }
     },
-    clash(A, { pitch, power }) {
-      // The classic blade-on-blade CLANG: two detuned bells plus a bright
-      // scrape, ringing much longer than a hit on a soft target.
-      A.fm({ carrier: 2100 * pitch, ratio: 1.41, index: 900, dur: 0.42, gain: 0.13 });
-      A.fm({ carrier: 2680 * pitch, ratio: 2.09, index: 700, dur: 0.34, gain: 0.09, delay: 0.008 });
-      A.noise({ dur: 0.09, gain: 0.11, filter: 'highpass', freq: 3600 });
-      A.tone({ freq: 190 * pitch, type: 'square', dur: 0.08, gain: 0.05, sweep: -90 });
+    clash(A, { base, pan }) {
+      // The classic blade-on-blade CLANG: the same modes excited harder and
+      // allowed to ring three times as long as a hit on a soft target.
+      A.modal({
+        base,
+        partials: [
+          { ratio: 1, gain: 1, decay: 1 },
+          { ratio: 2.76, gain: 0.85, decay: 0.9 },
+          { ratio: 5.4, gain: 0.55, decay: 0.6 },
+          { ratio: 8.93, gain: 0.32, decay: 0.4 },
+          { ratio: 13.3, gain: 0.16, decay: 0.22 },
+        ],
+        dur: 1.1, gain: 0.34, strike: 0.004, pan,
+      });
+      A.thud({ freq: base * 0.42, dur: 0.16, gain: 0.16, drop: 2.4 });
     },
   },
 
-  /** Blunt iron: heavier, duller, more thump than ring. */
+  /** Blunt iron: a deep CLUNK with very little top end. */
   iron: {
-    impact(A, { pitch, power, t }) {
-      A.thud({ freq: 120 * pitch * t.body, dur: 0.16 * t.decay, gain: (0.14 + power * 0.1) * t.gain });
-      A.fm({ carrier: 720 * pitch, ratio: t.ratio, index: 320 * t.bright, dur: 0.16 * t.decay, gain: 0.07 });
-      A.noise({ dur: 0.06, gain: 0.07 * t.noise, filter: 'lowpass', freq: 1800 * t.bright });
+    base: 170,
+    impact(A, { base, power, t, pan }) {
+      A.modal({
+        base,
+        partials: [
+          { ratio: 1, gain: 1, decay: 1 },
+          { ratio: 1.62, gain: 0.6, decay: 0.7 },
+          { ratio: 2.31, gain: 0.35, decay: 0.45 },
+          { ratio: 3.4, gain: 0.15, decay: 0.3 },
+        ],
+        dur: (0.4 + power * 0.2) * t.decay,
+        gain: (0.3 + power * 0.22) * t.gain,
+        strike: 0.008, noisy: t.noise * 1.3, pan,
+      });
+      A.thud({ freq: base * 0.5, dur: 0.2 * t.decay, gain: 0.2 * t.body, drop: 2.8 });
     },
-    clash(A, { pitch }) {
-      A.thud({ freq: 105 * pitch, dur: 0.2, gain: 0.15 });
-      A.fm({ carrier: 980 * pitch, ratio: 1.51, index: 540, dur: 0.3, gain: 0.11 });
-      A.noise({ dur: 0.08, gain: 0.09, filter: 'bandpass', freq: 2200, q: 1.1 });
+    clash(A, { base, pan }) {
+      A.modal({
+        base,
+        partials: [
+          { ratio: 1, gain: 1, decay: 1 },
+          { ratio: 1.62, gain: 0.75, decay: 0.85 },
+          { ratio: 2.31, gain: 0.5, decay: 0.6 },
+          { ratio: 3.4, gain: 0.25, decay: 0.4 },
+        ],
+        dur: 0.95, gain: 0.36, strike: 0.007, pan,
+      });
+      A.thud({ freq: base * 0.45, dur: 0.3, gain: 0.24, drop: 3 });
     },
   },
 
-  /** Wood: dry knock, no ring at all. */
+  /** Wood: a dry knock. Almost no ring — the modes die immediately. */
   wood: {
-    impact(A, { pitch, power, t }) {
-      A.tone({ freq: 260 * pitch * t.body, type: 'triangle', dur: 0.08 * t.decay,
-               gain: (0.1 + power * 0.07) * t.gain, sweep: -130 });
-      A.noise({ dur: 0.045 * t.decay, gain: 0.07 * t.noise, filter: 'bandpass',
-                freq: 1500 * pitch * t.bright, q: 2.2 });
+    base: 260,
+    impact(A, { base, power, t, pan }) {
+      A.modal({
+        base,
+        partials: [
+          { ratio: 1, gain: 1, decay: 1 },
+          { ratio: 1.47, gain: 0.5, decay: 0.6 },
+          { ratio: 2.09, gain: 0.22, decay: 0.35 },
+        ],
+        dur: (0.16 + power * 0.06) * t.decay,
+        gain: (0.28 + power * 0.18) * t.gain,
+        strike: 0.01, noisy: t.noise * 1.4, pan,
+      });
+      A.thud({ freq: base * 0.55, dur: 0.14, gain: 0.16 * t.body, drop: 2.2 });
     },
-    clash(A, { pitch }) {
-      // A hollow CLOK — two knocks a hair apart read as one sharp collision.
-      A.tone({ freq: 300 * pitch, type: 'triangle', dur: 0.1, gain: 0.12, sweep: -170 });
-      A.tone({ freq: 208 * pitch, type: 'sine', dur: 0.13, gain: 0.08, sweep: -95, delay: 0.012 });
-      A.noise({ dur: 0.05, gain: 0.06, filter: 'bandpass', freq: 1100, q: 1.6 });
+    clash(A, { base, pan }) {
+      // A hollow CLOK: two knocks a hair apart read as one hard collision.
+      A.modal({ base, partials: [{ ratio: 1, gain: 1 }, { ratio: 1.47, gain: 0.6 }, { ratio: 2.09, gain: 0.3 }],
+                dur: 0.3, gain: 0.32, strike: 0.009, pan });
+      A.modal({ base: base * 0.78, partials: [{ ratio: 1, gain: 0.8 }], dur: 0.22, gain: 0.2,
+                strike: 0.011, delay: 0.016, pan: -pan });
+      A.thud({ freq: base * 0.5, dur: 0.18, gain: 0.18, drop: 2.4 });
     },
   },
 
-  /** Bone: dry, hollow, rattling clack. */
+  /** Bone: dry and hollow, a clack with a short woody tail. */
   bone: {
-    impact(A, { pitch, power, t }) {
-      A.tone({ freq: 480 * pitch, type: 'square', dur: 0.045 * t.decay,
-               gain: (0.07 + power * 0.05) * t.gain, sweep: -260 });
-      A.noise({ dur: 0.06, gain: 0.08 * t.noise, filter: 'bandpass', freq: 2600 * pitch * t.bright, q: 3 });
+    base: 320,
+    impact(A, { base, power, t, pan }) {
+      A.modal({
+        base,
+        partials: [
+          { ratio: 1, gain: 1, decay: 1 },
+          { ratio: 1.73, gain: 0.55, decay: 0.5 },
+          { ratio: 2.61, gain: 0.3, decay: 0.35 },
+        ],
+        dur: (0.2 + power * 0.08) * t.decay,
+        gain: (0.26 + power * 0.16) * t.gain,
+        strike: 0.006, noisy: t.noise * 1.5, pan,
+      });
+      A.thud({ freq: base * 0.4, dur: 0.13, gain: 0.13 * t.body, drop: 2 });
     },
-    clash(A, { pitch }) {
-      A.tone({ freq: 560 * pitch, type: 'square', dur: 0.06, gain: 0.09, sweep: -300 });
-      A.noise({ dur: 0.11, gain: 0.09, filter: 'bandpass', freq: 3000, q: 2.4 });
-      A.tone({ freq: 300 * pitch, type: 'triangle', dur: 0.09, gain: 0.05, sweep: -150, delay: 0.02 });
+    clash(A, { base, pan }) {
+      A.modal({ base, partials: [{ ratio: 1, gain: 1 }, { ratio: 1.73, gain: 0.7 }, { ratio: 2.61, gain: 0.45 }],
+                dur: 0.42, gain: 0.32, strike: 0.005, pan });
+      A.thud({ freq: base * 0.38, dur: 0.16, gain: 0.15, drop: 2.2 });
     },
   },
 
-  /** Glass: a bright tink that turns into a shatter when it loses. */
+  /** Glass: the one material that is meant to be bright. */
   glass: {
-    impact(A, { pitch, power, t }) {
-      A.fm({ carrier: 3200 * pitch, ratio: t.ratio, index: 420 * t.bright,
-             dur: 0.1 * t.decay, gain: (0.07 + power * 0.05) * t.gain });
-      A.noise({ dur: 0.08 * t.decay, gain: 0.07 * t.noise, filter: 'highpass', freq: 5200 * t.bright });
+    base: 820,
+    impact(A, { base, power, t, pan }) {
+      A.modal({
+        base,
+        partials: [
+          { ratio: 1, gain: 1, decay: 1 },
+          { ratio: 2.4, gain: 0.6, decay: 0.7 },
+          { ratio: 4.3, gain: 0.32, decay: 0.45 },
+          { ratio: 6.8, gain: 0.16, decay: 0.3 },
+        ],
+        dur: (0.4 + power * 0.16) * t.decay,
+        gain: (0.2 + power * 0.14) * t.gain,
+        strike: 0.003, noisy: t.noise * 0.7, pan,
+      });
+      A.thud({ freq: 150, dur: 0.1, gain: 0.1, drop: 2 });
     },
-    clash(A, { pitch }) {
-      A.fm({ carrier: 3600 * pitch, ratio: 2.63, index: 640, dur: 0.2, gain: 0.1 });
-      A.noise({ dur: 0.16, gain: 0.1, filter: 'highpass', freq: 4600 });
-      A.tone({ freq: 2400 * pitch, type: 'sine', dur: 0.12, gain: 0.05, sweep: -1400 });
+    clash(A, { base, pan }) {
+      A.modal({
+        base,
+        partials: [
+          { ratio: 1, gain: 1, decay: 1 },
+          { ratio: 2.4, gain: 0.7, decay: 0.8 },
+          { ratio: 4.3, gain: 0.45, decay: 0.55 },
+          { ratio: 6.8, gain: 0.28, decay: 0.35 },
+        ],
+        dur: 0.85, gain: 0.26, strike: 0.0025, pan,
+      });
+      A.noise({ dur: 0.2, gain: 0.08, filter: 'highpass', freq: 5000 });
     },
   },
 };
 
 /* ============================================================== weapons */
 
-/* Material per weapon. Everything else — pitch, weight — is derived from the
- * silhouette's own dimensions, so a new weapon only needs a line here. */
 const WEAPON_MATERIAL = {
   sword: 'steel', katana: 'steel', dagger: 'steel', greatsword: 'steel',
   axe: 'steel', spear: 'steel', trident: 'steel', scythe: 'steel',
@@ -134,152 +209,212 @@ const WEAPON_MATERIAL = {
 };
 
 /*
- * Per-weapon character, on top of material and size.
- *
- * Material and pitch alone left the steel family sounding nearly identical —
- * a sword, a spear and a scythe are all mid-sized steel, so they landed within
- * a few percent of each other. These shift the timbre itself: `ratio` moves
- * the inharmonic partials (the difference between a ping and a clang),
- * `bright` the noise band, `decay` how long it lives, `noise` how much scrape
- * is in it, and `body` the low end.
+ * Per-weapon character on top of material and size. `bright` moves the top
+ * modes, `decay` how long it rings, `noise` how much scrape is in the strike,
+ * `body` the low end, `gain` the overall weight.
  */
-const TWEAK_DEFAULTS = { ratio: 2.71, bright: 1, decay: 1, noise: 1, gain: 1, body: 1 };
+const TWEAK_DEFAULTS = { bright: 1, decay: 1, noise: 1, gain: 1, body: 1, pitch: 1 };
 
 const WEAPON_TWEAKS = {
   // steel
   sword:      {},
-  katana:     { ratio: 3.3, bright: 1.2, decay: 1.5, noise: 0.7 },   // clean, singing
-  dagger:     { ratio: 2.1, bright: 1.35, decay: 0.55, gain: 0.85 }, // short shick
-  greatsword: { ratio: 1.76, bright: 0.75, decay: 1.7, body: 1.7, gain: 1.25 },
-  rapier:     { ratio: 4.4, bright: 1.5, decay: 0.8, noise: 0.5, body: 0.6 }, // thin ping
-  axe:        { ratio: 1.95, bright: 0.8, decay: 0.75, noise: 2.1, body: 1.3 }, // chop
-  spear:      { ratio: 3.6, bright: 1.15, decay: 0.5, noise: 0.8, body: 0.75 },
-  trident:    { ratio: 2.44, bright: 1.05, decay: 1.15, chorus: true },
-  scythe:     { ratio: 2.95, bright: 0.9, decay: 1.25, noise: 1.9 },  // slice
-  shuriken:   { ratio: 5.4, bright: 1.6, decay: 0.45, noise: 1.4, body: 0.5 },
-  chakram:    { ratio: 3.8, bright: 1.3, decay: 1.6, noise: 0.8 },    // whirr
-  caltrop:    { ratio: 6.2, bright: 1.5, decay: 0.4, rattle: true, body: 0.5 },
+  katana:     { bright: 1.15, decay: 1.6, noise: 0.6, pitch: 1.05 },   // clean, singing
+  dagger:     { bright: 1.3, decay: 0.5, gain: 0.8, pitch: 1.5 },      // short shick
+  greatsword: { bright: 0.7, decay: 1.8, body: 1.8, gain: 1.3, pitch: 0.62 },
+  rapier:     { bright: 1.45, decay: 0.85, noise: 0.45, body: 0.6, pitch: 1.35 },
+  axe:        { bright: 0.78, decay: 0.7, noise: 2.2, body: 1.4, gain: 1.15, pitch: 0.78 },
+  spear:      { bright: 1.1, decay: 0.5, noise: 0.8, body: 0.8, pitch: 1.15 },
+  trident:    { bright: 1.0, decay: 1.2, chorus: true, pitch: 0.9 },
+  scythe:     { bright: 0.9, decay: 1.3, noise: 2.0, pitch: 0.85 },     // slice
+  shuriken:   { bright: 1.5, decay: 0.45, noise: 1.4, body: 0.5, pitch: 1.6 },
+  chakram:    { bright: 1.25, decay: 1.7, noise: 0.75, pitch: 1.25 },   // whirr
+  caltrop:    { bright: 1.4, decay: 0.4, rattle: true, body: 0.5, pitch: 1.7 },
   // iron
-  hammer:     { ratio: 1.62, bright: 0.85, decay: 1.35, body: 1.35, gain: 1.2 },
-  wrench:     { ratio: 2.1, bright: 1.15, decay: 0.9, noise: 0.8, body: 0.85 },
-  gauntlet:   { ratio: 1.4, bright: 0.7, decay: 0.7, noise: 1.5, body: 1.1, gain: 0.9 },
-  shield:     { ratio: 1.25, bright: 0.6, decay: 1.6, body: 1.5, noise: 0.6 },   // CLUNK
+  hammer:     { bright: 0.8, decay: 1.4, body: 1.5, gain: 1.25, pitch: 0.7 },   // BANG
+  wrench:     { bright: 1.15, decay: 0.9, noise: 0.85, body: 0.9, pitch: 1.1 },
+  gauntlet:   { bright: 0.66, decay: 0.7, noise: 1.6, body: 1.15, gain: 0.95, pitch: 0.95 },
+  shield:     { bright: 0.55, decay: 1.8, body: 1.6, noise: 0.6, gain: 1.2, pitch: 0.6 }, // CLUNK
   // wood
-  club:       { decay: 1.3, body: 1.4, noise: 1.2, gain: 1.15 },
-  staff:      { decay: 0.85, body: 0.8, bright: 1.25, noise: 0.7 },
-  pitchfork:  { decay: 0.6, body: 0.7, bright: 1.5, noise: 1.6 },
-  bow:        { decay: 1.5, body: 0.65, bright: 0.75, noise: 0.5 },   // twang
+  club:       { decay: 1.35, body: 1.5, noise: 1.2, gain: 1.2, pitch: 0.78 },
+  staff:      { decay: 0.9, body: 0.8, bright: 1.2, noise: 0.7, pitch: 1.1 },
+  pitchfork:  { decay: 0.6, body: 0.7, bright: 1.45, noise: 1.6, pitch: 1.25 },
+  bow:        { decay: 1.6, body: 0.7, bright: 0.72, noise: 0.5, pitch: 0.9 },  // twang
   // bone
-  bone:       { decay: 1.2, noise: 1.3 },
+  bone:       { decay: 1.25, noise: 1.3 },
   // glass
-  vial:       { ratio: 3.14, decay: 1.2, bright: 0.9 },
-  flask:      { ratio: 2.55, decay: 0.75, bright: 1.25, noise: 1.5 },
+  vial:       { decay: 1.25, bright: 0.9, pitch: 0.95 },
+  flask:      { decay: 0.8, bright: 1.2, noise: 1.5, pitch: 1.15 },
 };
 
 export function weaponVoice(weaponId) {
   const def = Weapons.get(weaponId);
-  const material = MATERIALS[WEAPON_MATERIAL[weaponId] || 'steel'];
-  // Big weapons ring low, small ones high, on a gentle curve so a greatsword
-  // and a dagger are clearly different without either sounding silly.
-  const pitch = def ? Math.pow(REF_WIDTH / def.w, 0.85) : 1;
+  const materialId = WEAPON_MATERIAL[weaponId] || 'steel';
+  const material = MATERIALS[materialId];
   const t = { ...TWEAK_DEFAULTS, ...(WEAPON_TWEAKS[weaponId] || {}) };
-  return { material, pitch, t, heavy: def ? !!def.heavy : false };
+  // Big weapons ring low, small ones high, on a gentle curve so a greatsword
+  // and a dagger differ clearly without either sounding silly.
+  const size = def ? Math.pow(REF_WIDTH / def.w, 0.7) : 1;
+  return { material, materialId, t, base: material.base * size * t.pitch, heavy: def ? !!def.heavy : false };
 }
 
 /* ================================================================ cores */
 
-/* A short accent laid over the weapon impact. These are quiet on purpose —
- * they colour the hit, they do not replace it. */
-export const CORE_ACCENTS = {
-  fire(A) {
-    A.noise({ dur: 0.22, gain: 0.06, filter: 'bandpass', freq: 1800, q: 0.7, sweepTo: 420 });
-    A.tone({ freq: 240, type: 'sawtooth', dur: 0.1, gain: 0.03, sweep: -140 });
+/*
+ * Every core owns a note. It is the pitch of the body thump under its hits
+ * and of the "dong" when it bounces off a wall, so a Fire orb reads as low and
+ * heavy everywhere it appears while Ice reads as high and brittle.
+ *
+ *   note    fundamental in Hz for body and bounce
+ *   bright  multiplier on the weapon's ring — under 1 darkens the metal
+ *   bell    partial set for the wall bounce
+ *   accent  a short flourish laid over a hit
+ */
+const BELL_ROUND = [{ ratio: 1, gain: 1 }, { ratio: 2.01, gain: 0.4, decay: 0.6 }, { ratio: 3.02, gain: 0.15, decay: 0.35 }];
+const BELL_DARK = [{ ratio: 1, gain: 1 }, { ratio: 1.58, gain: 0.35, decay: 0.5 }, { ratio: 2.24, gain: 0.12, decay: 0.3 }];
+const BELL_GLASS = [{ ratio: 1, gain: 1 }, { ratio: 2.76, gain: 0.5, decay: 0.7 }, { ratio: 5.4, gain: 0.22, decay: 0.4 }];
+
+export const CORE_VOICES = {
+  /* --- elemental --- */
+  fire: {
+    note: 98, bright: 0.72, bell: BELL_DARK, bounceDur: 0.34,
+    accent(A) {
+      A.noise({ dur: 0.34, gain: 0.1, filter: 'lowpass', freq: 620, sweepTo: 170 });
+      A.thud({ freq: 74, dur: 0.24, gain: 0.12, drop: 1.7 });
+    },
   },
-  ice(A) {
-    A.tone({ freq: 2600, type: 'sine', dur: 0.16, gain: 0.05, sweep: -1500 });
-    A.noise({ dur: 0.07, gain: 0.05, filter: 'highpass', freq: 6000 });
+  ice: {
+    note: 523, bright: 1.5, bell: BELL_GLASS, bounceDur: 0.6,
+    accent(A) {
+      A.modal({ base: 1560, partials: [{ ratio: 1, gain: 1 }, { ratio: 2.4, gain: 0.4 }],
+                dur: 0.3, gain: 0.09, strike: 0.002, q: 70 });
+    },
   },
-  lightning(A) {
-    A.noise({ dur: 0.07, gain: 0.09, filter: 'highpass', freq: 4200 });
-    A.tone({ freq: 90, type: 'square', dur: 0.06, gain: 0.05 });
+  lightning: {
+    note: 196, bright: 1.15, bell: BELL_ROUND, bounceDur: 0.3,
+    accent(A) {
+      A.noise({ dur: 0.06, gain: 0.1, filter: 'highpass', freq: 3200 });
+      A.thud({ freq: 58, dur: 0.16, gain: 0.13, drop: 2.6 });
+    },
   },
-  earth(A) {
-    A.thud({ freq: 62, dur: 0.22, gain: 0.11 });
-    A.noise({ dur: 0.1, gain: 0.05, filter: 'lowpass', freq: 520 });
+  earth: {
+    note: 62, bright: 0.5, bell: BELL_DARK, bounceDur: 0.42,
+    accent(A) {
+      A.thud({ freq: 44, dur: 0.36, gain: 0.2, drop: 2.2 });
+      A.noise({ dur: 0.2, gain: 0.08, filter: 'lowpass', freq: 260 });
+    },
   },
-  water(A) {
-    // A splash is a fast downward filter sweep — the "bloop" shape.
-    A.noise({ dur: 0.16, gain: 0.07, filter: 'bandpass', freq: 1400, q: 1.1, sweepTo: 300 });
-    A.tone({ freq: 620, type: 'sine', dur: 0.1, gain: 0.04, sweep: -380 });
+  water: {
+    note: 147, bright: 0.85, bell: BELL_ROUND, bounceDur: 0.36,
+    accent(A) {
+      A.noise({ dur: 0.2, gain: 0.08, filter: 'bandpass', freq: 900, q: 1.2, sweepTo: 220 });
+      A.tone({ freq: 320, type: 'sine', dur: 0.14, gain: 0.06, sweep: -190 });
+    },
   },
-  nature(A) {
-    A.noise({ dur: 0.18, gain: 0.05, filter: 'bandpass', freq: 2400, q: 0.8, sweepTo: 1400 });
+  nature: {
+    note: 131, bright: 0.8, bell: BELL_DARK, bounceDur: 0.3,
+    accent(A) {
+      A.noise({ dur: 0.22, gain: 0.07, filter: 'bandpass', freq: 1100, q: 1.1, sweepTo: 520 });
+    },
   },
-  light(A) {
-    A.tone({ freq: 1568, type: 'sine', dur: 0.26, gain: 0.05 });
-    A.tone({ freq: 2349, type: 'sine', dur: 0.2, gain: 0.03, delay: 0.015 });
+  light: {
+    note: 392, bright: 1.25, bell: BELL_ROUND, bounceDur: 0.7,
+    accent(A) {
+      A.modal({ base: 784, partials: [{ ratio: 1, gain: 1 }, { ratio: 2.0, gain: 0.4 }, { ratio: 3.0, gain: 0.2 }],
+                dur: 0.5, gain: 0.08, strike: 0.003, q: 60 });
+    },
   },
-  shadow(A) {
-    A.tone({ freq: 150, type: 'sine', dur: 0.2, gain: 0.06, sweep: -80 });
-    A.noise({ dur: 0.14, gain: 0.04, filter: 'lowpass', freq: 700 });
+  shadow: {
+    note: 73, bright: 0.55, bell: BELL_DARK, bounceDur: 0.4,
+    accent(A) {
+      A.thud({ freq: 52, dur: 0.3, gain: 0.15, drop: 1.6 });
+      A.noise({ dur: 0.2, gain: 0.06, filter: 'lowpass', freq: 500 });
+    },
   },
-  wind(A) {
-    A.noise({ dur: 0.2, gain: 0.06, filter: 'bandpass', freq: 900, q: 0.5, sweepTo: 2600 });
+  wind: {
+    note: 262, bright: 1.0, bell: BELL_ROUND, bounceDur: 0.28,
+    accent(A) {
+      A.noise({ dur: 0.26, gain: 0.08, filter: 'bandpass', freq: 700, q: 0.5, sweepTo: 2400 });
+    },
   },
-  metal(A) {
-    A.fm({ carrier: 2400, ratio: 1.98, index: 480, dur: 0.3, gain: 0.05 });
+  metal: {
+    note: 175, bright: 1.1, bell: BELL_ROUND, bounceDur: 0.75,
+    accent(A) {
+      A.modal({ base: 700, partials: [{ ratio: 1, gain: 1 }, { ratio: 2.76, gain: 0.5 }, { ratio: 5.4, gain: 0.22 }],
+                dur: 0.55, gain: 0.09, strike: 0.004, q: 56 });
+    },
   },
-  arcane(A) {
-    A.fm({ carrier: 880, ratio: 2.4, index: 700, dur: 0.22, gain: 0.05, sweep: 420 });
+  arcane: {
+    note: 220, bright: 1.05, bell: BELL_GLASS, bounceDur: 0.5,
+    accent(A) {
+      A.fm({ carrier: 440, ratio: 2.4, index: 500, dur: 0.3, gain: 0.07, sweep: 260 });
+    },
   },
-  venom(A) {
-    // Squelch: a low bandpass wobbling upward.
-    A.noise({ dur: 0.2, gain: 0.06, filter: 'bandpass', freq: 500, q: 2.4, sweepTo: 1100 });
-    A.tone({ freq: 180, type: 'triangle', dur: 0.13, gain: 0.04, sweep: 90 });
+  venom: {
+    note: 110, bright: 0.7, bell: BELL_DARK, bounceDur: 0.32,
+    accent(A) {
+      A.noise({ dur: 0.26, gain: 0.08, filter: 'bandpass', freq: 380, q: 2.6, sweepTo: 900 });
+      A.tone({ freq: 130, type: 'triangle', dur: 0.18, gain: 0.06, sweep: 70 });
+    },
   },
 
-  lancer(A) {
-    A.noise({ dur: 0.1, gain: 0.06, filter: 'bandpass', freq: 2200, q: 1.6, sweepTo: 3600 });
+  /* --- arsenal --- */
+  lancer: {
+    note: 147, bright: 0.9, bell: BELL_ROUND, bounceDur: 0.36,
+    accent(A) { A.noise({ dur: 0.12, gain: 0.07, filter: 'bandpass', freq: 1400, q: 1.6, sweepTo: 2600 }); },
   },
-  duelist(A) {
-    A.fm({ carrier: 3100, ratio: 1.33, index: 380, dur: 0.14, gain: 0.05 });
+  duelist: {
+    note: 294, bright: 1.25, bell: BELL_ROUND, bounceDur: 0.4,
+    accent(A) { A.modal({ base: 1180, partials: [{ ratio: 1, gain: 1 }, { ratio: 2.76, gain: 0.35 }],
+                          dur: 0.22, gain: 0.07, strike: 0.002, q: 62 }); },
   },
-  knifethrower(A) {
-    A.noise({ dur: 0.06, gain: 0.07, filter: 'highpass', freq: 5200 });
+  knifethrower: {
+    note: 165, bright: 1.2, bell: BELL_DARK, bounceDur: 0.26,
+    accent(A) { A.noise({ dur: 0.07, gain: 0.07, filter: 'highpass', freq: 3600 }); },
   },
-  archer(A) {
-    A.tone({ freq: 420, type: 'triangle', dur: 0.1, gain: 0.05, sweep: -220 });
+  archer: {
+    note: 175, bright: 0.85, bell: BELL_ROUND, bounceDur: 0.34,
+    accent(A) { A.tone({ freq: 300, type: 'triangle', dur: 0.14, gain: 0.07, sweep: -150 }); },
   },
-  alchemist(A) {
-    A.fm({ carrier: 2600, ratio: 3.7, index: 300, dur: 0.16, gain: 0.045 });
+  alchemist: {
+    note: 262, bright: 1.15, bell: BELL_GLASS, bounceDur: 0.5,
+    accent(A) { A.modal({ base: 1046, partials: [{ ratio: 1, gain: 1 }, { ratio: 2.4, gain: 0.35 }],
+                          dur: 0.3, gain: 0.07, strike: 0.0025, q: 70 }); },
   },
-  bombardier(A) {
-    A.thud({ freq: 88, dur: 0.16, gain: 0.1 });
-    A.noise({ dur: 0.12, gain: 0.06, filter: 'lowpass', freq: 1400 });
+  bombardier: {
+    note: 87, bright: 0.62, bell: BELL_DARK, bounceDur: 0.36,
+    accent(A) {
+      A.thud({ freq: 56, dur: 0.28, gain: 0.17, drop: 2.4 });
+      A.noise({ dur: 0.18, gain: 0.07, filter: 'lowpass', freq: 900 });
+    },
   },
-  bulwark(A) {
-    A.thud({ freq: 100, dur: 0.2, gain: 0.12 });
-    A.fm({ carrier: 640, ratio: 1.6, index: 260, dur: 0.18, gain: 0.06 });
+  bulwark: {
+    note: 82, bright: 0.6, bell: BELL_DARK, bounceDur: 0.48,
+    accent(A) {
+      A.thud({ freq: 60, dur: 0.32, gain: 0.19, drop: 2.6 });
+    },
   },
 };
 
-/** Which material wins when two different ones collide. */
-const CLASH_PRIORITY = ['glass', 'steel', 'iron', 'bone', 'wood'];
+export const DEFAULT_CORE = { note: 160, bright: 1, bell: BELL_ROUND, bounceDur: 0.35 };
 
-export function clashMaterial(aId, bId) {
-  const a = WEAPON_MATERIAL[aId] || 'steel';
-  const b = WEAPON_MATERIAL[bId] || 'steel';
-  if (a === b) return MATERIALS[a];
-  // Glass breaking beats anything; otherwise the brighter material leads and
-  // the duller one is heard underneath as the body of the collision.
-  const lead = CLASH_PRIORITY.indexOf(a) <= CLASH_PRIORITY.indexOf(b) ? a : b;
-  return MATERIALS[lead];
+export function coreVoice(coreId) {
+  return CORE_VOICES[coreId] || DEFAULT_CORE;
 }
 
-export function clashUnderlay(aId, bId) {
+/* =============================================================== clash */
+
+/** Which material leads when two different ones collide. */
+const CLASH_PRIORITY = ['glass', 'steel', 'iron', 'bone', 'wood'];
+
+export function clashParts(aId, bId) {
   const a = WEAPON_MATERIAL[aId] || 'steel';
   const b = WEAPON_MATERIAL[bId] || 'steel';
-  if (a === b) return null;
-  const under = CLASH_PRIORITY.indexOf(a) <= CLASH_PRIORITY.indexOf(b) ? b : a;
-  return MATERIALS[under];
+  if (a === b) return { lead: MATERIALS[a], under: null };
+  // Glass breaking beats anything; otherwise the brighter material leads and
+  // the duller one is heard underneath as the body of the collision.
+  const leadIsA = CLASH_PRIORITY.indexOf(a) <= CLASH_PRIORITY.indexOf(b);
+  return {
+    lead: MATERIALS[leadIsA ? a : b],
+    under: MATERIALS[leadIsA ? b : a],
+  };
 }
