@@ -1,13 +1,24 @@
 /* Procedural sound.
  *
- * Everything is synthesised with oscillators and noise buffers — no audio
- * files to load, nothing to 404 on GitHub Pages, and the whole thing is a
- * few kilobytes of code. Sounds are deliberately short and dry; in a game
- * where dozens of hits land per second, reverb turns into mud fast.
+ * Everything is synthesised from oscillators and noise — no audio files to
+ * load, nothing to 404 on GitHub Pages, and the whole thing is a few kilobytes
+ * of code. Sounds are deliberately short and dry; in a game where dozens of
+ * hits land per second, reverb turns into mud immediately.
  *
- * The context starts suspended until a user gesture, per browser autoplay
- * policy, and every call is a no-op while muted.
+ * This module owns the *primitives* (tone, noise, fm, thud) and the routing.
+ * What an individual weapon or core actually sounds like lives in
+ * content/sounds.js, so the sound design can be edited without touching any
+ * WebAudio plumbing.
+ *
+ * Two things keep a busy fight from becoming noise:
+ *  - a voice budget, so a ten-orb brawl cannot stack ninety oscillators;
+ *  - per-event throttling with a little pitch drift, so repeated hits read as
+ *    a flurry rather than one sample machine-gunning.
  */
+
+import { weaponVoice, CORE_ACCENTS, clashMaterial, clashUnderlay } from '../content/sounds.js';
+
+const MAX_VOICES = 28;
 
 export class Audio {
   constructor() {
@@ -17,6 +28,8 @@ export class Audio {
     this.volume = 0.5;
     this.lastPlayed = new Map();
     this.noiseBuffer = null;
+    this.voices = 0;
+    this.drift = 1;      // per-event pitch jitter, set before a recipe runs
   }
 
   /** Must be called from inside a user gesture handler. */
@@ -30,10 +43,12 @@ export class Audio {
     this.ctx = new AC();
     this.master = this.ctx.createGain();
     this.master.gain.value = this.volume;
-    // A limiter-ish compressor keeps a ten-ball brawl from clipping.
+    // A limiter-ish compressor keeps a ten-orb brawl from clipping.
     const comp = this.ctx.createDynamicsCompressor();
-    comp.threshold.value = -18;
-    comp.ratio.value = 12;
+    comp.threshold.value = -20;
+    comp.ratio.value = 14;
+    comp.attack.value = 0.003;
+    comp.release.value = 0.14;
     this.master.connect(comp);
     comp.connect(this.ctx.destination);
     this.noiseBuffer = this._makeNoise();
@@ -49,16 +64,19 @@ export class Audio {
     if (on) this.unlock();
   }
 
+  get ready() {
+    return this.enabled && this.ctx && this.ctx.state !== 'suspended';
+  }
+
   _makeNoise() {
-    const len = this.ctx.sampleRate * 0.5;
+    const len = this.ctx.sampleRate * 0.6;
     const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
     const d = buf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     return buf;
   }
 
-  /** Rate-limit a sound name so a burst of simultaneous hits stays musical
-   *  rather than becoming a wall of phase-cancelled clicks. */
+  /** Rate-limit an event so a burst of simultaneous hits stays musical. */
   _throttle(name, ms) {
     const now = performance.now();
     const last = this.lastPlayed.get(name) || 0;
@@ -67,28 +85,50 @@ export class Audio {
     return true;
   }
 
-  _tone({ freq = 440, type = 'sine', dur = 0.12, gain = 0.3, sweep = 0, delay = 0 }) {
+  /** Reserve voice slots; returns false when the budget is spent. */
+  _claim(n = 1) {
+    if (this.voices + n > MAX_VOICES) return false;
+    this.voices += n;
+    return true;
+  }
+
+  _release(n = 1) {
+    this.voices = Math.max(0, this.voices - n);
+  }
+
+  /* ---------------------------------------------------------- primitives */
+
+  /** A plain oscillator with an exponential decay. */
+  tone({ freq = 440, type = 'sine', dur = 0.12, gain = 0.3, sweep = 0, delay = 0 }) {
+    if (!this.ready || !this._claim()) return;
     const t0 = this.ctx.currentTime + delay;
+    const f = Math.max(20, freq * this.drift);
     const osc = this.ctx.createOscillator();
     const g = this.ctx.createGain();
     osc.type = type;
-    osc.frequency.setValueAtTime(freq, t0);
-    if (sweep) osc.frequency.exponentialRampToValueAtTime(Math.max(20, freq + sweep), t0 + dur);
+    osc.frequency.setValueAtTime(f, t0);
+    if (sweep) osc.frequency.exponentialRampToValueAtTime(Math.max(20, f + sweep), t0 + dur);
     g.gain.setValueAtTime(0, t0);
-    g.gain.linearRampToValueAtTime(gain, t0 + 0.006);
+    g.gain.linearRampToValueAtTime(gain, t0 + 0.005);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     osc.connect(g); g.connect(this.master);
     osc.start(t0);
     osc.stop(t0 + dur + 0.02);
+    osc.onended = () => this._release();
   }
 
-  _noise({ dur = 0.12, gain = 0.25, filter = 'bandpass', freq = 1200, q = 1, delay = 0 }) {
+  /** Filtered noise. `sweepTo` moves the filter, which is what turns a hiss
+   *  into a splash, a gust or a squelch. */
+  noise({ dur = 0.12, gain = 0.25, filter = 'bandpass', freq = 1200, q = 1, delay = 0, sweepTo = 0 }) {
+    if (!this.ready || !this._claim()) return;
     const t0 = this.ctx.currentTime + delay;
     const src = this.ctx.createBufferSource();
     src.buffer = this.noiseBuffer;
+    src.playbackRate.value = 0.8 + Math.random() * 0.4;
     const f = this.ctx.createBiquadFilter();
     f.type = filter;
-    f.frequency.value = freq;
+    f.frequency.setValueAtTime(Math.max(40, freq * this.drift), t0);
+    if (sweepTo) f.frequency.exponentialRampToValueAtTime(Math.max(40, sweepTo), t0 + dur);
     f.Q.value = q;
     const g = this.ctx.createGain();
     g.gain.setValueAtTime(gain, t0);
@@ -96,139 +136,229 @@ export class Audio {
     src.connect(f); f.connect(g); g.connect(this.master);
     src.start(t0);
     src.stop(t0 + dur + 0.02);
+    src.onended = () => this._release();
   }
 
-  play(name, opts = {}) {
-    if (!this.enabled || !this.ctx) return;
-    if (this.ctx.state === 'suspended') return;
+  /**
+   * Two-operator FM. This is where metal comes from: a non-integer ratio gives
+   * inharmonic partials, which is the difference between a bell, a clang and
+   * a plain beep.
+   */
+  fm({ carrier = 900, ratio = 1.7, index = 400, dur = 0.2, gain = 0.12, delay = 0, sweep = 0 }) {
+    if (!this.ready || !this._claim(2)) return;
+    const t0 = this.ctx.currentTime + delay;
+    const c = Math.max(20, carrier * this.drift);
+    const car = this.ctx.createOscillator();
+    const mod = this.ctx.createOscillator();
+    const modGain = this.ctx.createGain();
+    const g = this.ctx.createGain();
 
+    car.type = 'sine';
+    mod.type = 'sine';
+    car.frequency.setValueAtTime(c, t0);
+    if (sweep) car.frequency.exponentialRampToValueAtTime(Math.max(20, c + sweep), t0 + dur);
+    mod.frequency.setValueAtTime(c * ratio, t0);
+
+    // The modulation index decaying faster than the amplitude is what makes a
+    // struck object sound struck: bright at the transient, pure as it rings.
+    modGain.gain.setValueAtTime(index, t0);
+    modGain.gain.exponentialRampToValueAtTime(1, t0 + dur * 0.4);
+
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(gain, t0 + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+    mod.connect(modGain);
+    modGain.connect(car.frequency);
+    car.connect(g);
+    g.connect(this.master);
+    mod.start(t0); car.start(t0);
+    mod.stop(t0 + dur + 0.02); car.stop(t0 + dur + 0.02);
+    car.onended = () => this._release(2);
+  }
+
+  /** A low pitched-down sine — the body of any heavy impact. */
+  thud({ freq = 90, dur = 0.18, gain = 0.2, delay = 0 }) {
+    if (!this.ready || !this._claim()) return;
+    const t0 = this.ctx.currentTime + delay;
+    const f = Math.max(24, freq * this.drift);
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(f * 2.2, t0);
+    osc.frequency.exponentialRampToValueAtTime(f, t0 + dur * 0.55);
+    g.gain.setValueAtTime(gain, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g); g.connect(this.master);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.02);
+    osc.onended = () => this._release();
+  }
+
+  /* ------------------------------------------------------------- events */
+
+  /**
+   * A landed hit: the weapon's material impact, plus the attacking core's
+   * accent on top.
+   * @param {object} o { weaponId, coreId, power } — power is 0..1
+   */
+  hit({ weaponId, coreId, power = 0.4 }) {
+    // Throttle per weapon rather than globally: two different weapons landing
+    // in the same instant should both be heard, or a crowded fight collapses
+    // back to one repeated sound.
+    if (!this.ready || !this._throttle(`hit:${weaponId}`, 34)) return;
+    const voice = weaponVoice(weaponId);
+    // A little drift per hit so a flurry sounds like many strikes rather than
+    // one sample retriggering.
+    this.drift = 0.94 + Math.random() * 0.12;
+    voice.material.impact(this, { pitch: voice.pitch, power, t: voice.t });
+    const accent = CORE_ACCENTS[coreId];
+    if (accent) accent(this, { power });
+    this.drift = 1;
+  }
+
+  /**
+   * A clash: both weapons' materials, the brighter one leading and the duller
+   * one heard underneath as the body of the collision.
+   */
+  parry({ aWeaponId, bWeaponId }) {
+    if (!this.ready || !this._throttle(`parry:${aWeaponId}:${bWeaponId}`, 55)) return;
+    const a = weaponVoice(aWeaponId);
+    const b = weaponVoice(bWeaponId);
+    const pitch = (a.pitch + b.pitch) / 2;
+    this.drift = 0.96 + Math.random() * 0.09;
+    clashMaterial(aWeaponId, bWeaponId).clash(this, { pitch, power: 1 });
+    const under = clashUnderlay(aWeaponId, bWeaponId);
+    if (under) under.impact(this, { pitch: pitch * 0.9, power: 0.4, t: b.t });
+    this.drift = 1;
+  }
+
+  /** A wall bounce. Pitched by orb size so a heavy orb lands lower. */
+  bounce({ size = 1 } = {}) {
+    if (!this.ready || !this._throttle('bounce', 42)) return;
+    this.drift = 0.9 + Math.random() * 0.2;
+    this.tone({ freq: 300 / size, type: 'triangle', dur: 0.05, gain: 0.045, sweep: -130 });
+    this.noise({ dur: 0.03, gain: 0.025, filter: 'lowpass', freq: 900 });
+    this.drift = 1;
+  }
+
+  /** Named one-offs that are not assembled from weapon and core parts. */
+  play(name, opts = {}) {
+    if (!this.ready) return;
     switch (name) {
-      case 'hit': {
-        if (!this._throttle('hit', 28)) return;
-        const p = opts.power || 0.5;
-        this._tone({ freq: 180 + p * 260, type: 'square', dur: 0.07, gain: 0.10 + p * 0.1, sweep: -120 });
-        this._noise({ dur: 0.06, gain: 0.09, freq: 2400, q: 0.8 });
+      case 'hit': return this.hit(opts);
+      case 'parry': return this.parry(opts);
+      case 'bounce': return this.bounce(opts);
+
+      case 'crit':
+        this.fm({ carrier: 1800, ratio: 2.2, index: 900, dur: 0.22, gain: 0.12 });
+        this.tone({ freq: 2600, type: 'square', dur: 0.07, gain: 0.06, sweep: 900 });
         break;
-      }
-      case 'bounce': {
-        if (!this._throttle('bounce', 45)) return;
-        this._tone({ freq: 320, type: 'triangle', dur: 0.05, gain: 0.05, sweep: -140 });
-        break;
-      }
       case 'pickup':
-        this._tone({ freq: 620, type: 'square', dur: 0.07, gain: 0.16 });
-        this._tone({ freq: 930, type: 'square', dur: 0.09, gain: 0.14, delay: 0.06 });
-        this._tone({ freq: 1240, type: 'square', dur: 0.11, gain: 0.12, delay: 0.12 });
+        this.tone({ freq: 620, type: 'square', dur: 0.07, gain: 0.12 });
+        this.tone({ freq: 930, type: 'square', dur: 0.09, gain: 0.1, delay: 0.06 });
+        this.tone({ freq: 1240, type: 'square', dur: 0.11, gain: 0.09, delay: 0.12 });
         break;
-      case 'parry': {
-        if (!this._throttle('parry', 40)) return;
-        // Two close metallic partials — the classic 'ting' of a blade clash.
-        this._tone({ freq: 2100, type: 'triangle', dur: 0.16, gain: 0.13, sweep: -700 });
-        this._tone({ freq: 3050, type: 'sine', dur: 0.12, gain: 0.09, sweep: -900 });
-        this._noise({ dur: 0.07, gain: 0.1, freq: 5200, q: 2.5 });
+      case 'death':
+        this.thud({ freq: 70, dur: 0.5, gain: 0.22 });
+        this.tone({ freq: 300, type: 'sawtooth', dur: 0.5, gain: 0.16, sweep: -260 });
+        this.noise({ dur: 0.4, gain: 0.16, filter: 'lowpass', freq: 900, sweepTo: 200 });
         break;
-      }
+      case 'win':
+        [523, 659, 784, 1047].forEach((f, i) =>
+          this.tone({ freq: f, type: 'square', dur: 0.22, gain: 0.13, delay: i * 0.1 }));
+        break;
       case 'throw':
         if (!this._throttle('throw', 55)) return;
-        this._noise({ dur: 0.09, gain: 0.07, filter: 'bandpass', freq: 3000, q: 1.2 });
+        this.noise({ dur: 0.09, gain: 0.05, filter: 'bandpass', freq: 2600, q: 1.2, sweepTo: 4200 });
         break;
       case 'bow':
         if (!this._throttle('bow', 70)) return;
-        this._tone({ freq: 240, type: 'triangle', dur: 0.12, gain: 0.09, sweep: -120 });
-        this._noise({ dur: 0.08, gain: 0.06, filter: 'highpass', freq: 2600 });
+        this.tone({ freq: 240, type: 'triangle', dur: 0.12, gain: 0.07, sweep: -120 });
+        this.noise({ dur: 0.08, gain: 0.05, filter: 'highpass', freq: 2600 });
         break;
       case 'shatter':
         if (!this._throttle('shatter', 60)) return;
-        this._noise({ dur: 0.22, gain: 0.16, freq: 4200, q: 1.1 });
-        this._tone({ freq: 900, type: 'triangle', dur: 0.14, gain: 0.08, sweep: -520 });
-        break;
-      case 'ult_lancer':
-        this._tone({ freq: 130, type: 'sawtooth', dur: 0.5, gain: 0.24, sweep: 320 });
-        this._noise({ dur: 0.4, gain: 0.16, filter: 'bandpass', freq: 1200, q: 0.7 });
-        break;
-      case 'ult_duelist':
-        for (let i = 0; i < 5; i++) {
-          this._tone({ freq: 1500 + i * 220, type: 'triangle', dur: 0.1, gain: 0.1, delay: i * 0.06, sweep: -400 });
-        }
-        break;
-      case 'ult_knife':
-        this._noise({ dur: 0.35, gain: 0.2, filter: 'highpass', freq: 3000 });
-        this._tone({ freq: 600, type: 'square', dur: 0.25, gain: 0.12, sweep: -380 });
-        break;
-      case 'ult_archer':
-        this._tone({ freq: 300, type: 'triangle', dur: 0.3, gain: 0.14, sweep: -160 });
-        this._noise({ dur: 0.6, gain: 0.16, filter: 'highpass', freq: 2200 });
-        break;
-      case 'ult_alchemist':
-        [440, 554, 659, 880].forEach((f, i) =>
-          this._tone({ freq: f, type: 'sine', dur: 0.4, gain: 0.12, delay: i * 0.07 }));
-        break;
-      case 'ult_bombardier':
-        this._noise({ dur: 0.5, gain: 0.26, filter: 'lowpass', freq: 1100 });
-        this._tone({ freq: 80, type: 'square', dur: 0.4, gain: 0.2, sweep: -40 });
-        break;
-      case 'ult_bulwark':
-        this._tone({ freq: 160, type: 'square', dur: 0.5, gain: 0.24, sweep: -90 });
-        this._noise({ dur: 0.35, gain: 0.18, freq: 1800, q: 1.4 });
-        break;
-      case 'death':
-        this._tone({ freq: 300, type: 'sawtooth', dur: 0.5, gain: 0.22, sweep: -260 });
-        this._noise({ dur: 0.4, gain: 0.2, filter: 'lowpass', freq: 900 });
-        break;
-      case 'win':
-        [523, 659, 784, 1047].forEach((f, i) => {
-          this._tone({ freq: f, type: 'square', dur: 0.22, gain: 0.16, delay: i * 0.1 });
-        });
+        this.noise({ dur: 0.24, gain: 0.13, filter: 'highpass', freq: 4200 });
+        this.fm({ carrier: 3400, ratio: 2.9, index: 700, dur: 0.2, gain: 0.08 });
         break;
 
       /* Ultimates each get their own gesture so you can hear which fired
        * without looking at the banner. */
       case 'ult_fire':
-        this._noise({ dur: 0.7, gain: 0.3, filter: 'lowpass', freq: 1600 });
-        this._tone({ freq: 90, type: 'sawtooth', dur: 0.6, gain: 0.24, sweep: 160 });
+        this.noise({ dur: 0.7, gain: 0.26, filter: 'lowpass', freq: 1600, sweepTo: 380 });
+        this.tone({ freq: 90, type: 'sawtooth', dur: 0.6, gain: 0.2, sweep: 160 });
         break;
       case 'ult_ice':
-        this._tone({ freq: 1600, type: 'sine', dur: 0.5, gain: 0.18, sweep: -1100 });
-        this._noise({ dur: 0.45, gain: 0.16, freq: 5200, q: 2 });
+        this.tone({ freq: 1600, type: 'sine', dur: 0.5, gain: 0.16, sweep: -1100 });
+        this.noise({ dur: 0.45, gain: 0.14, filter: 'highpass', freq: 5200 });
         break;
       case 'ult_lightning':
-        this._noise({ dur: 0.3, gain: 0.34, filter: 'highpass', freq: 2400 });
-        this._tone({ freq: 70, type: 'square', dur: 0.45, gain: 0.2 });
+        this.noise({ dur: 0.3, gain: 0.3, filter: 'highpass', freq: 2400 });
+        this.tone({ freq: 70, type: 'square', dur: 0.45, gain: 0.18 });
         break;
       case 'ult_earth':
-        this._tone({ freq: 52, type: 'sine', dur: 0.9, gain: 0.34, sweep: -20 });
-        this._noise({ dur: 0.7, gain: 0.24, filter: 'lowpass', freq: 400 });
+        this.thud({ freq: 46, dur: 0.9, gain: 0.3 });
+        this.noise({ dur: 0.7, gain: 0.2, filter: 'lowpass', freq: 400 });
         break;
       case 'ult_water':
-        this._noise({ dur: 0.8, gain: 0.24, filter: 'bandpass', freq: 700, q: 0.5 });
-        this._tone({ freq: 220, type: 'sine', dur: 0.6, gain: 0.16, sweep: -120 });
+        this.noise({ dur: 0.8, gain: 0.2, filter: 'bandpass', freq: 900, q: 0.5, sweepTo: 240 });
+        this.tone({ freq: 220, type: 'sine', dur: 0.6, gain: 0.14, sweep: -120 });
         break;
       case 'ult_nature':
         [392, 494, 587].forEach((f, i) =>
-          this._tone({ freq: f, type: 'triangle', dur: 0.5, gain: 0.14, delay: i * 0.07 }));
+          this.tone({ freq: f, type: 'triangle', dur: 0.5, gain: 0.12, delay: i * 0.07 }));
         break;
       case 'ult_light':
         [784, 988, 1175, 1568].forEach((f, i) =>
-          this._tone({ freq: f, type: 'sine', dur: 0.6, gain: 0.13, delay: i * 0.05 }));
+          this.tone({ freq: f, type: 'sine', dur: 0.6, gain: 0.11, delay: i * 0.05 }));
         break;
       case 'ult_shadow':
-        this._tone({ freq: 140, type: 'sawtooth', dur: 0.8, gain: 0.22, sweep: -90 });
-        this._noise({ dur: 0.6, gain: 0.14, filter: 'lowpass', freq: 600 });
+        this.tone({ freq: 140, type: 'sawtooth', dur: 0.8, gain: 0.18, sweep: -90 });
+        this.noise({ dur: 0.6, gain: 0.12, filter: 'lowpass', freq: 600 });
         break;
       case 'ult_wind':
-        this._noise({ dur: 0.9, gain: 0.26, filter: 'bandpass', freq: 1400, q: 0.4 });
+        this.noise({ dur: 0.9, gain: 0.22, filter: 'bandpass', freq: 700, q: 0.4, sweepTo: 3200 });
         break;
       case 'ult_metal':
-        this._noise({ dur: 0.35, gain: 0.28, freq: 3600, q: 1.5 });
-        this._tone({ freq: 420, type: 'square', dur: 0.3, gain: 0.16, sweep: -200 });
+        this.noise({ dur: 0.35, gain: 0.22, filter: 'bandpass', freq: 3600, q: 1.5 });
+        this.fm({ carrier: 1400, ratio: 1.87, index: 800, dur: 0.4, gain: 0.12 });
         break;
       case 'ult_arcane':
-        this._tone({ freq: 300, type: 'sine', dur: 0.8, gain: 0.2, sweep: 900 });
-        this._noise({ dur: 0.5, gain: 0.14, filter: 'bandpass', freq: 2000, q: 3 });
+        this.fm({ carrier: 300, ratio: 2.4, index: 900, dur: 0.8, gain: 0.16, sweep: 900 });
         break;
       case 'ult_venom':
-        this._tone({ freq: 260, type: 'triangle', dur: 0.7, gain: 0.18, sweep: -140 });
-        this._noise({ dur: 0.6, gain: 0.16, filter: 'bandpass', freq: 900, q: 1.2 });
+        this.noise({ dur: 0.6, gain: 0.14, filter: 'bandpass', freq: 700, q: 2, sweepTo: 1600 });
+        this.tone({ freq: 260, type: 'triangle', dur: 0.7, gain: 0.14, sweep: -140 });
+        break;
+      case 'ult_lancer':
+        this.tone({ freq: 130, type: 'sawtooth', dur: 0.5, gain: 0.2, sweep: 320 });
+        this.noise({ dur: 0.4, gain: 0.14, filter: 'bandpass', freq: 1200, q: 0.7, sweepTo: 3400 });
+        break;
+      case 'ult_duelist':
+        for (let i = 0; i < 5; i++) {
+          this.fm({ carrier: 2200 + i * 260, ratio: 1.4, index: 420, dur: 0.1, gain: 0.08, delay: i * 0.06 });
+        }
+        break;
+      case 'ult_knife':
+        this.noise({ dur: 0.35, gain: 0.18, filter: 'highpass', freq: 3000 });
+        this.tone({ freq: 600, type: 'square', dur: 0.25, gain: 0.1, sweep: -380 });
+        break;
+      case 'ult_archer':
+        this.tone({ freq: 420, type: 'triangle', dur: 0.3, gain: 0.12, sweep: -160 });
+        this.noise({ dur: 0.6, gain: 0.14, filter: 'highpass', freq: 2200 });
+        break;
+      case 'ult_alchemist':
+        [440, 554, 659, 880].forEach((f, i) =>
+          this.tone({ freq: f, type: 'sine', dur: 0.4, gain: 0.1, delay: i * 0.07 }));
+        break;
+      case 'ult_bombardier':
+        this.thud({ freq: 60, dur: 0.5, gain: 0.26 });
+        this.noise({ dur: 0.5, gain: 0.2, filter: 'lowpass', freq: 1100 });
+        break;
+      case 'ult_bulwark':
+        this.thud({ freq: 92, dur: 0.5, gain: 0.24 });
+        this.fm({ carrier: 620, ratio: 1.6, index: 520, dur: 0.4, gain: 0.12 });
         break;
       default:
         break;

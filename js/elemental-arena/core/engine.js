@@ -595,6 +595,7 @@ export class Engine {
           ball.element.colors.trail);
         const passive = ball.element.passive;
         if (passive && passive.onBounce) passive.onBounce(this, ball);
+        this.sfx('bounce', { size: ball.radius / 40 });
         this.emit('bounce', ball);
         if (this.mode && this.mode.onBounce) this.mode.onBounce(this, ball);
       }
@@ -766,7 +767,7 @@ export class Engine {
     this.effects.push({ type: 'ring', x: cx, y: cy, r: 4, maxR: 46, age: 0, life: 0.3, color: '#ffffff' });
     this.hitStop = Math.max(this.hitStop, 0.03);
     this.shake(6);
-    this.sfx('parry');
+    this.sfx('parry', { aWeaponId: a.weaponId, bWeaponId: b.weaponId });
 
     for (const [ball, w] of [[a, wa], [b, wb]]) {
       if (!ball.drive || !ball.drive.reversesOnParry) continue;
@@ -859,6 +860,12 @@ export class Engine {
 
     this.hitStop = Math.min(0.05, 0.012 + dealt * 0.0009);
     this.shake(Math.min(9, 2 + dealt * 0.13));
+    this.sfx('hit', {
+      weaponId: attacker.weaponId,
+      coreId: attacker.fighterId,
+      power: Math.min(1, dealt / 26),
+    });
+    if (crit) this.sfx('crit');
     this.emit('hit', { attacker, victim, amount: dealt });
   }
 

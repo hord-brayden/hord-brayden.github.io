@@ -150,8 +150,6 @@ class App {
       timeLimit: cfg.modeId === 'territory' && !cfg.timeLimit ? 90 : cfg.timeLimit,
     });
     engine.on('sfx', ({ name, opts }) => this.audio.play(name, opts));
-    engine.on('hit', ({ amount }) => this.audio.play('hit', { power: Math.min(1, amount / 30) }));
-    engine.on('bounce', () => this.audio.play('bounce'));
     engine.on('end', (r) => this.showResult(r));
     if (opts.modifier && opts.modifier.onStart) {
       engine.onReady = (e) => opts.modifier.onStart(e);
