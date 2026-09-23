@@ -6,7 +6,7 @@ class HeaderComponent extends HTMLElement {
       { href: 'resume.html',    label: 'Resume' },
       { href: 'testing-kit.html', label: 'NIST Kit' },
       { href: 'f1-timer.html',  label: 'Reaction Timer' },
-      { href: 'elemental-arena.html', label: 'Arena' },
+      { href: 'https://arenawins.com/', label: 'Arena', external: true },
       { href: 'https://github.com/hord-brayden/', label: 'GitHub', external: true }
     ];
     const items = links.map(l => {
