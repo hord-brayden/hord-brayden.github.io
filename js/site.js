@@ -59,6 +59,7 @@
         { href: 'resume.html',       label: 'Resume' },
         { href: 'playground.html',   label: 'Playground' },
         { href: 'testing-kit.html',  label: 'RNG Kit' },
+        { href: 'elemental-arena.html', label: 'Elemental Arena' },
         { href: 'https://arenawins.com/', label: 'Arena', external: true },
         { href: 'https://github.com/hord-brayden/', label: 'GitHub', external: true }
       ];
