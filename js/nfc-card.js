@@ -16,7 +16,7 @@
 
   // Google Apps Script web-app URL (see apps-script/README.md).
   // Empty = TEST MODE: submissions are logged to the console, not sent.
-  const ENDPOINT = '';
+  const ENDPOINT = 'https://script.google.com/macros/s/AKfycbzsagBCzYSY2MR4gmudgp2YidT61FUi05U_eGHykfmWq_JFtV8PwWBBf0D6SaEJiUCzXQ/exec';
 
   const STORE_KEY = 'nfcCard.v1';
   const CARD_URL = 'https://hord-brayden.github.io/?via=nfc';
