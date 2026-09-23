@@ -237,11 +237,21 @@
           </div>
           <p class="nfc-fine">This goes only to me. It’s not shared, sold or added to a mailing list. <a href="privacy.html">Privacy</a>.</p>
         </form>
+        <button type="button" class="nfc-promo" data-promo>
+          <svg class="nfc-promo__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path class="w1" d="M8.5 9.5a3.5 3.5 0 0 1 0 5"/><path class="w2" d="M12 7a7 7 0 0 1 0 10"/><path class="w3" d="M15.5 4.5a10.5 10.5 0 0 1 0 15"/>
+          </svg>
+          <span class="nfc-promo__text">
+            <strong>Psst: this card is programmable.</strong>
+            <span>Make it text someone, share your Wi-Fi, give directions, take Bitcoin tips and more. See what it can do →</span>
+          </span>
+        </button>
       </div>`);
 
     const form = dlg.querySelector('form');
     const err = dlg.querySelector('.nfc-error');
     dlg.querySelector('[data-skip]').addEventListener('click', close);
+    dlg.querySelector('[data-promo]').addEventListener('click', () => { track('nfc_promo_click'); showGuide(); });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -363,7 +373,7 @@
         </details>
 
         <div class="nfc-actions nfc-foot">
-          ${state.stage === 'skipped' ? '<button type="button" class="btn btn--ghost" data-form>Actually, let’s stay in touch</button>' : ''}
+          ${state.stage !== 'contacted' ? '<button type="button" class="btn btn--ghost" data-form>Actually, let’s stay in touch</button>' : ''}
           <button type="button" class="btn" data-done>Explore the site</button>
         </div>
       </div>`);
