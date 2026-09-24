@@ -59,117 +59,206 @@
   // ------------------------------------------------------------
   // Content
   // ------------------------------------------------------------
+  // 24×24 stroke icons (inner SVG markup)
+  const ICONS = {
+    sms: '<path d="M4 5h16v11H10l-6 4z"/>',
+    wifi: '<path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.8 16a5 5 0 0 1 6.4 0"/><circle cx="12" cy="19.2" r="1.2" fill="currentColor" stroke="none"/>',
+    maps: '<path d="M12 21s-7-6.2-7-11.2a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.8" r="2.5"/>',
+    card: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="11" r="2.3"/><path d="M5.8 16.2a3.4 3.4 0 0 1 6.4 0M14.5 10h4M14.5 13.5h3"/>',
+    btc: '<circle cx="12" cy="12" r="9"/><path d="M9.8 7.8h3.3a2 2 0 0 1 0 4H9.8zm0 4h3.8a2.1 2.1 0 0 1 0 4.2H9.8zM9.8 7.8V16M11.3 6.3v1.5M11.3 16v1.6"/>',
+    shortcut: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
+    more: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.9 2.9M15.5 15.5l2.9 2.9M5.6 18.4l2.9-2.9M15.5 8.5l2.9-2.9"/>'
+  };
+  const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[k]}</svg>`;
+
+  // `wheel` = the spinning "Tap to ___" word; `screen` = what the animated phone shows.
   const TUTORIALS = [
     {
-      id: 'sms',
-      title: 'Tap to text someone',
-      blurb: 'A tag by the front door that drafts "Home safe ❤️" to your partner. Or a card that texts you.',
-      record: 'SMS',
+      id: 'sms', color: '#ffc9f0', wheel: 'text a friend', screen: 'Message ready',
+      title: 'Text a friend', sub: 'One tap drafts a text. Great by the front door.',
       steps: [
-        'NFC Tools → <b>Write</b> → <b>Add a record</b> → <b>SMS</b>.',
-        'Enter the phone number and the message body.',
-        'Tap <b>Write</b>, then hold the top of your phone to the card.'
+        'In NFC Tools, tap <b>Write</b> → <b>Add a record</b> → <b>SMS</b>.',
+        'Type the phone number and the message, like <i>"Home safe ❤️"</i>.',
+        'Tap <b>Write</b> and hold your phone to the card.'
       ],
-      note: 'Both platforms open Messages with the text ready. The person scanning still taps Send, since phones never text on their own.'
+      note: 'Works on iPhone and Android. Messages opens with the text ready, and you just hit Send.'
     },
     {
-      id: 'maps',
-      title: 'Directions to a place',
-      blurb: 'Put it on a party invite, an Airbnb welcome book, or your shop counter: one tap starts turn-by-turn navigation.',
-      record: 'URL',
+      id: 'wifi', color: '#c9d2ff', wheel: 'share Wi-Fi', screen: 'Wi-Fi joined',
+      title: 'Share your Wi-Fi', sub: 'Guests tap and they’re online. No spelling out passwords.',
       steps: [
-        'Find the place in Google Maps and copy its coordinates or address.',
-        'Build a link: <code>https://www.google.com/maps/dir/?api=1&amp;destination=40.7608,-111.8910</code>',
-        'NFC Tools → <b>Write</b> → <b>Add a record</b> → <b>URL / URI</b> → paste it → <b>Write</b>.'
+        'In NFC Tools, tap <b>Write</b> → <b>Add a record</b> → <b>Wi-Fi network</b>.',
+        'Enter your network name, the security type (usually WPA2) and the password.',
+        'Write it, and stick the card somewhere guests will find it.'
       ],
-      note: 'Use this https link rather than NFC Tools’ "Location" record. That record writes a <code>geo:</code> link, which Android understands but iPhones ignore.'
+      note: 'Android phones join straight from the tag. iPhones ignore Wi-Fi tags, so add a Wi-Fi QR code next to it for iPhone guests. Use a guest network, because anyone who taps can read the password.'
     },
     {
-      id: 'wifi',
-      title: 'Share your Wi-Fi without spelling the password',
-      blurb: 'Stick it under the coffee table. Guests tap, they’re online.',
-      record: 'Wi-Fi network',
+      id: 'maps', color: '#b8f0d2', wheel: 'get directions', screen: 'Route started',
+      title: 'Directions to anywhere', sub: 'Party invites, Airbnbs, your shop counter.',
       steps: [
-        'NFC Tools → <b>Write</b> → <b>Add a record</b> → <b>Wi-Fi network</b>.',
-        'Enter the network name (SSID), security type (usually WPA2/WPA3), and password.',
-        'Write it, then test with a friend’s Android phone.'
+        'Copy this link and swap in your place’s coordinates or address:<br><code>https://www.google.com/maps/dir/?api=1&amp;destination=40.7608,-111.8910</code>',
+        'In NFC Tools, tap <b>Write</b> → <b>Add a record</b> → <b>URL / URI</b> and paste it.',
+        'Tap <b>Write</b> and hold your phone to the card.'
       ],
-      note: 'Android joins the network straight from the tag. iPhones don’t act on Wi-Fi tags, so put a Wi-Fi QR code next to it (the iPhone Camera app joins from those). Only do this for a guest network, because anyone who taps the tag can read the password.'
+      note: 'Use a link like this one, not NFC Tools’ "Location" option. iPhones ignore that one.'
     },
     {
-      id: 'btc',
-      title: 'Bitcoin (or Lightning) tip jar',
-      blurb: 'Busker, bartender, open-source maintainer: tap to tip.',
-      record: 'URL / URI',
+      id: 'card', color: '#ffe98a', wheel: 'swap contacts', screen: 'Contact saved',
+      title: 'Make your own tap card', sub: 'Hand people a card that actually does something.',
       steps: [
-        'Copy a <b>receive</b> address from your wallet.',
-        'Write a URI record: <code>bitcoin:bc1q…yourAddress?label=Tips</code>',
-        'Or, for Lightning, a URL to your Lightning-address or tip page.'
+        'In NFC Tools, tap <b>Write</b> → <b>Add a record</b> → <b>URL / URI</b>.',
+        'Paste your LinkedIn, website or link-in-bio page.',
+        'Write it to a blank sticker and put it on your own card or phone case.'
       ],
-      note: 'Android hands <code>bitcoin:</code> links to your wallet app. iPhones may not open custom links like that from a tag, so a https tip page works on both. Only ever put a public receive address on a tag. <b>Never a seed phrase or private key.</b>'
+      note: 'There’s also a <b>Contact</b> record, but it fills the chip fast. A link to a page holds much more.'
     },
     {
-      id: 'shortcut',
-      title: 'Make the tag a physical button (no rewrite needed)',
-      blurb: 'Tap your nightstand to start a sleep playlist, dim the lights and set an alarm. Tap your car mount to open Maps.',
-      record: 'none, reads the chip’s ID',
+      id: 'btc', color: '#ffd2a8', wheel: 'leave a tip', screen: 'Tip ready',
+      title: 'Take tips (Bitcoin or any tip page)', sub: 'Buskers, bartenders, open-source folks.',
       steps: [
-        '<b>iPhone:</b> Shortcuts → <b>Automation</b> → <b>+</b> → <b>NFC</b> → <b>Scan</b>, then tap this card.',
-        'Add any actions you like: Focus modes, HomeKit scenes, music, a timer, logging a glass of water.',
-        'Set it to <b>Run Immediately</b>. <b>Android:</b> use NFC Tools’ companion app <i>NFC Tasks</i>, or Tasker.'
+        'Copy a <b>receive</b> address from your wallet app.',
+        'In NFC Tools, add a <b>URL / URI</b> record: <code>bitcoin:yourAddress</code>',
+        'Or paste a link to any tip page. That works on every phone.'
       ],
-      note: 'Shortcuts identifies the chip by its serial number, not by what’s written on it. So you can turn <i>this exact card</i> into a trigger and it will still point to me for everyone else.'
+      note: 'Only a public <i>receive</i> address ever goes on a tag. <b>Never a seed phrase or private key.</b> iPhones may not open <code>bitcoin:</code> links from a tag, so a tip page is the safer choice.'
     },
     {
-      id: 'card',
-      title: 'Your own tap-to-connect business card',
-      blurb: 'Point a sticker at your LinkedIn, portfolio, or a link page, and hand people a card that does something.',
-      record: 'URL',
+      id: 'shortcut', color: '#e2d4ff', wheel: 'dim the lights', screen: 'Lights dimmed',
+      title: 'Dim the lights (or anything)', sub: 'Turn the card into a button. No rewriting needed.',
       steps: [
-        'NFC Tools → <b>Write</b> → <b>Add a record</b> → <b>URL / URI</b>.',
-        'Paste your link and write it to a blank NTAG215 sticker.',
-        'Stick it to the back of your card or phone case.'
+        '<b>iPhone:</b> open Shortcuts → <b>Automation</b> → <b>+</b> → <b>NFC</b> → <b>Scan</b>, then tap this card.',
+        'Pick what happens: lights, music, a timer, Do Not Disturb, anything.',
+        'Choose <b>Run Immediately</b>. <b>Android:</b> use the free <i>NFC Tasks</i> app.'
       ],
-      note: 'You can also write a <b>Contact</b> (vCard) record, but it fills the chip quickly. A link to a page with a “Save contact” button fits better.'
+      note: 'This recognizes the chip itself, not what’s written on it. So my card can be your button and still point to me for everyone else.'
     },
     {
-      id: 'more',
-      title: 'Quick hits',
-      blurb: 'Other things one tap can do:',
-      record: 'various',
+      id: 'more', color: '#ebe4d6', title: 'More quick ideas', sub: 'Call, email, reviews, logs.',
       steps: [
-        '<b>Call</b>: a <code>tel:+15555550123</code> record for a "call the front desk" tag.',
-        '<b>Email draft</b>: an Email record with the to, subject and body filled in (great for "report a problem" stickers).',
-        '<b>Review link</b>: your Google Business review URL on the checkout counter.',
-        '<b>Plant or gear log</b>: a URL to a Google Form that records the date you watered it, filtered it or serviced it.'
+        '<b>Call:</b> a <code>tel:+15555550123</code> record for a "call the front desk" tag.',
+        '<b>Email:</b> an Email record with the subject filled in, for "report a problem" stickers.',
+        '<b>Reviews:</b> your Google review link on the checkout counter.',
+        '<b>Logs:</b> a Google Form link that records when you watered the plants.'
       ]
     }
   ];
+  const WHEEL = TUTORIALS.filter((t) => t.wheel);
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  function tutorialHtml(t, i) {
+  function tutorialHtml(t) {
     return `
-      <details class="nfc-tut">
+      <details class="nfc-trick" style="--c:${t.color}">
         <summary>
-          <span class="nfc-tut__num">${String(i + 1).padStart(2, '0')}</span>
-          <span class="nfc-tut__title">${t.title}</span>
-          <span class="nfc-tut__rec">${t.record}</span>
+          <span class="nfc-trick__icon">${icon(t.id)}</span>
+          <span class="nfc-trick__txt"><b>${t.title}</b><small>${t.sub}</small></span>
         </summary>
-        <div class="nfc-tut__body">
-          <p>${t.blurb}</p>
-          <ol>${t.steps.map((s) => `<li>${s}</li>`).join('')}</ol>
-          ${t.note ? `<p class="nfc-tut__note">${t.note}</p>` : ''}
+        <div class="nfc-trick__body">
+          <ol class="nfc-steps">${t.steps.map((s) => `<li><span>${s}</span></li>`).join('')}</ol>
+          ${t.note ? `<p class="nfc-note">${t.note}</p>` : ''}
         </div>
       </details>`;
+  }
+
+  // The animated hero: my card, its chip, and a phone that taps it.
+  function heroHtml() {
+    const first = WHEEL[0];
+    return `
+      <div class="nfc-hero" aria-hidden="true">
+        <svg class="nfc-hero__svg" viewBox="0 20 340 170">
+          <g class="nfc-card">
+            <rect x="12" y="36" width="228" height="140" rx="14" class="nfc-card__shadow"/>
+            <rect x="7" y="31" width="228" height="140" rx="14" class="nfc-card__face"/>
+            <text x="26" y="76" class="nfc-card__name">Brayden Hord</text>
+            <text x="26" y="95" class="nfc-card__role">Engineering &amp; Innovation</text>
+            <text x="26" y="152" class="nfc-card__url">hord-brayden.github.io</text>
+            <g class="nfc-waves">
+              <path class="w1" d="M188 128a16 16 0 0 1 24 0"/>
+              <path class="w2" d="M181 120a26 26 0 0 1 38 0"/>
+              <path class="w3" d="M174 112a36 36 0 0 1 52 0"/>
+            </g>
+            <g class="nfc-chip">
+              <rect x="186" y="134" width="28" height="22" rx="5"/>
+              <path d="M195.3 134v22M204.6 134v22M186 145h28"/>
+            </g>
+          </g>
+          <g class="nfc-phone">
+            <rect x="222" y="112" width="104" height="60" rx="13" class="nfc-phone__body"/>
+            <circle cx="229.5" cy="142" r="2" class="nfc-phone__cam"/>
+            <rect x="236" y="117" width="84" height="50" rx="8" class="nfc-phone__screen"/>
+            <g class="nfc-phone__app">
+              <rect x="236" y="117" width="84" height="50" rx="8" class="nfc-phone__appbg" style="fill:${first.color}"/>
+              <svg x="266" y="122" width="24" height="24" viewBox="0 0 24 24" class="nfc-phone__icon">${ICONS[first.id]}</svg>
+              <text x="278" y="159" class="nfc-phone__label">${first.screen}</text>
+            </g>
+          </g>
+        </svg>
+      </div>`;
+  }
+
+  function wheelHtml() {
+    const items = WHEEL.concat(WHEEL[0]); // trailing copy of the first lets the loop wrap seamlessly
+    return `
+      <h2 class="nfc-h1" id="nfc-title">
+        Tap to
+        <span class="nfc-wheel" aria-hidden="true"><span class="nfc-wheel__track">${items.map((t) => `<span>${t.wheel}</span>`).join('')}</span></span>
+        <span class="nfc-sr">${WHEEL.map((t) => t.wheel).join(', ')}, and more</span>
+      </h2>`;
+  }
+
+  // Advance the wheel and the phone screen each time the phone animation loops.
+  function startHero() {
+    const phone = dlg.querySelector('.nfc-phone');
+    const wheel = dlg.querySelector('.nfc-wheel');
+    const track = dlg.querySelector('.nfc-wheel__track');
+    if (!phone || !wheel || !track) return;
+    const words = Array.from(track.children);
+    const appBg = dlg.querySelector('.nfc-phone__appbg');
+    const appIcon = dlg.querySelector('.nfc-phone__icon');
+    const appLabel = dlg.querySelector('.nfc-phone__label');
+    let i = 0;
+
+    const fit = () => { wheel.style.width = words[i].getBoundingClientRect().width + 'px'; };
+    const show = () => {
+      track.style.transform = `translateY(${-i * 1.12}em)`;
+      fit();
+      const t = WHEEL[i % WHEEL.length];
+      appBg.style.fill = t.color;
+      appIcon.innerHTML = ICONS[t.id];
+      appLabel.textContent = t.screen;
+    };
+    track.addEventListener('transitionend', () => {
+      if (i !== WHEEL.length) return;
+      track.style.transition = 'none';
+      i = 0;
+      show();
+      void track.offsetHeight; // commit the jump before re-enabling the transition
+      track.style.transition = '';
+    });
+    // Child animations (the phone's screen) bubble their own iteration events; count only the phone's.
+    phone.addEventListener('animationiteration', (e) => { if (e.target === phone) { i += 1; show(); } });
+    // Fonts change word widths once they load
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+    fit();
   }
 
   // ------------------------------------------------------------
   // Dialog shell
   // ------------------------------------------------------------
+  ['fonts/bricolage-grotesque.woff2', 'fonts/instrument-sans.woff2'].forEach((href) => {
+    const l = document.createElement('link');
+    l.rel = 'preload'; l.as = 'font'; l.type = 'font/woff2'; l.crossOrigin = 'anonymous'; l.href = href;
+    document.head.appendChild(l);
+  });
   const css = document.createElement('link');
   css.rel = 'stylesheet';
   css.href = 'css/nfc-card.css';
+  const cssReady = new Promise((resolve) => {
+    css.onload = resolve;
+    css.onerror = resolve;
+    setTimeout(resolve, 2500); // never hold the popup hostage to a slow stylesheet
+  });
   document.head.appendChild(css);
 
   const dlg = document.createElement('dialog');
@@ -178,7 +267,13 @@
   document.body.appendChild(dlg);
 
   function open(html) {
-    dlg.innerHTML = `<button type="button" class="nfc-close" aria-label="Close">&times;</button>${html}`;
+    dlg.innerHTML = `
+      <div class="nfc-top">
+        <span class="nfc-grab" aria-hidden="true"></span>
+        <span class="nfc-brand">hord<span>.</span>brayden</span>
+        <button type="button" class="nfc-close" aria-label="Close">${'<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'}</button>
+      </div>
+      ${html}`;
     dlg.querySelector('.nfc-close').addEventListener('click', close);
     dlg.scrollTop = 0;
     if (!dlg.open) {
@@ -186,6 +281,10 @@
       else dlg.setAttribute('open', '');
       document.documentElement.classList.add('nfc-lock');
     }
+    // Land focus on the title: screen readers announce it, and the close
+    // button doesn't wear a focus ring before anyone has touched anything.
+    const title = dlg.querySelector('#nfc-title');
+    if (title) { title.tabIndex = -1; title.focus({ preventScroll: true }); }
   }
   function markSkipped() {
     if (state.stage === 'new') { state.stage = 'skipped'; save(state); track('nfc_contact_skip'); }
@@ -209,22 +308,22 @@
     const openedAt = Date.now();
     open(`
       <div class="nfc-pane">
-        <span class="kicker kicker--accent">you just tapped my card</span>
-        <h2 id="nfc-title">Hey, it’s Brayden.</h2>
-        <p class="nfc-lede">Leave a way to reach you and I’ll follow up personally. It takes 10 seconds, or skip it and look around.</p>
+        <span class="nfc-label">you just tapped my card</span>
+        <h2 class="nfc-h1" id="nfc-title">Hey, it’s <em>Brayden.</em></h2>
+        <p class="nfc-lede">Leave a way to reach you and I’ll follow up personally. Takes 10 seconds.</p>
         ${ENDPOINT ? '' : '<p class="nfc-testmode">TEST MODE · no endpoint set · nothing is sent</p>'}
         <form class="nfc-form" novalidate>
-          <label>Your name
+          <label><span>Your name</span>
             <input name="name" type="text" autocomplete="name" maxlength="100" required>
           </label>
-          <label>Email or phone
+          <label><span>Email or phone</span>
             <input name="contact" type="text" autocomplete="email" inputmode="email" maxlength="200" required>
           </label>
-          <label><span>Company <span class="nfc-opt">optional</span></span>
+          <label><span>Company <i>optional</i></span>
             <input name="company" type="text" autocomplete="organization" maxlength="120">
           </label>
-          <label><span>Where’d we meet? What’s on your mind? <span class="nfc-opt">optional</span></span>
-            <textarea name="note" rows="3" maxlength="1000"></textarea>
+          <label><span>Where’d we meet? <i>optional</i></span>
+            <textarea name="note" rows="2" maxlength="1000"></textarea>
           </label>
           <!-- honeypot: humans never see or fill this -->
           <label class="nfc-hp" aria-hidden="true">Website
@@ -232,18 +331,16 @@
           </label>
           <p class="nfc-error" role="alert" hidden></p>
           <div class="nfc-actions">
-            <button type="submit" class="btn">Send to Brayden</button>
-            <button type="button" class="btn btn--ghost" data-skip>Skip for now</button>
+            <button type="submit" class="nfc-btn nfc-btn--primary">Send to Brayden <span aria-hidden="true">→</span></button>
+            <button type="button" class="nfc-btn nfc-btn--ghost" data-skip>Skip for now</button>
           </div>
-          <p class="nfc-fine">This goes only to me. It’s not shared, sold or added to a mailing list. <a href="privacy.html">Privacy</a>.</p>
+          <p class="nfc-fine">Only I see this. Never shared, sold or added to a list. <a href="privacy.html">Privacy</a></p>
         </form>
         <button type="button" class="nfc-promo" data-promo>
-          <svg class="nfc-promo__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path class="w1" d="M8.5 9.5a3.5 3.5 0 0 1 0 5"/><path class="w2" d="M12 7a7 7 0 0 1 0 10"/><path class="w3" d="M15.5 4.5a10.5 10.5 0 0 1 0 15"/>
-          </svg>
+          <span class="nfc-promo__icon">${'<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path class="w1" d="M8.5 9.5a3.5 3.5 0 0 1 0 5"/><path class="w2" d="M12 7a7 7 0 0 1 0 10"/><path class="w3" d="M15.5 4.5a10.5 10.5 0 0 1 0 15"/></svg>'}</span>
           <span class="nfc-promo__text">
-            <strong>Psst: this card is programmable.</strong>
-            <span>Make it text someone, share your Wi-Fi, give directions, take Bitcoin tips and more. See what it can do →</span>
+            <b>Psst: this card does tricks.</b>
+            <span>Tap it to text a friend, share Wi-Fi and more. See how <span aria-hidden="true">→</span></span>
           </span>
         </button>
       </div>`);
@@ -278,7 +375,7 @@
         showThanks(data.name);
       } catch (ex) {
         btn.disabled = false;
-        btn.textContent = 'Send to Brayden';
+        btn.innerHTML = 'Send to Brayden <span aria-hidden="true">→</span>';
         err.innerHTML = 'That didn’t go through. Try again, or reach me on <a href="https://www.linkedin.com/in/brayden-hord" target="_blank" rel="noopener">LinkedIn</a>.';
         err.hidden = false;
       }
@@ -308,14 +405,14 @@
     const first = esc(name.split(/\s+/)[0]);
     open(`
       <div class="nfc-pane nfc-pane--center">
-        <span class="kicker kicker--accent">got it</span>
-        <h2 id="nfc-title">Thanks, ${first}.</h2>
-        <p class="nfc-lede">You’ll hear from me soon. One more thing: the chip in that card is a lot more fun than it looks.</p>
-        <p class="nfc-lede"><b>Tap my card again any time</b> to see how it works and how to reprogram it yourself.</p>
-        <div class="nfc-actions nfc-actions--center">
-          <button type="button" class="btn" data-guide>Show me now</button>
-          <button type="button" class="btn btn--ghost" data-done>Look around the site</button>
+        <span class="nfc-check" aria-hidden="true">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'}</span>
+        <h2 class="nfc-h1" id="nfc-title">Thanks, ${first}.</h2>
+        <p class="nfc-lede">You’ll hear from me soon. Now the fun part: the card in your hand can do a lot more than hold my name.</p>
+        <div class="nfc-actions">
+          <button type="button" class="nfc-btn nfc-btn--primary" data-guide>Show me what it can do <span aria-hidden="true">→</span></button>
+          <button type="button" class="nfc-btn nfc-btn--ghost" data-done>Look around the site</button>
         </div>
+        <p class="nfc-fine">Or just tap my card again later. It’ll show you then.</p>
       </div>`);
     dlg.querySelector('[data-guide]').addEventListener('click', showGuide);
     dlg.querySelector('[data-done]').addEventListener('click', close);
@@ -327,57 +424,57 @@
   function showGuide() {
     track('nfc_guide_view', { scans: state.scans });
     open(`
-      <div class="nfc-pane">
-        <span class="kicker kicker--accent">scan #${state.scans} on this device</span>
-        <h2 id="nfc-title">So what’s actually in this card?</h2>
+      <div class="nfc-pane nfc-pane--guide">
+        ${heroHtml()}
+        ${wheelHtml()}
+        <p class="nfc-lede">This card is secretly a shortcut. Program it once and a single tap makes your phone text a friend, join the Wi-Fi or start directions home. It takes about a minute with a free app, and no tech skills.</p>
 
-        <div class="nfc-explain">
-          <p>There’s a tiny NFC chip under the sticker, about the thickness of a receipt, with <b>no battery</b>. When your phone gets within a few centimeters, its antenna puts out a 13.56&nbsp;MHz radio field. That field powers the chip just long enough for it to hand over one short message, called an <b>NDEF record</b>. Mine is simply a web address, so your phone opened it.</p>
-          <p>The chip can’t track you and doesn’t know who scanned it. It only holds a few hundred bytes, which is less than this paragraph. And with a free app, <b>anyone can rewrite it.</b> Including you.</p>
+        <section class="nfc-how" aria-labelledby="nfc-how-h">
+          <h3 id="nfc-how-h">How to set it up</h3>
+          <ol>
+            <li><div><b>Get the free NFC Tools app.</b>
+              <span class="nfc-apps">
+                <a class="nfc-btn nfc-btn--small nfc-btn--primary" href="${NFC_TOOLS_IOS}" target="_blank" rel="noopener">iPhone ↗</a>
+                <a class="nfc-btn nfc-btn--small nfc-btn--dark" href="${NFC_TOOLS_ANDROID}" target="_blank" rel="noopener">Android ↗</a>
+              </span>
+            </div></li>
+            <li><div><b>Pick a trick below</b> and follow its three steps.</div></li>
+            <li><div><b>Hold your phone to the chip</b> in the corner. On iPhone use the top edge, on Android the middle of the back.</div></li>
+          </ol>
+        </section>
+
+        <div class="nfc-sech">
+          <h3>Pick a trick</h3>
+          <span class="nfc-label">tap one to see how</span>
+        </div>
+        <div class="nfc-tricks">${TUTORIALS.map(tutorialHtml).join('')}</div>
+
+        <div class="nfc-finding nfc-finding--good">
+          <b>Your card, your call.</b>
+          <span>Rewrite this card, or grab blank <b>NTAG215</b> stickers (about 30¢ each) and keep this one pointing at me. Either is a win.</span>
+        </div>
+        <div class="nfc-finding nfc-finding--bad">
+          <b>Three rules before you write</b>
+          <span><b>1.</b> Never tap <i>"Lock tag"</i>. It’s permanent. <b>2.</b> Keep it short, since the chip holds about a paragraph. <b>3.</b> Anyone can read a tag, so nothing secret goes on it.</span>
         </div>
 
-        <div class="nfc-choice">
-          <strong>Your card, your call.</strong>
-          <span>Rewrite this card for one of the ideas below, or grab a pack of blank <b>NTAG215</b> stickers (about 30¢ each) and keep this one pointing at me. Either is a win.</span>
-        </div>
-
-        <div class="nfc-apps">
-          <span class="kicker">step 0 · get the app</span>
-          <div class="nfc-actions">
-            <a class="btn btn--small" href="${NFC_TOOLS_IOS}" target="_blank" rel="noopener">NFC Tools for iPhone ↗</a>
-            <a class="btn btn--small btn--ghost" href="${NFC_TOOLS_ANDROID}" target="_blank" rel="noopener">NFC Tools for Android ↗</a>
-          </div>
-          <p class="nfc-fine">iPhone: hold the <b>top edge</b> of the phone to the chip. Android: the <b>middle of the back</b>. Turn NFC on in Settings if it’s off.</p>
-        </div>
-
-        <span class="kicker">things you can make it do</span>
-        <div class="nfc-tuts">${TUTORIALS.map(tutorialHtml).join('')}</div>
-
-        <details class="nfc-tut nfc-tut--rules" open>
-          <summary><span class="nfc-tut__title">Three rules before you write</span></summary>
-          <div class="nfc-tut__body">
-            <ol>
-              <li><b>Never tap "Lock tag" / "Make read-only".</b> It’s permanent. You can’t undo it, ever.</li>
-              <li><b>Mind the size.</b> NTAG213 holds 144 bytes, 215 holds 504, 216 holds 888. NFC Tools shows how many bytes your records need before you write.</li>
-              <li><b>Tags are public.</b> Anyone nearby can read one, so don’t put anything on it you wouldn’t print on a flyer.</li>
-            </ol>
-          </div>
+        <details class="nfc-more">
+          <summary>How does it actually work?</summary>
+          <p>There’s no battery. When your phone gets within a couple of centimeters, its NFC antenna powers the chip for a split second (13.56&nbsp;MHz, if you’re curious), and the chip hands over one tiny message. Mine is a link, so your phone opened it. It can’t track you and doesn’t know who tapped it.</p>
         </details>
-
-        <details class="nfc-tut">
-          <summary><span class="nfc-tut__title">Changed your mind? Point it back at me</span></summary>
-          <div class="nfc-tut__body">
-            <p>Write a <b>URL</b> record with:</p>
-            <p><code class="nfc-copy">${CARD_URL}</code> <button type="button" class="btn btn--small btn--ghost" data-copy>Copy</button></p>
-          </div>
+        <details class="nfc-more">
+          <summary>Changed your mind? Point it back at me</summary>
+          <p>Write a <b>URL</b> record with:</p>
+          <p class="nfc-copyrow"><code>${CARD_URL}</code><button type="button" class="nfc-btn nfc-btn--small nfc-btn--ghost" data-copy>Copy</button></p>
         </details>
 
         <div class="nfc-actions nfc-foot">
-          ${state.stage !== 'contacted' ? '<button type="button" class="btn btn--ghost" data-form>Actually, let’s stay in touch</button>' : ''}
-          <button type="button" class="btn" data-done>Explore the site</button>
+          <button type="button" class="nfc-btn nfc-btn--primary" data-done>Explore the site</button>
+          ${state.stage !== 'contacted' ? '<button type="button" class="nfc-btn nfc-btn--ghost" data-form>Actually, let’s stay in touch</button>' : ''}
         </div>
       </div>`);
 
+    startHero();
     dlg.querySelector('[data-done]').addEventListener('click', close);
     const formBtn = dlg.querySelector('[data-form]');
     if (formBtn) formBtn.addEventListener('click', () => { state.stage = 'new'; save(state); showForm(); });
@@ -386,8 +483,8 @@
       try { await navigator.clipboard.writeText(CARD_URL); copyBtn.textContent = 'Copied'; }
       catch (e) { copyBtn.textContent = 'Long-press to copy'; }
     });
-    dlg.querySelectorAll('.nfc-tut').forEach((d) => {
-      d.addEventListener('toggle', () => { if (d.open && d.querySelector('.nfc-tut__num')) track('nfc_tutorial_open'); });
+    dlg.querySelectorAll('.nfc-trick').forEach((d) => {
+      d.addEventListener('toggle', () => { if (d.open) track('nfc_tutorial_open'); });
     });
   }
 
@@ -400,9 +497,9 @@
     else showGuide();
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => start(initialView));
-  } else {
-    start(initialView);
-  }
+  const domReady = new Promise((r) => {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', r);
+    else r();
+  });
+  Promise.all([domReady, cssReady]).then(() => start(initialView));
 })();
