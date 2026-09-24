@@ -9,6 +9,10 @@
    untouched. Test helpers (append to the URL):
      &reset=1          clear this device's scan state
      &view=form|guide  force a specific view
+
+   Optional personalization, any combination (build links with nfc-builder.html):
+     n=Sarah  at=ObservePoint+Summit  on=2026-09-24  t=1430
+     re=server-side+tagging  ps=I+owe+you+a+beta+invite
    ============================================================ */
 
 (function () {
@@ -46,8 +50,51 @@
   state.scans += 1;
   save(state);
 
-  // Strip our params so a refresh or a shared link doesn't re-trigger.
-  ['via', 'reset', 'view'].forEach((k) => params.delete(k));
+  // ------------------------------------------------------------
+  // Personalization (all optional). URL text is untrusted: anyone can
+  // craft a link, so values are plain text only, capped, and always
+  // escaped on render. Never links, never HTML.
+  // ------------------------------------------------------------
+  const MEET = { n: 40, at: 60, on: 16, t: 8, re: 80, ps: 140 };
+  const meet = {};
+  Object.keys(MEET).forEach((k) => {
+    const v = (params.get(k) || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MEET[k]);
+    if (v) meet[k] = v;
+  });
+  const firstName = (s) => (s || '').split(' ')[0];
+
+  // "on" + "t" → a phrase for sentences ("earlier today around 2:30 PM")
+  // and a stamp for the ticket ("Tue, Sep 24 · 2:30 PM").
+  const when = (() => {
+    const tm = /^(\d{1,2}):?(\d{2})\s*([ap])?\.?m?\.?$/i.exec(meet.t || '');
+    let time = '';
+    if (tm) {
+      let h = +tm[1];
+      const ap = (tm[3] || '').toLowerCase();
+      if (ap === 'p' && h < 12) h += 12;
+      if (ap === 'a' && h === 12) h = 0;
+      if (h < 24 && +tm[2] < 60) time = new Date(2000, 0, 1, h, +tm[2]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+    const at = time ? ` around ${time}` : '';
+    const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(meet.on || '');
+    const d = dm && new Date(+dm[1], dm[2] - 1, +dm[3]);
+    if (!d || isNaN(d)) {
+      // Unparseable dates are shown as written ("on Tuesday")
+      return meet.on ? { phrase: `on ${meet.on}${at}`, stamp: meet.on + (time ? ` · ${time}` : '') } : { phrase: at.trim(), stamp: time };
+    }
+    const now = new Date();
+    const days = Math.round((new Date(now).setHours(0, 0, 0, 0) - d) / 864e5);
+    const day = (o) => d.toLocaleDateString('en-US', o);
+    const phrase = days === 0 ? 'earlier today'
+      : days === 1 ? 'yesterday'
+      : days > 1 && days < 7 ? `on ${day({ weekday: 'long' })}`
+      : `on ${day({ month: 'short', day: 'numeric', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' })}`;
+    return { phrase: phrase + at, stamp: day({ weekday: 'short', month: 'short', day: 'numeric' }) + (time ? ` · ${time}` : ''), today: days === 0 };
+  })();
+
+  // Strip our params so a refresh or a shared link doesn't re-trigger,
+  // and so someone's name never lingers in the address bar or history.
+  ['via', 'reset', 'view'].concat(Object.keys(MEET)).forEach((k) => params.delete(k));
   const qs = params.toString();
   history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
 
@@ -146,6 +193,26 @@
   const WHEEL = TUTORIALS.filter((t) => t.wheel);
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // "Great meeting you at X earlier today. Still chewing on our chat about Y."
+  function meetLine() {
+    const out = [];
+    if (meet.at || when.phrase) out.push(`Great meeting you${meet.at ? ` at <b>${esc(meet.at)}</b>` : ''}${when.phrase ? ` ${esc(when.phrase)}` : ''}.`);
+    if (meet.re) out.push(`Still chewing on our chat about <b>${esc(meet.re)}</b>.`);
+    return out.join(' ');
+  }
+
+  // A ticket stub of where/when/what. Only the rows we have.
+  function ticketHtml() {
+    const rows = [['where', meet.at], ['when', when.stamp], ['talked about', meet.re]].filter((r) => r[1]);
+    if (!rows.length) return '';
+    return `
+      <div class="nfc-ticket">
+        <span class="nfc-ticket__head">we met${meet.n ? ` · ${esc(firstName(meet.n))} &amp; Brayden` : ''}</span>
+        ${rows.map(([k, v]) => `<div class="nfc-ticket__row"><small>${k}</small><b>${esc(v)}</b></div>`).join('')}
+      </div>`;
+  }
+  const psHtml = () => (meet.ps ? `<p class="nfc-ps"><b>P.S.</b> ${esc(meet.ps)}</p>` : '');
 
   function tutorialHtml(t) {
     return `
@@ -308,13 +375,15 @@
     const openedAt = Date.now();
     open(`
       <div class="nfc-pane">
-        <span class="nfc-label">you just tapped my card</span>
-        <h2 class="nfc-h1" id="nfc-title">Hey, it’s <em>Brayden.</em></h2>
-        <p class="nfc-lede">Leave a way to reach you and I’ll follow up personally. Takes 10 seconds.</p>
+        <span class="nfc-label">${meet.n ? `made for ${esc(meet.n)}` : 'you just tapped my card'}</span>
+        <h2 class="nfc-h1" id="nfc-title">Hey${meet.n ? ` ${esc(firstName(meet.n))},` : ','} it’s <em>Brayden.</em></h2>
+        ${ticketHtml()}
+        <p class="nfc-lede">${meetLine() ? `${meetLine()} This card’s yours now. Leave me a way to reach you and I’ll follow up personally.` : 'Leave a way to reach you and I’ll follow up personally. Takes 10 seconds.'}</p>
+        ${psHtml()}
         ${ENDPOINT ? '' : '<p class="nfc-testmode">TEST MODE · no endpoint set · nothing is sent</p>'}
         <form class="nfc-form" novalidate>
           <label><span>Your name</span>
-            <input name="name" type="text" autocomplete="name" maxlength="100" required>
+            <input name="name" type="text" autocomplete="name" maxlength="100" required value="${esc(meet.n || '')}">
           </label>
           <label><span>Email or phone</span>
             <input name="contact" type="text" autocomplete="email" inputmode="email" maxlength="200" required>
@@ -361,6 +430,8 @@
         err.hidden = false;
         return;
       }
+      const ctx = [meet.n && `for ${meet.n}`, meet.at, when.stamp, meet.re && `re ${meet.re}`].filter(Boolean).join(' · ');
+      if (ctx) data.note = `${data.note ? data.note + ' — ' : ''}[card: ${ctx}]`.slice(0, 1000);
       data.elapsed = String(Date.now() - openedAt);
       data.src = 'nfc';
 
@@ -407,7 +478,7 @@
       <div class="nfc-pane nfc-pane--center">
         <span class="nfc-check" aria-hidden="true">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'}</span>
         <h2 class="nfc-h1" id="nfc-title">Thanks, ${first}.</h2>
-        <p class="nfc-lede">You’ll hear from me soon. Now the fun part: the card in your hand can do a lot more than hold my name.</p>
+        <p class="nfc-lede">You’ll hear from me soon.${meet.at && when.today ? ` Enjoy the rest of ${esc(meet.at)}.` : ''} Now the fun part: the card in your hand can do a lot more than hold my name.</p>
         <div class="nfc-actions">
           <button type="button" class="nfc-btn nfc-btn--primary" data-guide>Show me what it can do <span aria-hidden="true">→</span></button>
           <button type="button" class="nfc-btn nfc-btn--ghost" data-done>Look around the site</button>
@@ -425,6 +496,7 @@
     track('nfc_guide_view', { scans: state.scans });
     open(`
       <div class="nfc-pane nfc-pane--guide">
+        ${meet.n ? `<span class="nfc-label nfc-label--accent">welcome back, ${esc(firstName(meet.n))}</span>` : ''}
         ${heroHtml()}
         ${wheelHtml()}
         <p class="nfc-lede">This card is secretly a shortcut. Program it once and a single tap makes your phone text a friend, join the Wi-Fi or start directions home. It takes about a minute with a free app, and no tech skills.</p>

@@ -479,3 +479,65 @@
   .nfc-phone__app, .nfc-waves path, .nfc-promo__icon path { opacity: 1; }
   .nfc-wheel, .nfc-wheel__track { transition: none; }
 }
+
+/* ---------- Personalized touches (n / at / on / t / re / ps) ---------- */
+.nfc-label--accent { color: var(--red); margin-bottom: 4px; }
+.dark-mode .nfc-label--accent { color: var(--yellow); }
+
+/* "We met" ticket stub */
+.nfc-ticket {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  margin: 4px 0 20px;
+  padding: 16px 18px 16px 22px;
+  background: #141210;
+  color: #f3eee3;
+  border: 2px solid #141210;
+  border-radius: 16px;
+  box-shadow: 5px 5px 0 var(--yellow);
+  transform: rotate(-0.6deg);
+}
+.dark-mode .nfc-ticket { background: #1e1b18; border-color: #3a352f; }
+/* punched notches, like a real ticket */
+.nfc-ticket::before, .nfc-ticket::after {
+  content: '';
+  position: absolute;
+  left: -11px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 2px solid #141210;
+}
+.nfc-ticket::before { top: 22px; }
+.nfc-ticket::after { bottom: 22px; }
+.dark-mode .nfc-ticket::before, .dark-mode .nfc-ticket::after { border-color: #3a352f; }
+.nfc-ticket__head {
+  font: 600 12px/1.2 var(--body);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--yellow);
+  padding-bottom: 10px;
+  border-bottom: 2px dashed #3a352f;
+}
+.nfc-ticket__row { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: baseline; }
+.nfc-ticket__row small { font: 500 11px/1.2 var(--mono); letter-spacing: .04em; text-transform: uppercase; color: #b3aa9d; }
+.nfc-ticket__row b { font: 800 18px/1.2 var(--display); letter-spacing: -0.01em; overflow-wrap: anywhere; }
+@media (max-width: 360px) { .nfc-ticket__row { grid-template-columns: 1fr; gap: 2px; } }
+
+.nfc-lede b { color: var(--ink); font-weight: 700; }
+
+/* P.S. — a sticky note */
+.nfc-ps {
+  margin: -6px 0 22px;
+  padding: 12px 14px;
+  font-size: 16px;
+  color: #141210;
+  background: #ffe98a;
+  border: 2px solid #141210;
+  border-radius: 12px;
+  box-shadow: 3px 3px 0 var(--edge);
+  transform: rotate(0.5deg);
+  overflow-wrap: anywhere;
+}
+.nfc-ps b { font-family: var(--display); font-weight: 800; }

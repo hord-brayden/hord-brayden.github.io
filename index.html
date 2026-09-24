@@ -8,7 +8,11 @@
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
 
-    gtag('config', 'G-MKKD62VLDH');
+    // Personalized card links carry a name/event (js/nfc-card.js). Keep those
+    // out of Analytics: report the page without them.
+    var gaUrl = new URL(location.href);
+    ['n', 'at', 'on', 't', 're', 'ps'].forEach(function (k) { gaUrl.searchParams.delete(k); });
+    gtag('config', 'G-MKKD62VLDH', { page_location: gaUrl.href });
   </script>
 
   <meta charset="UTF-8">

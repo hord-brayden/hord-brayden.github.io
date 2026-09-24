@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Card Builder</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23ffd83d'/%3E%3Cpath d='M9 9.5a3.5 3.5 0 0 1 0 5M12.5 7a7 7 0 0 1 0 10M16 4.5a10.5 10.5 0 0 1 0 15' fill='none' stroke='%23141210' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+/* Private tool: builds personalized links for the NFC business card
+   (see js/nfc-card.js). Nothing here is sent anywhere; it only builds a URL. */
+@font-face { font-family: "Bricolage Grotesque"; src: url("fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 400 800; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("fonts/instrument-sans.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: "PL Mono"; src: url("fonts/jetbrains-mono-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+:root {
+  --paper: #f3eee3; --surface: #fffcf5; --ink: #141210; --muted: #5d574f; --edge: #141210; --chip: #ebe4d6;
+  --yellow: #ffd83d; --green: #12b76a; --red: #ff4b3e; --blue: #3d5afe;
+  --display: "Bricolage Grotesque", "Arial Black", system-ui, sans-serif;
+  --body: "Instrument Sans", system-ui, -apple-system, sans-serif;
+  --mono: "PL Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --paper: #141210; --surface: #1e1b18; --ink: #f3eee3; --muted: #b3aa9d; --edge: #000; --chip: #2a2622; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.5 var(--body); padding: 0 16px calc(40px + env(safe-area-inset-bottom)); }
+.wrap { max-width: 560px; margin: 0 auto; }
+.bar { display: flex; align-items: center; gap: 12px; padding: 18px 0 14px; border-bottom: 2px solid var(--ink); margin-bottom: 20px; }
+.logo { width: 38px; height: 38px; border-radius: 10px; background: var(--yellow); border: 2px solid #141210; display: grid; place-items: center; box-shadow: 3px 3px 0 #141210; color: #141210; }
+.logo svg { width: 22px; height: 22px; }
+.bar b { font: 800 20px/1 var(--display); letter-spacing: -.02em; }
+.bar small { margin-left: auto; font: 600 12px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 800 clamp(30px, 9vw, 40px)/1.02 var(--display); letter-spacing: -.03em; margin: 0 0 8px; }
+h1 em { font-style: normal; background: var(--yellow); color: #141210; padding: 0 .12em; border-radius: 8px; }
+.lede { color: var(--muted); margin: 0 0 20px; }
+form { display: grid; gap: 14px; }
+label { display: grid; gap: 6px; font: 700 15px/1.2 var(--body); }
+label i { font-style: normal; font-weight: 500; font-size: 13px; color: var(--muted); }
+input { width: 100%; margin: 0; padding: 13px 14px; font: 400 16px/1.3 var(--body); color: var(--ink); background: var(--surface); border: 2px solid var(--edge); border-radius: 12px; -webkit-appearance: none; appearance: none; min-height: 50px; }
+input:focus { outline: none; border-color: var(--blue); box-shadow: 3px 3px 0 var(--blue); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.row label { min-width: 0; }
+.out { margin-top: 24px; padding: 18px; background: #141210; color: #f3eee3; border: 2px solid #141210; border-radius: 18px; box-shadow: 5px 5px 0 var(--yellow); }
+.out .k { font: 600 12px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--yellow); }
+.url { margin: 10px 0 14px; font: 500 13px/1.5 var(--mono); word-break: break-all; color: #ffe98a; }
+.fit { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.fit span { font: 700 13px/1 var(--body); padding: 7px 10px; border-radius: 999px; border: 2px solid #141210; color: #141210; background: #d9f3e6; }
+.fit span.no { background: #ffe0dc; text-decoration: line-through; }
+.fit em { font: 500 12px/1 var(--mono); font-style: normal; color: #b3aa9d; align-self: center; }
+.btns { display: grid; gap: 12px; margin-top: 16px; }
+.btn { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 14px 18px; font: 700 16px/1.1 var(--body); color: #141210; background: var(--yellow); border: 2px solid #141210; border-radius: 12px; box-shadow: 4px 4px 0 #000; cursor: pointer; text-decoration: none; -webkit-tap-highlight-color: transparent; transition: transform .08s, box-shadow .08s; }
+.btn:active { transform: translate(3px, 3px); box-shadow: 0 0 0 #000; }
+.btn.ghost { background: #f3eee3; }
+.btn:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+.status { min-height: 1.4em; margin: 12px 0 0; font-weight: 600; font-size: 14px; color: #cfc6b8; }
+.how { margin-top: 26px; padding: 16px 18px; border: 2px solid var(--edge); border-left-width: 8px; border-left-color: var(--blue); border-radius: 12px; background: var(--surface); font-size: 15px; }
+.how b { font-family: var(--display); }
+.how ol { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.how code, .reset code { font: 500 .85em var(--mono); background: var(--chip); padding: 1px 5px; border-radius: 5px; word-break: break-all; }
+.reset { margin-top: 18px; font-size: 14px; color: var(--muted); }
+.reset button { font: 700 14px var(--body); color: var(--ink); background: none; border: 0; border-bottom: 2px solid var(--ink); padding: 0; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <span class="logo"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M8.5 9.5a3.5 3.5 0 0 1 0 5M12 7a7 7 0 0 1 0 10M15.5 4.5a10.5 10.5 0 0 1 0 15"/></svg></span>
+    <b>Card builder</b>
+    <small>private</small>
+  </div>
+
+  <h1>Make this card <em>theirs.</em></h1>
+  <p class="lede">Fill in what you know. Every field is optional, and blanks are left out of the link.</p>
+
+  <form id="f" autocomplete="off" novalidate>
+    <label>Their name <i>first name reads best</i>
+      <input name="n" maxlength="40" autocapitalize="words" enterkeyhint="next" placeholder="Sarah">
+    </label>
+    <label>Where we met <i>remembered for next time</i>
+      <input name="at" maxlength="60" autocapitalize="words" enterkeyhint="next" placeholder="ObservePoint Summit">
+    </label>
+    <div class="row">
+      <label>Date <input name="on" type="date"></label>
+      <label>Time <input name="t" type="time"></label>
+    </div>
+    <label>We talked about <i>"Still chewing on our chat about…"</i>
+      <input name="re" maxlength="80" enterkeyhint="next" placeholder="server-side tagging">
+    </label>
+    <label>P.S. <i>one personal line</i>
+      <input name="ps" maxlength="140" enterkeyhint="done" placeholder="I owe you that Pixel Lab invite.">
+    </label>
+  </form>
+
+  <section class="out" aria-live="polite">
+    <span class="k">the link for the chip</span>
+    <p class="url" id="url"></p>
+    <div class="fit" id="fit"></div>
+    <div class="btns">
+      <button class="btn" type="button" id="copy">Copy link</button>
+      <button class="btn" type="button" id="write" hidden>Write to chip now</button>
+      <a class="btn ghost" id="preview" target="_blank" rel="noopener">Preview what they’ll see ↗</a>
+    </div>
+    <p class="status" id="status"></p>
+  </section>
+
+  <div class="how">
+    <b>On iPhone (about 20 seconds)</b>
+    <ol>
+      <li>Tap <b>Copy link</b>.</li>
+      <li>NFC Tools → <b>Write</b> → <b>Add a record</b> → <b>URL / URI</b> → paste. Delete the <code>https://</code> it adds if the link now starts with it twice.</li>
+      <li><b>Write</b>, then hold the top of your phone to the card.</li>
+    </ol>
+  </div>
+
+  <p class="reset">Card going back in the stack? <button type="button" id="generic">Copy the generic link</button> <code>hord-brayden.github.io/?via=nfc</code></p>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const BASE = 'https://hord-brayden.github.io/';
+  const CAP = [['NTAG213', 144], ['NTAG215', 504], ['NTAG216', 888]];
+  const KEEP = 'nfcBuilder.at';
+  const f = document.getElementById('f');
+  const $ = (id) => document.getElementById(id);
+  const pad = (x) => String(x).padStart(2, '0');
+
+  // Sensible defaults: today, now, and the last event you used.
+  const now = new Date();
+  f.on.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  f.t.value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  try { f.at.value = localStorage.getItem(KEEP) || ''; } catch (e) {}
+
+  let url = '';
+  function build() {
+    const q = new URLSearchParams({ via: 'nfc' });
+    for (const el of f.elements) {
+      let v = el.value.trim();
+      if (el.name === 't') v = v.replace(':', '');  // 14:30 → 1430 saves a byte
+      if (v) q.set(el.name, v);
+    }
+    url = `${BASE}?${q}`;
+    // NDEF URL record: "https://" compresses to 1 byte; ~8 bytes of framing.
+    const bytes = new TextEncoder().encode(url.replace(/^https:\/\//, '')).length + 8;
+    $('url').textContent = url;
+    $('fit').innerHTML = CAP.map(([name, cap]) => `<span class="${bytes > cap ? 'no' : ''}">${name}</span>`).join('') + `<em>${bytes} bytes</em>`;
+    // Preview on whatever copy of the site is serving this page (live or local)
+    $('preview').href = new URL(`./?${q}&reset=1`, location.href).href;
+    try { localStorage.setItem(KEEP, f.at.value.trim()); } catch (e) {}
+  }
+  f.addEventListener('input', build);
+  build();
+
+  const status = (msg) => { $('status').textContent = msg; };
+  async function copy(text) {
+    try { await navigator.clipboard.writeText(text); status('Copied. Paste it into NFC Tools.'); }
+    catch (e) { status('Copy blocked. Long-press the link above to copy it.'); }
+  }
+  $('copy').addEventListener('click', () => copy(url));
+  $('generic').addEventListener('click', () => copy(BASE + '?via=nfc'));
+
+  // Android Chrome can write the tag straight from the page (Web NFC).
+  if ('NDEFReader' in window) {
+    const w = $('write');
+    w.hidden = false;
+    w.addEventListener('click', async () => {
+      status('Hold the card to the back of your phone…');
+      try {
+        await new NDEFReader().write({ records: [{ recordType: 'url', data: url }] });
+        status('Written. Hand it over.');
+      } catch (e) {
+        status(`Couldn’t write: ${e.message}`);
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>
