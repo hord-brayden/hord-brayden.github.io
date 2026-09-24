@@ -57,6 +57,7 @@
       const links = [
         { href: 'index.html',        label: 'Work' },
         { href: 'resume.html',       label: 'Resume' },
+        { href: 'pixel-lab.html',    label: 'Pixel Lab' },
         { href: 'playground.html',   label: 'Playground' },
         { href: 'testing-kit.html',  label: 'RNG Kit' },
         { href: 'elemental-arena.html', label: 'Elemental Arena' },
@@ -90,6 +91,7 @@
           <div class="footer-content">
             <div class="privacy-block">
               <a href="resume.html">Resume</a>
+              <a href="pixel-lab.html">Pixel Lab</a>
               <a href="privacy.html">Privacy</a>
               <a href="https://www.linkedin.com/in/brayden-hord" target="_blank" rel="noopener">LinkedIn</a>
               <a href="https://github.com/hord-brayden/" target="_blank" rel="noopener">GitHub</a>

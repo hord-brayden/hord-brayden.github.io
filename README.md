@@ -12,6 +12,10 @@ load, and trivial to inspect.
   strip.
 - **`resume.html`** — Director-level summary, full work history, tech stack,
   personal builds, education, and certifications.
+- **`pixel-lab.html`** — Pixel Lab, a Chrome extension for testing ad pixels
+  and proving consent compliance (private beta; access by LinkedIn DM).
+  Single self-contained file: screenshots and fonts are inlined. Built from
+  the extension repo's `site/src/public.html` (`npm run site:build`).
 - **`playground.html`** — The toy shelf. Game of Life background controls,
   F1-style reaction timer teaser, password generator
   (`crypto.getRandomValues()` with rejection sampling), Fisher-Yates array
