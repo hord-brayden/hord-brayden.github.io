@@ -1413,3 +1413,348 @@ body.ea-recording #stage::after {
   .ea-offer.ea-rar-legendary::after,
   .ea-offer.ea-rar-godlike::after { animation: none; opacity: .3; }
 }
+
+/* ========================================================================
+   MOBILE
+   ========================================================================
+   The desktop layout is a scrolling document. On a phone that is the wrong
+   shape for a spectator game: the thing you are here to watch ends up a
+   327px square wedged between a page header and a wrapped toolbar, and you
+   scroll to find the controls.
+
+   So on a phone the play screen stops being a document and becomes an app
+   screen — one viewport, no page scroll, arena taking every pixel the
+   chrome does not need. Everything else keeps scrolling normally, but with
+   touch-sized controls.
+   ======================================================================== */
+
+/* Anything that takes a tap is at least 44px on a touch device — Apple's
+   minimum, and the single biggest cause of a web build feeling wrong on a
+   phone. Scoped to coarse pointers so the desktop stays compact. */
+@media (pointer: coarse), (max-width: 720px) {
+  .ea-page button,
+  .ea-page select,
+  .ea-page input[type="checkbox"],
+  .ea-page [data-buy],
+  .ea-page .ea-tab,
+  .ea-page .ea-pill {
+    min-height: 44px;
+  }
+  .ea-page button, .ea-page .ea-pill { padding-inline: 14px; }
+  .ea-page input[type="checkbox"] { min-width: 24px; width: 24px; height: 24px; }
+  .ea-page .ea-toggle { min-height: 44px; display: flex; align-items: center; gap: 10px; }
+
+  /* 16px is the threshold below which iOS Safari zooms the page on focus. */
+  .ea-page input[type="text"],
+  .ea-page input[type="number"],
+  .ea-page select { font-size: 16px; min-height: 44px; }
+
+  /* A range input's thumb is the tap target, and the default is tiny. */
+  .ea-page input[type="range"] { height: 44px; }
+  .ea-page input[type="range"]::-webkit-slider-thumb { width: 26px; height: 26px; }
+
+  .ea-page { -webkit-tap-highlight-color: transparent; }
+  /* Stops a double-tap on a control zooming the page mid-match. */
+  .ea-page button, .ea-page .ea-orb, .ea-page .ea-lib-orb { touch-action: manipulation; }
+}
+
+@media (max-width: 720px) {
+  .ea-shell { padding-inline: 0; }
+  .ea-shell > * { padding-inline: 14px; }
+
+  /* ---------------------------------------------------- the play screen */
+  /* One viewport, three rows: chrome, arena, controls. The arena is the
+     only row allowed to grow, so it takes whatever is left. dvh rather
+     than vh because Safari's toolbar changes the viewport as you scroll. */
+  body.ea-playing { overflow: hidden; }
+  body.ea-playing header-component,
+  body.ea-playing .ea-mode-switch,
+  body.ea-playing footer,
+  body.ea-playing #statsReadout { display: none; }
+
+  body.ea-playing .ea-shell {
+    /* `flex: 1` on the base rule lets the shell grow past a height, so the
+       cap has to be flex-basis plus max-height, not height alone. */
+    flex: 0 0 auto;
+    height: 100dvh;
+    max-height: 100dvh;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  body.ea-playing #play {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  body.ea-playing .ea-title {
+    flex: 0 0 auto;
+    margin: 4px 0 2px;
+    font-size: 1rem;
+    line-height: 1.2;
+    padding-inline: 12px;
+  }
+
+  body.ea-playing #stage {
+    flex: 1 1 auto;
+    /* The base rule floors this at 280px, which stops the arena giving space
+       back when the HUD is full of orbs. */
+    min-height: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+  }
+  /* The canvas is sized in JS; this keeps it from ever exceeding its row. */
+  body.ea-playing #arena { max-height: 100%; max-width: 100%; }
+
+  /* Two nameplates side by side rather than stacked — a duel is the common
+     case and stacking them cost 120px of arena for no information. */
+  body.ea-playing .ea-hud {
+    flex: 0 1 auto;
+    min-height: 0;
+    padding: 0 8px;
+    max-height: 27dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  body.ea-playing .ea-hud-edge { display: none; }
+  body.ea-playing #hudRows {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 6px;
+  }
+  body.ea-playing .ea-hud-row { padding: 6px 8px; font-size: .72rem; }
+  body.ea-playing .ea-hud-stat { font-size: .7rem; }
+  body.ea-playing .ea-status-drawer { gap: 3px; }
+  body.ea-playing .ea-status { font-size: .6rem; padding: 1px 5px; }
+
+  /* Controls pinned to the bottom, clear of the home indicator. Four across
+     so every target is comfortably wide at 390px. */
+  body.ea-playing .ea-bar {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    background: var(--bg-elev);
+    border-top: 1px solid var(--border);
+  }
+  body.ea-playing .ea-bar button {
+    width: 100%;
+    padding: 0 6px;
+    font-size: .68rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  body.ea-playing .ea-spacer { display: none; }
+  body.ea-playing #seedReadout { display: none; }
+  /* Speed spans the row: it is a slider, and a quarter-width slider is
+     unusable with a thumb. */
+  body.ea-playing .ea-speed {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: .7rem;
+  }
+  body.ea-playing .ea-speed input { flex: 1; width: auto; }
+
+  /* ------------------------------------------------------- panels/sheets */
+  /* Overlays become bottom sheets: reachable with a thumb, and they stop
+     being a small box floating in the middle of a tall screen. */
+  #overlay { align-items: flex-end; padding: 0; }
+  .ea-panel {
+    width: 100%;
+    max-width: none;
+    max-height: 88dvh;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+    animation: ea-sheet-up .28s var(--ease);
+  }
+  @keyframes ea-sheet-up { from { transform: translateY(14px); opacity: 0; } }
+
+  .ea-grid2 { grid-template-columns: 1fr; }
+  .ea-shop-offers { grid-template-columns: 1fr; }
+  .ea-shop { grid-template-columns: 1fr; }
+  .ea-enc-grid { grid-template-columns: 1fr; }
+  .ea-ench-grid, .ea-weapon-grid, .ea-status-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ea-panel { animation: none; }
+}
+
+/* The site's fixed dark-mode toggle sits bottom-right, which is exactly
+   where the play screen's control bar goes on a phone. Lift it clear rather
+   than moving it, so it keeps its place on every other page. */
+@media (max-width: 720px) {
+  body.ea-playing .dark-mode-toggle {
+    bottom: calc(env(safe-area-inset-bottom) + 176px);
+    opacity: .75;
+  }
+
+  /* Recording a canvas stream is unreliable on iOS Safari, and it is not
+     something anyone reaches for on a phone. Hidden rather than broken. */
+  body.ea-playing #recordBtn { display: none; }
+
+  /* Eight buttons across four columns is two clean rows. */
+  body.ea-playing .ea-bar { grid-auto-rows: 44px; }
+}
+
+/* An overlay's close control was a 31px square — under the tap minimum and
+   the one button every sheet needs. */
+@media (pointer: coarse) {
+  .ea-panel .ea-panel-close,
+  .ea-panel [data-close] { min-width: 44px; }
+}
+
+@media (pointer: coarse), (max-width: 720px) {
+  /* The reseed button was a 31px glyph — the narrowest target on the page. */
+  #forgeShuffle { min-width: 44px; }
+  /* The mode and family tabs were 22px tall. */
+  .ea-page .ea-tab { min-height: 44px; }
+}
+
+/* ---------------------------------------------- team editing + picker */
+
+/* Count and remove, inline on the orb. On a desktop they appear on hover or
+   focus so the board stays clean; on touch there is no hover, so they are
+   always there. */
+.ea-orb { position: relative; }
+.ea-orb-tools {
+  position: absolute;
+  top: 4px; right: 4px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity .15s var(--ease);
+}
+.ea-orb:hover .ea-orb-tools,
+.ea-orb:focus-within .ea-orb-tools,
+.ea-orb.is-selected .ea-orb-tools { opacity: 1; }
+.ea-orb-tool {
+  width: 22px; height: 22px;
+  min-height: 0;
+  display: grid; place-items: center;
+  padding: 0;
+  font-family: var(--font-mono); font-size: .8rem; line-height: 1;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--ink);
+}
+.ea-orb-tool:hover { border-color: var(--border-strong); }
+.ea-orb-tool--kill:hover { border-color: #e11d48; color: #e11d48; }
+
+.ea-team-add {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 10px;
+  font-family: var(--font-mono); font-size: .76rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+}
+.ea-team-add span { font-size: 1.05rem; line-height: 1; }
+.ea-team-add:hover { border-style: solid; color: var(--ink); border-color: var(--ea-team, var(--border-strong)); }
+
+.ea-picker-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.ea-picker-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+}
+.ea-picker-card {
+  display: grid; justify-items: center; gap: 2px;
+  padding: 10px 6px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--ea-color);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+}
+.ea-picker-card:hover { border-color: var(--ea-color); transform: translateY(-2px); }
+.ea-picker-name { font-family: var(--font-mono); font-size: .76rem; color: var(--ink); }
+.ea-picker-weapon { font-size: .64rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+
+@media (pointer: coarse), (max-width: 720px) {
+  .ea-orb-tools { opacity: 1; gap: 4px; }
+  /* Square and explicitly sized: the global 44px minimum made these tall and
+     narrow, which is a worse target than a slightly smaller square. Three of
+     them plus gaps still fit inside a chip. */
+  .ea-orb-tool {
+    width: 34px; height: 34px;
+    min-height: 34px;
+    font-size: 1rem;
+  }
+  .ea-team-add { min-height: 48px; }
+  .ea-orb { min-width: 118px; }
+}
+
+@media (max-width: 720px) {
+  /* The Forge opened with roughly 1300px of title, lede, three full-width
+     mode buttons and a blurb before the first thing you can actually touch.
+     On a phone the explanation has to get out of the way of the tool. */
+  .ea-forge-title { font-size: 1.6rem; margin-bottom: 4px; }
+  .ea-forge-lede {
+    font-size: .82rem;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  /* Modes as a three-across segmented control rather than three full rows.
+     The one-line description goes with the button it belongs to. */
+  #modeTabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  #modeTabs .ea-tab {
+    flex-direction: column;
+    gap: 0;
+    padding: 8px 4px;
+    font-size: .76rem;
+    text-align: center;
+  }
+  #modeTabs .ea-tab small,
+  #modeTabs .ea-tab span { display: none; }
+  #modeBlurb {
+    font-size: .76rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .ea-forge-body { gap: 12px; }
+  .ea-col-head h2 { font-size: .9rem; }
+
+  /* The launch bar was overlapping the library it sits on top of. */
+  .ea-launch {
+    position: sticky;
+    bottom: 0;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    z-index: 5;
+  }
+  .ea-launch .ea-seed-field { flex: 1 1 100%; }
+
+  /* Team columns side by side stay readable at 390px; three or more scroll. */
+  #teams {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+  }
+  .ea-picker-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+}

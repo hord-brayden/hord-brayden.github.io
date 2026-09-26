@@ -239,12 +239,16 @@ export class Forge {
         slots.appendChild(this.orbChip(e, i));
       }
 
-      if (!members.length) {
-        const hint = document.createElement('p');
-        hint.className = 'ea-team-hint';
-        hint.textContent = 'Drop an orb here';
-        slots.appendChild(hint);
-      }
+      const add = document.createElement('button');
+      add.type = 'button';
+      add.className = 'ea-team-add';
+      add.innerHTML = `<span>+</span> Add orb`;
+      add.setAttribute('aria-label', `Add an orb to ${soloMode ? 'your side' : TEAM_NAMES[teamId]}`);
+      add.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        this.openPicker(teamId, soloMode);
+      });
+      slots.appendChild(add);
 
       this.bindDropTarget(col, teamId);
       col.addEventListener('click', (ev) => {
@@ -277,6 +281,11 @@ export class Forge {
       <span class="ea-orb-name">${f.name}</span>
       ${entry.count > 1 ? `<span class="ea-orb-count">×${entry.count}</span>` : ''}
       ${tweaked ? `<span class="ea-orb-mod" title="${perk && perk.id !== 'none' ? perk.name : 'Custom build'}">◆</span>` : ''}
+      <span class="ea-orb-tools">
+        <button type="button" class="ea-orb-tool" data-act="less" title="One fewer" aria-label="One fewer ${f.name}">−</button>
+        <button type="button" class="ea-orb-tool" data-act="more" title="One more" aria-label="One more ${f.name}">+</button>
+        <button type="button" class="ea-orb-tool ea-orb-tool--kill" data-act="remove" title="Remove" aria-label="Remove ${f.name}">×</button>
+      </span>
     `;
     chip.setAttribute('aria-label', `${f.name}, ${TEAM_NAMES[entry.teamId]}. Click to edit.`);
 
@@ -287,6 +296,17 @@ export class Forge {
 
     chip.addEventListener('click', (ev) => {
       ev.stopPropagation();
+      const tool = ev.target.closest('.ea-orb-tool');
+      if (tool) {
+        const act = tool.dataset.act;
+        if (act === 'remove') { this.removeAt(index); return; }
+        if (act === 'more') this.setCount(index, (entry.count || 1) + 1);
+        // Stepping the last one out removes it, which is what "one fewer"
+        // means when there is one left.
+        else if ((entry.count || 1) <= 1) this.removeAt(index);
+        else this.setCount(index, entry.count - 1);
+        return;
+      }
       this.selected = index;
       this.focusTeam = entry.teamId;
       this.render();
@@ -303,6 +323,72 @@ export class Forge {
     });
     chip.addEventListener('dragend', () => this.endDrag());
     return chip;
+  }
+
+  /**
+   * The add-an-orb sheet.
+   *
+   * The library column is the expressive way to build a board, but it sits
+   * above the teams and on a phone that means scrolling away from the thing
+   * you are editing. This puts the whole roster one tap from the team it is
+   * going into, which is also how it stops being fiddly on a desktop.
+   */
+  openPicker(teamId, soloMode) {
+    this.pickerTeam = teamId;
+    this.pickerFamily = this.pickerFamily || FAMILIES[0].id;
+    $('#pickerTarget').textContent = soloMode
+      ? 'Everything you pick fights on your side.'
+      : `Adding to ${TEAM_NAMES[teamId]}.`;
+    this.renderPicker();
+    this.app.showOverlay('panelPicker');
+  }
+
+  renderPicker() {
+    const tabs = $('#pickerTabs');
+    tabs.innerHTML = FAMILIES.map((fam) => `
+      <button type="button" class="ea-tab ${fam.id === this.pickerFamily ? 'is-on' : ''}"
+              data-family="${fam.id}">${fam.name}</button>`).join('');
+    tabs.onclick = (ev) => {
+      const b = ev.target.closest('[data-family]');
+      if (!b) return;
+      this.pickerFamily = b.dataset.family;
+      this.renderPicker();
+    };
+
+    const grid = $('#pickerGrid');
+    $$('canvas', grid).forEach(detachPreview);
+    const list = Fighters.all.filter((f) => f.family === this.pickerFamily);
+    grid.innerHTML = '';
+    for (const f of list) {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'ea-picker-card';
+      card.style.setProperty('--ea-color', uiColor(f, false));
+      card.innerHTML = `
+        <canvas class="ea-orb-canvas" width="76" height="76" aria-hidden="true"></canvas>
+        <span class="ea-picker-name">${f.name}</span>
+        <span class="ea-picker-weapon">${weaponLabel(f.weapon.id)}</span>`;
+      attachPreview($('canvas', card), f, { themeId: this.app.config.themeId });
+      card.addEventListener('click', () => {
+        this.addFighter(f.id, this.pickerTeam);
+        this.app.hideOverlay();
+      });
+      grid.appendChild(card);
+    }
+  }
+
+  /** Change how many of one entry there are, respecting the board cap. */
+  setCount(index, next) {
+    const entry = this.roster[index];
+    if (!entry) return;
+    const want = Math.max(1, Math.min(8, next));
+    if (want > entry.count && this.totalOrbs() >= MAX_ORBS) {
+      this.app.toast(`${MAX_ORBS} orbs is the cap`);
+      return;
+    }
+    entry.count = want;
+    this.app.persist();
+    this.render();
   }
 
   bindDropTarget(el, teamId) {

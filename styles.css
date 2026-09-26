@@ -1090,3 +1090,10 @@ input:checked + .slider:before { transform: translateX(16px); background-color: 
 /* ---------- Selection ---------- */
 ::selection { background: var(--accent); color: #fff; }
 .dark-mode ::selection { background: var(--accent); color: #0a0907; }
+
+/* Touch targets. The hamburger is the first thing anyone taps on a phone and
+   it was 38px wide, under the 44px minimum. Scoped to coarse pointers so the
+   desktop header keeps its proportions. */
+@media (pointer: coarse) {
+  .hamburger-menu { min-width: 44px; min-height: 44px; }
+}
