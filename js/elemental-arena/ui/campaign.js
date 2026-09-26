@@ -16,6 +16,7 @@ import { CampaignRun, RunState, loadScores, clearScores, saveRun, loadRun, clear
 import { TIERS, Upgrades } from '../campaign/upgrades.js';
 import { MODIFIERS } from '../campaign/modifiers.js';
 import { attachPreview, detachPreview, refreshPreviews } from './preview.js';
+import { statTrack, STAT_RANGE } from './stat-track.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -202,7 +203,7 @@ export class Campaign {
               <div class="ea-stepper" data-stat="${st.id}">
                 <span class="ea-stepper-name">${st.name}</span>
                 <button type="button" class="ea-step" data-dir="-1" aria-label="Lower ${st.name}">−</button>
-                <span class="ea-stepper-pips">${starterPips(l[st.id])}</span>
+                <span class="ea-stepper-pips">${statTrack(l[st.id], st.step)}</span>
                 <button type="button" class="ea-step" data-dir="1" aria-label="Raise ${st.name}">+</button>
               </div>`).join('')}
           </div>
@@ -228,7 +229,7 @@ export class Campaign {
       const dir = Number(btn.dataset.dir);
       const next = { ...l, [stat]: l[stat] + dir };
       if (dir > 0 && buildSpend(next) > BUILD_BUDGET) {
-        const donors = BUILD_STATS.filter((x) => x.id !== stat && next[x.id] > -2)
+        const donors = BUILD_STATS.filter((x) => x.id !== stat && next[x.id] > -STAT_RANGE)
           .sort((x, y) => next[y.id] - next[x.id]);
         if (!donors.length) return;
         next[donors[0].id] -= 1;
@@ -354,16 +355,25 @@ export class Campaign {
     body.innerHTML = `
       <div class="ea-shop">
         <div class="ea-shop-offers">
-          ${run.offers.map((o, i) => `
+          ${run.offers.map((o, i) => {
+            // Real before/after figures, computed by applying the upgrade to a
+            // clone of the build — never a restatement of the description.
+            const rows = o.bought ? [] : run.previewUpgrade(o.def);
+            return `
             <article class="ea-offer ${o.bought ? 'is-bought' : ''} ${run.gold < o.cost ? 'is-poor' : ''}"
                      style="--ea-tier:${TIERS[o.def.tier].color}">
               <span class="ea-offer-tier">${TIERS[o.def.tier].name}</span>
               <h4>${o.def.name}</h4>
               <p>${o.def.desc}</p>
+              ${rows.length ? `<ul class="ea-delta">${rows.map((r) => `
+                <li class="${r.up ? 'is-up' : 'is-down'}">
+                  <span>${r.label}</span>
+                  <b>${r.before} <i>&rarr;</i> ${r.after}${r.pct != null ? ` <u>${r.pct > 0 ? '+' : ''}${r.pct}%</u>` : ''}</b>
+                </li>`).join('')}</ul>` : ''}
               <button type="button" data-buy="${i}" ${o.bought || run.gold < o.cost ? 'disabled' : ''}>
-                ${o.bought ? 'Installed' : `${o.cost}g`}
+                ${o.bought ? 'Installed' : `Buy · ${o.cost}g`}
               </button>
-            </article>`).join('')}
+            </article>`; }).join('')}
         </div>
 
         <div class="ea-shop-side">
@@ -464,12 +474,3 @@ export class Campaign {
   }
 }
 
-function starterPips(v) {
-  let out = '';
-  for (let i = -2; i <= 2; i++) {
-    if (i === 0) continue;
-    const on = (v > 0 && i > 0 && i <= v) || (v < 0 && i < 0 && i >= v);
-    out += `<i class="ea-pip ${on ? (v > 0 ? 'is-up' : 'is-down') : ''}"></i>`;
-  }
-  return out;
-}

@@ -21,6 +21,9 @@ import { Registry } from '../core/registry.js';
 export const Statuses = new Registry('status', {
   defaults: {
     short: '',
+    icon: '?',          // shown on the in-arena status chip
+    desc: '',           // what it does, in plain language
+    from: '',           // how you get it — the question players actually ask
     cc: false,          // crowd control — suppressed by CC immunity
     stackMode: 'refresh',
     maxStacks: 1,
@@ -42,6 +45,9 @@ Statuses.defineAll([
     name: 'Burning',
     short: 'BRN',
     color: '#ff5a1f',
+    icon: '🔥',
+    desc: "Damage over time that scales with stacks. Does not slow you down — it just keeps draining.",
+    from: "Landing hits from Fire. Soaked targets burn for 60% less.",
     stackMode: 'stack',
     maxStacks: 6,
     particle: 'ember',
@@ -63,6 +69,9 @@ Statuses.defineAll([
     name: 'Poisoned',
     short: 'PSN',
     color: '#7fd13b',
+    icon: '☠',
+    desc: "Damage over time that RAMPS the longer it sits, up to double, and cuts healing by 60%.",
+    from: "Venom hits, Bombardier flask pools, and the Plague Bloom ultimate.",
     stackMode: 'stack',
     maxStacks: 5,
     particle: 'toxin',
@@ -86,6 +95,9 @@ Statuses.defineAll([
     name: 'Bleeding',
     short: 'BLD',
     color: '#c81f3f',
+    icon: '🩸',
+    desc: "Damage over time that only ticks while you are moving. Standing still staunches it.",
+    from: "Metal, Knifethrower, Duelist and Lancer hits; katana, trident and caltrop weapons.",
     stackMode: 'stack',
     maxStacks: 5,
     particle: 'blood',
@@ -105,6 +117,9 @@ Statuses.defineAll([
     name: 'Corroded',
     short: 'COR',
     color: '#b06be0',
+    icon: '🧪',
+    desc: "Takes 8% more damage from everything, per stack.",
+    from: "Shadow, Arcane and Venom hits, and the axe weapon.",
     stackMode: 'stack',
     maxStacks: 5,
     // Pure amplification — the setup half of a burst combo.
@@ -122,6 +137,9 @@ Statuses.defineAll([
     name: 'Chilled',
     short: 'CHL',
     color: '#4fc3f7',
+    icon: '❄',
+    desc: "Slower movement and a slower swing, worse with every stack. Four stacks freezes you solid.",
+    from: "Ice hits, Nature hits, and the Blizzard ultimate.",
     cc: true,
     stackMode: 'stack',
     maxStacks: 4,
@@ -137,6 +155,9 @@ Statuses.defineAll([
     name: 'Frozen',
     short: 'FRZ',
     color: '#8be9ff',
+    icon: '🧊',
+    desc: "Almost completely stopped, and takes 35% more damage while frozen.",
+    from: "A fourth chill stack, or the Blizzard ultimate. Cannot re-apply for a few seconds afterwards.",
     cc: true,
     hardCC: true,
     particle: 'frost',
@@ -155,6 +176,9 @@ Statuses.defineAll([
     name: 'Stunned',
     short: 'STN',
     color: '#ffd93d',
+    icon: '💫',
+    desc: "Cannot move, swing, or fire an ultimate.",
+    from: "Lightning and Bulwark hits, the hammer weapon, and several ultimates.",
     cc: true,
     hardCC: true,
     particle: 'spark',
@@ -169,6 +193,9 @@ Statuses.defineAll([
     name: 'Petrified',
     short: 'PTR',
     color: '#8d7355',
+    icon: '🗿',
+    desc: "Rooted in place, but takes 45% LESS damage. A trade, not a pure loss.",
+    from: "Earth hits and the Tectonic Slam ultimate.",
     cc: true,
     hardCC: true,
     // Rooted but armoured — a trade, not a pure loss.
@@ -183,6 +210,9 @@ Statuses.defineAll([
     name: 'Soaked',
     short: 'WET',
     color: '#2f9bd8',
+    icon: '💧',
+    desc: "Conducts: DOUBLE damage from chained lightning, freezes far more easily, burns 60% less, and swings 12% softer.",
+    from: "Only Water applies this — its hits, its Maelstrom ultimate, and its Riptide overload.",
     particle: 'droplet',
     // The combo enabler: soaked targets conduct and freeze far harder,
     // but burn far less. Elements read this in their onHit hooks.
@@ -203,6 +233,9 @@ Statuses.defineAll([
     name: 'Enraged',
     short: 'RAGE',
     color: '#ff2d1f',
+    icon: '😡',
+    desc: "Deals 60% more damage and swings 35% faster, but takes 10% more in return.",
+    from: "The Infernal Rage ultimate, and the Wildfire overload.",
     beneficial: true,
     particle: 'ember',
     modify(mods) {
@@ -216,6 +249,9 @@ Statuses.defineAll([
     name: 'Focused',
     short: 'FCS',
     color: '#f0abfc',
+    icon: '🎯',
+    desc: "Deals 10% more damage.",
+    from: "Winning a clash while running the Counterweight drive.",
     beneficial: true,
     modify(mods) {
       mods.dmgMul *= 1.1;
@@ -226,6 +262,9 @@ Statuses.defineAll([
     name: 'Hastened',
     short: 'HST',
     color: '#ffe66d',
+    icon: '⚡',
+    desc: "Moves 45% faster and swings 50% faster.",
+    from: "Frenzy powerups and several ultimates.",
     beneficial: true,
     modify(mods) {
       mods.speedMul *= 1.45;
@@ -237,6 +276,9 @@ Statuses.defineAll([
     name: 'Shielded',
     short: 'SHD',
     color: '#7ec8ff',
+    icon: '🛡',
+    desc: "Takes 65% less damage.",
+    from: "Bulwark powerups, the Ablative chassis line, and several ultimates.",
     beneficial: true,
     modify(mods) {
       mods.dmgTakenMul *= 0.35;
@@ -247,6 +289,9 @@ Statuses.defineAll([
     name: 'Regenerating',
     short: 'REG',
     color: '#4ade80',
+    icon: '💚',
+    desc: "Restores health continuously. This is usually what is happening when someone will not die.",
+    from: "The Slow Knit perk, Overgrowth, brews, and Repair powerups.",
     beneficial: true,
     stackMode: 'refresh',
     onTick(engine, ball, inst, dt) {
@@ -258,6 +303,9 @@ Statuses.defineAll([
     name: 'Thorned',
     short: 'THN',
     color: '#4f9d3a',
+    icon: '🌵',
+    desc: "Reflects 35% of melee damage straight back at the attacker.",
+    from: "The Spiked Shell chassis, the Spiked Shell perk, and Bramble Guard powerups.",
     beneficial: true,
     // Reflects a share of incoming melee back at the attacker.
     onHitTaken(engine, ball, hit) {
@@ -275,6 +323,9 @@ Statuses.defineAll([
     name: 'CC Immune',
     short: 'CC-IMMUNE',
     color: '#ffffff',
+    icon: '✨',
+    desc: "Freezes, stuns and slows simply do not land.",
+    from: "Judgment, Infernal Rage, Purify powerups and the Ascendant overload.",
     beneficial: true,
     // Checked directly by Engine.applyStatus, which refuses to land any
     // definition flagged `cc: true` while this is up.
@@ -287,6 +338,9 @@ Statuses.defineAll([
     name: 'Siphoning',
     short: 'SIP',
     color: '#a855f7',
+    icon: '🧛',
+    desc: "Heals for 25% of all damage dealt, per stack. The other reason someone will not die.",
+    from: "Siphon powerups, the Siphon perk, and the Eclipse ultimate.",
     beneficial: true,
     modify(mods, inst) {
       mods.lifesteal += 0.25 * inst.stacks;
@@ -297,6 +351,9 @@ Statuses.defineAll([
     name: 'Colossal',
     short: 'BIG',
     color: '#f97316',
+    icon: '🔺',
+    desc: "50% bigger, 25% more damage, 20% more reach, but 15% slower.",
+    from: "Colossus powerups and the Avalanche / Juggernaut overloads.",
     beneficial: true,
     modify(mods) {
       mods.sizeMul *= 1.5;
@@ -310,6 +367,9 @@ Statuses.defineAll([
     name: 'Swift',
     short: 'SWF',
     color: '#22d3ee',
+    icon: '🔻',
+    desc: "30% smaller and faster, and takes 10% less damage.",
+    from: "Quicksilver powerups and the Riptide / Tempest overloads.",
     beneficial: true,
     modify(mods) {
       mods.sizeMul *= 0.7;

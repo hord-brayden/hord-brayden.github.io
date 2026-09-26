@@ -977,3 +977,309 @@ body.ea-recording #stage::after {
 @media (prefers-reduced-motion: reduce) {
   #recordBtn.is-recording::before { animation: none; }
 }
+
+/* ===================================================== v2 presentation === */
+
+/* --- the match title carries the fight, so it gets real presence --- */
+
+.ea-title {
+  font-size: clamp(1.15rem, 3.4vw, 2.1rem);
+  letter-spacing: -0.03em;
+  gap: 6px 16px;
+}
+.ea-title-side {
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;
+  padding: 2px 2px 3px;
+  text-shadow: 0 2px 0 color-mix(in srgb, var(--ea-color) 22%, transparent);
+}
+.ea-vs {
+  font-size: .58em;
+  letter-spacing: .22em;
+  color: var(--muted-soft);
+  border: 1.5px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 3px 10px 2px;
+  transform: translateY(-2px);
+}
+
+/* --- nameplate --- */
+
+#hudRows { gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.ea-hud-row {
+  padding: 8px 10px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ea-color);
+}
+.ea-hud-row.is-charged {
+  border-color: var(--ea-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ea-color) 30%, transparent);
+}
+.ea-hud-name {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+.ea-hud-who {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: .84rem;
+  color: var(--ea-color);
+  letter-spacing: -.01em;
+}
+.ea-hud-weapon {
+  font-family: var(--font-mono);
+  font-size: .64rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted-soft);
+  white-space: nowrap;
+}
+
+.ea-meter { height: 22px; }
+.ea-meter-label { line-height: 18px; font-size: .68rem; }
+.ea-meter-pct {
+  position: absolute;
+  top: 0; right: 7px;
+  line-height: 18px;
+  font-family: var(--font-mono);
+  font-size: .66rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-shadow: 0 1px 0 var(--ea-halo), 0 -1px 0 var(--ea-halo),
+               1px 0 0 var(--ea-halo), -1px 0 0 var(--ea-halo);
+}
+.ea-hud-row.is-charged .ea-meter { animation: ea-charged 1s ease-in-out infinite; }
+@keyframes ea-charged {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ea-color) 60%, transparent); }
+  50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ea-color) 0%, transparent); }
+}
+
+/* The ultimate's live figure — the thing that is visibly growing. */
+.ea-hud-stat {
+  font-size: .92rem;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  padding-top: 4px;
+  transition: color .2s var(--ease);
+}
+.ea-hud-stat.is-up { animation: ea-stat-up .55s var(--ease); }
+@keyframes ea-stat-up {
+  0% { transform: scale(1); }
+  28% { transform: scale(1.22); filter: brightness(1.5); }
+  100% { transform: scale(1); }
+}
+
+/* --- the status drawer: the answer to "why is that thing not dying" --- */
+
+.ea-status-drawer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  min-height: 0;
+}
+.ea-status {
+  --s: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: .63rem;
+  line-height: 1.5;
+  padding: 2px 6px 2px 4px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--s) 55%, transparent);
+  background: color-mix(in srgb, var(--s) 16%, transparent);
+  color: var(--ink);
+  cursor: help;
+}
+.ea-status.is-bad { border-style: solid; }
+.ea-status.is-good { border-style: dashed; }
+.ea-status-icon { font-style: normal; font-size: .78rem; line-height: 1; }
+.ea-status b { font-weight: 700; color: var(--ink); }
+.ea-status u { text-decoration: none; font-weight: 800; color: var(--s); }
+.ea-status em {
+  font-style: normal;
+  color: var(--muted-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- tuning track --- */
+
+.ea-stepper { grid-template-columns: 1fr 26px auto 26px; gap: 8px; }
+.ea-stepper-pips { display: flex; align-items: center; gap: 8px; }
+.ea-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px;
+  border-radius: 4px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+}
+.ea-pip {
+  width: 5px; height: 14px;
+  border-radius: 1.5px;
+  background: color-mix(in srgb, var(--muted-soft) 30%, transparent);
+  display: block;
+}
+.ea-pip--mid {
+  width: 2px; height: 18px;
+  border-radius: 0;
+  background: var(--muted);
+  margin: 0 2px;
+}
+.ea-pip.is-up { background: var(--good); }
+.ea-pip.is-down { background: var(--bad); }
+.ea-track-value {
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  min-width: 3.6em;
+  text-align: right;
+  color: var(--muted-soft);
+  font-variant-numeric: tabular-nums;
+}
+.ea-track-value.is-up { color: var(--good); }
+.ea-track-value.is-down { color: var(--bad); }
+
+/* --- weapon stat panel --- */
+
+.ea-wep-panel {
+  margin: -4px 0 12px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+}
+.ea-wep-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 0 0 7px;
+}
+.ea-wep-stats div { text-align: center; }
+.ea-wep-stats dt {
+  font-family: var(--font-mono);
+  font-size: .56rem;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--muted-soft);
+}
+.ea-wep-stats dd {
+  margin: 1px 0 0;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: .78rem;
+  font-variant-numeric: tabular-nums;
+}
+.ea-wep-ability { margin: 0; font-size: .72rem; line-height: 1.45; color: var(--muted); }
+.ea-wep-ability strong { color: var(--ink); }
+.ea-wep-kind {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: .54rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  margin-right: 5px;
+  vertical-align: 1px;
+}
+.ea-wep-deploy { background: #9333ea; color: #fff; }
+.ea-wep-onhit { background: #0891b2; color: #fff; }
+.ea-wep-passive { background: var(--border-strong); color: var(--ink); }
+
+/* --- codex: weapons, statuses, matchups --- */
+
+.ea-weapon-grid, .ea-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 9px;
+}
+.ea-weapon-card, .ea-status-card {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+}
+.ea-weapon-card h5, .ea-status-card h5 {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-size: .86rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ea-status-card { border-left: 3px solid var(--s); }
+.ea-status-card h5 i { font-style: normal; font-size: 1rem; }
+.ea-status-kind {
+  margin-left: auto;
+  font-size: .56rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--muted-soft);
+}
+.ea-status-card p { margin: 0 0 5px; font-size: .74rem; line-height: 1.5; color: var(--muted); }
+.ea-status-from { color: var(--muted-soft) !important; font-size: .7rem !important; }
+.ea-status-from strong { color: var(--ink); }
+
+.ea-matrix-wrap { overflow-x: auto; }
+.ea-matrix {
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: .7rem;
+  width: 100%;
+}
+.ea-matrix th, .ea-matrix td {
+  border: 1px solid var(--border);
+  padding: 3px 5px;
+  text-align: center;
+}
+.ea-matrix thead th { font-size: .85rem; padding: 4px 3px; }
+.ea-matrix tbody th {
+  text-align: left;
+  white-space: nowrap;
+  font-weight: 700;
+  padding-right: 9px;
+}
+.ea-matrix td.is-strong { background: color-mix(in srgb, var(--good) 28%, transparent); color: var(--good); font-weight: 800; }
+.ea-matrix td.is-weak { background: color-mix(in srgb, var(--bad) 22%, transparent); color: var(--bad); font-weight: 800; }
+.ea-matrix td.is-self { color: var(--muted-soft); background: var(--bg-sunken); }
+
+/* --- shop deltas --- */
+
+.ea-delta {
+  list-style: none;
+  margin: 2px 0 9px;
+  padding: 8px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: .7rem;
+  display: grid;
+  gap: 3px;
+}
+.ea-delta li { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ea-delta li span { color: var(--muted); }
+.ea-delta li b { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ea-delta li i { font-style: normal; color: var(--muted-soft); margin: 0 1px; }
+.ea-delta li u { text-decoration: none; font-size: .64rem; padding-left: 3px; }
+.ea-delta li.is-up b, .ea-delta li.is-up u { color: var(--good); }
+.ea-delta li.is-down b, .ea-delta li.is-down u { color: var(--bad); }
+
+@media (max-width: 720px) {
+  #hudRows { grid-template-columns: 1fr; }
+  .ea-wep-stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ea-hud-stat.is-up, .ea-hud-row.is-charged .ea-meter { animation: none; }
+}

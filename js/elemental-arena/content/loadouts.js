@@ -12,6 +12,7 @@
 
 import { Registry } from '../core/registry.js';
 import { Chassis, Drives } from './parts.js';
+import { STAT_RANGE } from '../ui/stat-track.js';
 
 export const Perks = new Registry('perk', {
   defaults: { desc: '', apply: null },
@@ -54,11 +55,16 @@ Perks.defineAll([
   },
 ]);
 
-/** Stat steppers, each in [-2, +2]. */
+/**
+ * Stat steppers, each in [-STAT_RANGE, +STAT_RANGE].
+ *
+ * The range used to be [-2, +2], which made the control feel like three
+ * settings rather than a slider. Same total swing, five times the resolution.
+ */
 export const BUILD_STATS = [
-  { id: 'hp', name: 'Health', step: 0.13 },
-  { id: 'dmg', name: 'Damage', step: 0.13 },
-  { id: 'spd', name: 'Speed', step: 0.12 },
+  { id: 'hp', name: 'Health', step: 0.055 },
+  { id: 'dmg', name: 'Damage', step: 0.055 },
+  { id: 'spd', name: 'Speed', step: 0.05 },
 ];
 
 /** Points you may spend above neutral. Sum of positives minus negatives. */
@@ -84,10 +90,10 @@ export function normalizeLoadout(raw) {
   if (Perks.has(raw.perk)) out.perk = raw.perk;
   for (const s of BUILD_STATS) {
     const v = Math.round(Number(raw[s.id]) || 0);
-    out[s.id] = Math.max(-2, Math.min(2, v));
+    out[s.id] = Math.max(-STAT_RANGE, Math.min(STAT_RANGE, v));
   }
   // Enforce the budget by shaving the largest positive until it balances.
-  let guard = 12;
+  let guard = 40;
   while (buildSpend(out) > BUILD_BUDGET && guard-- > 0) {
     const best = BUILD_STATS.reduce((a, b) => (out[a.id] >= out[b.id] ? a : b));
     out[best.id] -= 1;

@@ -235,7 +235,7 @@ Fighters.define({
   colors: { core: '#8b5e34', dark: '#40281a', light: '#c89b6a', accent: '#5b8c3a', ink: '#ffffff', trail: '#a97c50' },
   weapon: { id: 'hammer', name: 'Terrafall', palette: wpal('earth', '#8d7355', '#c4a683', '#4a3a28', '#5b8c3a', '#3a2a1c') },
   cosmetic: 'rocks',
-  hp: 1.26, speed: 0.9, damage: 1.2, spin: 0.9,
+  hp: 1.3, speed: 0.96, damage: 1.26, spin: 0.94,
   strong: ['lightning', 'fire', 'metal'],
   weak: ['nature', 'wind'],
   particle: 'rubble',
@@ -296,7 +296,7 @@ Fighters.define({
   colors: { core: '#1f7fd4', dark: '#06304f', light: '#7fc8ff', accent: '#c9f0ff', ink: '#ffffff', trail: '#4aa8e8' },
   weapon: { id: 'trident', name: 'Tidewarden', palette: wpal('water', '#4aa8e8', '#c9f0ff', '#0d4a72', '#ffffff', '#2a3a44') },
   cosmetic: 'bubbles',
-  hp: 1.08, speed: 1.1, damage: 1.24,
+  hp: 1.05, speed: 1.08, damage: 1.12,
   strong: ['fire', 'earth', 'metal'],
   weak: ['lightning', 'nature'],
   particle: 'droplet',
@@ -315,7 +315,7 @@ Fighters.define({
     // Water needs to cash in its own debuff. Without this the element is
     // pure utility for whoever it is standing next to, and loses every duel.
     damageBonus(engine, attacker, victim) {
-      return victim.statuses.has('wet') ? 1.8 : 1;
+      return victim.statuses.has('wet') ? 1.45 : 1;
     },
     onTick(engine, ball, dt) {
       for (const foe of engine.enemiesOf(ball)) {
@@ -366,7 +366,7 @@ Fighters.define({
   colors: { core: '#3f9d3a', dark: '#1c4a1a', light: '#8fd96a', accent: '#d4f27a', ink: '#ffffff', trail: '#6bbf4a' },
   weapon: { id: 'scythe', name: 'Bramblereap', palette: wpal('nature', '#8fd96a', '#d4f27a', '#2f6b2a', '#c8a24a', '#4a3520') },
   cosmetic: 'leaves',
-  hp: 1.0, damage: 0.88,
+  hp: 0.98, damage: 0.86,
   strong: ['water', 'earth'],
   weak: ['fire', 'ice'],
   particle: 'leaf',
@@ -383,7 +383,7 @@ Fighters.define({
     desc: 'Regenerates continuously, faster the lower its health gets.',
     onTick(engine, ball, dt) {
       const missing = 1 - ball.hp / ball.maxHp;
-      engine.heal(ball, (0.03 + missing * 0.1) * dt);
+      engine.heal(ball, (0.025 + missing * 0.08) * dt);
     },
   },
 

@@ -47,6 +47,7 @@ export class Renderer {
     this.ballCache = new Map();
     this.gridCanvas = null;      // grid colours may differ per theme
     this.fittedTheme = null;     // border padding differs, so re-fit
+    this._vignette = null;       // gradient is theme-coloured
     return this;
   }
 
@@ -166,11 +167,13 @@ export class Renderer {
     ctx.clip();
 
     this.theme.background(ctx, e, e.arena.w, e.arena.h);
+    this.drawFloor(ctx, e);
     this.drawTerritory(ctx);
     this.drawHazards(ctx);
     this.drawFields(ctx);
     this.drawPickups(ctx);
     if (this.showParticles) this.drawParticles(ctx);
+    this.drawTurrets(ctx);
     this.drawProjectiles(ctx, alpha);
     this.drawEffectsBelow(ctx);
     this.drawBalls(ctx, alpha);
@@ -184,12 +187,23 @@ export class Renderer {
     ctx.translate(this.offsetX + sx, this.offsetY + sy);
     ctx.strokeStyle = this.theme.arena.border;
     ctx.lineWidth = this.theme.arena.borderWidth;
-    ctx.strokeRect(
-      -this.theme.arena.borderWidth / 2,
-      -this.theme.arena.borderWidth / 2,
-      e.arena.w * this.scale + this.theme.arena.borderWidth,
-      e.arena.h * this.scale + this.theme.arena.borderWidth
-    );
+    const bw = this.theme.arena.borderWidth;
+    const W = e.arena.w * this.scale, H = e.arena.h * this.scale;
+    ctx.strokeRect(-bw / 2, -bw / 2, W + bw, H + bw);
+
+    // Corner brackets — a small thing that makes the frame look designed
+    // rather than merely drawn.
+    ctx.lineWidth = bw * 1.7;
+    ctx.lineCap = 'butt';
+    const arm = Math.min(46, W * 0.09);
+    const off = bw * 1.1;
+    ctx.beginPath();
+    for (const [cx, cy, sx, sy] of [[0,0,1,1],[W,0,-1,1],[0,H,1,-1],[W,H,-1,-1]]) {
+      ctx.moveTo(cx - sx * off, cy - sy * off + sy * arm);
+      ctx.lineTo(cx - sx * off, cy - sy * off);
+      ctx.lineTo(cx - sx * off + sx * arm, cy - sy * off);
+    }
+    ctx.stroke();
     ctx.restore();
 
     this.drawWeather(ctx);
@@ -200,6 +214,44 @@ export class Renderer {
       ctx.fillRect(0, 0, this.width, this.height);
       ctx.globalAlpha = 1;
     }
+  }
+
+  /**
+   * Arena floor dressing: a centre mark, a faint lattice and a vignette.
+   *
+   * Purely cosmetic, and cheap — three fills and a cached gradient. A flat
+   * white rectangle reads as a placeholder; this reads as a board.
+   */
+  drawFloor(ctx, e) {
+    const { w, h } = e.arena;
+    const inTerritory = e.mode && e.mode.id === 'territory';
+
+    if (!inTerritory) {
+      // A light lattice so motion across the floor is legible.
+      ctx.strokeStyle = this.theme.floorLine;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = 60; x < w; x += 60) { ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, h); }
+      for (let y = 60; y < h; y += 60) { ctx.moveTo(0, y + 0.5); ctx.lineTo(w, y + 0.5); }
+      ctx.stroke();
+
+      // Centre mark.
+      ctx.strokeStyle = this.theme.floorMark;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) * 0.17, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, 5, 0, TAU); ctx.stroke();
+    }
+
+    if (!this._vignette || this._vignetteFor !== `${w}x${h}|${this.theme.id}`) {
+      const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.32,
+                                         w / 2, h / 2, Math.max(w, h) * 0.78);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, this.theme.vignette);
+      this._vignette = g;
+      this._vignetteFor = `${w}x${h}|${this.theme.id}`;
+    }
+    ctx.fillStyle = this._vignette;
+    ctx.fillRect(0, 0, w, h);
   }
 
   /* -------------------------------------------------------- territory */
@@ -374,7 +426,7 @@ export class Renderer {
 
     ctx.restore();
 
-    this.drawStatusTags(ctx, ball, x, y, r);
+    this.drawStatusChips(ctx, ball, x, y, r);
   }
 
   /**
@@ -431,25 +483,80 @@ export class Renderer {
 
   /** A single most-important status name over the ball, like CC-IMMUNE in
    *  the source. Showing all of them at once turns into noise. */
-  drawStatusTags(ctx, ball, x, y, r) {
-    let pick = null;
-    for (const [id] of ball.statuses) {
+  /**
+   * A row of status chips beneath the orb.
+   *
+   * The previous version showed one cryptic three-letter code and picked which
+   * one arbitrarily, so a fighter healing through everything or melting from
+   * poison looked exactly like a fighter with nothing on it. Every active
+   * effect now gets its own coloured chip with its stack count, buffs and
+   * debuffs on separate rows so you can tell at a glance which way a fight is
+   * going.
+   */
+  drawStatusChips(ctx, ball, x, y, r) {
+    if (!ball.statuses.size) return;
+
+    const good = [], bad = [];
+    for (const [id, inst] of ball.statuses) {
       const def = this.engine.statusDef(id);
       if (!def || !def.short) continue;
-      if (!pick || (def.beneficial && !pick.beneficial)) pick = def;
+      (def.beneficial ? good : bad).push({ def, inst });
     }
-    if (!pick) return;
-    const size = Math.max(9, Math.round(r * 0.42));
-    ctx.font = this.theme.textFont(size);
+
+    const h = Math.max(11, Math.round(r * 0.33));
+    const font = Math.max(8, Math.round(h * 0.72));
+    ctx.font = this.theme.textFont(font);
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = 3.5;
-    ctx.strokeStyle = this.theme.hpStroke;
-    ctx.fillStyle = pick.color;
-    const top = y - r - Math.max(5, r * 0.22) - Math.max(4, r * 0.14) - 6;
-    ctx.strokeText(pick.short, x, top);
-    ctx.fillText(pick.short, x, top);
+    ctx.textBaseline = 'middle';
+
+    const drawRow = (list, top) => {
+      if (!list.length) return;
+      const shown = list.slice(0, 5);
+      const widths = shown.map(({ def, inst }) => {
+        const label = inst.stacks > 1 ? `${def.short} ${inst.stacks}` : def.short;
+        return ctx.measureText(label).width + h * 0.7;
+      });
+      const gap = 3;
+      const total = widths.reduce((a, b) => a + b, 0) + gap * (shown.length - 1);
+      let cx = x - total / 2;
+
+      shown.forEach(({ def, inst }, i) => {
+        const w = widths[i];
+        const label = inst.stacks > 1 ? `${def.short} ${inst.stacks}` : def.short;
+        // A dark plate under every chip keeps pale statuses readable on the
+        // white arena and dark ones readable on the neon one.
+        ctx.fillStyle = this.theme.hpStroke;
+        this.roundRect(ctx, cx - 1.5, top - 1.5, w + 3, h + 3, 3);
+        ctx.fill();
+        ctx.fillStyle = def.color;
+        this.roundRect(ctx, cx, top, w, h, 2.5);
+        ctx.fill();
+        ctx.fillStyle = this.chipInk(def.color);
+        ctx.fillText(label, cx + w / 2, top + h / 2 + 0.5);
+        cx += w + gap;
+      });
+
+      if (list.length > shown.length) {
+        ctx.fillStyle = this.theme.hpStroke;
+        ctx.fillText(`+${list.length - shown.length}`, cx + h * 0.5, top + h / 2);
+      }
+    };
+
+    drawRow(bad, y + r + Math.max(6, r * 0.18));
+    drawRow(good, y + r + Math.max(6, r * 0.18) + (bad.length ? h + 4 : 0));
+  }
+
+  /** Black or white text, whichever reads on this chip colour. */
+  chipInk(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    const lum = (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+    return lum > 0.55 ? '#10100e' : '#ffffff';
+  }
+
+  roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+    else ctx.rect(x, y, w, h);
   }
 
   /* -------------------------------------------------------- cosmetics */
@@ -585,15 +692,22 @@ export class Renderer {
       ctx.save();
       ctx.translate(gx, gy);
       ctx.rotate(w.angle);
-      if (this.theme.glow) {
-        ctx.shadowColor = ball.element.colors.light;
-        ctx.shadowBlur = 14;
-      }
       // Scale the baked sprite so its art width equals the blade length the
       // engine uses for hit tests — what you see is exactly what can hit you.
       const k = len / sprite.artWidth;
       ctx.scale(k, k);
       ctx.imageSmoothingEnabled = false;
+
+      // A dropped shadow lifts the weapon off the arena floor and gives the
+      // silhouette definition it did not have against a white background.
+      if (!this.theme.glow) {
+        ctx.globalAlpha = 0.22;
+        ctx.drawImage(sprite, -sprite.anchorX + 2.5 / k, -sprite.anchorY + 3 / k);
+        ctx.globalAlpha = 1;
+      } else {
+        ctx.shadowColor = ball.element.colors.light;
+        ctx.shadowBlur = 16;
+      }
       ctx.drawImage(sprite, -sprite.anchorX, -sprite.anchorY);
       ctx.imageSmoothingEnabled = true;
       ctx.shadowBlur = 0;
@@ -610,16 +724,53 @@ export class Renderer {
       ctx.fillStyle = p.color;
       if (this.theme.glow) { ctx.shadowColor = p.color; ctx.shadowBlur = 14; }
       if (p.style === 'arrow') {
-        // Drawn along its heading so a volley reads as direction, not dots.
+        // A real arrow: shaft, broadhead and fletching, outlined so it reads
+        // against the white arena. The previous version was a 12px dash and
+        // was effectively invisible in flight.
+        const L = p.radius * 4.2;          // shaft length
+        const head = p.radius * 2.0;
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(p.angle);
-        ctx.fillRect(-p.radius * 2.4, -1.5, p.radius * 4, 3);
+
+        // A short motion streak behind it sells the speed.
+        const grad = ctx.createLinearGradient(-L * 2.1, 0, -L * 0.6, 0);
+        grad.addColorStop(0, 'rgba(255,255,255,0)');
+        grad.addColorStop(1, p.color);
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = grad;
+        ctx.fillRect(-L * 2.1, -1.4, L * 1.5, 2.8);
+        ctx.globalAlpha = 1;
+
+        const outline = this.theme.pixelate ? this.theme.outline : 'rgba(0,0,0,0.55)';
+        const drawArrow = (grow, fill) => {
+          ctx.fillStyle = fill;
+          // Shaft.
+          ctx.fillRect(-L - grow, -1.7 - grow, L + head * 0.6 + grow * 2, 3.4 + grow * 2);
+          // Broadhead.
+          ctx.beginPath();
+          ctx.moveTo(L * 0.42 + head + grow, 0);
+          ctx.lineTo(L * 0.42 - grow * 0.5, -head * 0.62 - grow);
+          ctx.lineTo(L * 0.42 + head * 0.2, 0);
+          ctx.lineTo(L * 0.42 - grow * 0.5, head * 0.62 + grow);
+          ctx.closePath();
+          ctx.fill();
+          // Fletching.
+          ctx.beginPath();
+          ctx.moveTo(-L - grow, 0);
+          ctx.lineTo(-L + head * 0.75 + grow, -head * 0.55 - grow);
+          ctx.lineTo(-L + head * 0.5 + grow, 0);
+          ctx.lineTo(-L + head * 0.75 + grow, head * 0.55 + grow);
+          ctx.closePath();
+          ctx.fill();
+        };
+
+        drawArrow(1.8, outline);
+        drawArrow(0, p.color);
+        // A bright tip so the business end is obvious.
+        ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.moveTo(p.radius * 2.4, 0);
-        ctx.lineTo(p.radius * 0.8, -p.radius);
-        ctx.lineTo(p.radius * 0.8, p.radius);
-        ctx.closePath();
+        ctx.arc(L * 0.42 + head * 0.75, 0, 1.6, 0, TAU);
         ctx.fill();
         ctx.restore();
       } else if (p.style === 'flask') {
@@ -643,6 +794,63 @@ export class Renderer {
         ctx.arc(x, y, p.radius, 0, TAU);
         ctx.stroke();
       }
+    }
+  }
+
+  /** Deployed turrets — a visible, on-board consequence of a weapon choice. */
+  drawTurrets(ctx) {
+    const t = this.engine.time;
+    for (const tur of this.engine.turrets) {
+      const fade = tur.age > tur.life - 1.2 ? (tur.life - tur.age) / 1.2 : 1;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0.2, fade);
+      ctx.translate(tur.x, tur.y);
+
+      const R = tur.radius;
+      const ink = this.theme.hpStroke;
+
+      // Hexagonal footing with bolts — reads as machinery rather than a dot.
+      ctx.fillStyle = ink;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * TAU + Math.PI / 6;
+        const px = Math.cos(a) * (R + 4), py = Math.sin(a) * (R + 4);
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = tur.color;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * TAU + Math.PI / 6;
+        const px = Math.cos(a) * (R + 1), py = Math.sin(a) * (R + 1);
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = ink;
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * TAU + Math.PI / 6;
+        ctx.fillRect(Math.cos(a) * (R - 1) - 1.2, Math.sin(a) * (R - 1) - 1.2, 2.4, 2.4);
+      }
+
+      // Swivel head and barrel, tracking whatever it is shooting.
+      ctx.rotate(tur.angle);
+      ctx.fillStyle = ink;
+      ctx.fillRect(-2, -4.5, R + 15, 9);
+      ctx.fillStyle = tur.color;
+      ctx.fillRect(-1, -3, R + 13, 6);
+      ctx.fillStyle = ink;
+      ctx.fillRect(R + 9, -5.5, 4, 11);      // muzzle brake
+
+      // A charge pip that brightens as it is about to fire.
+      const ready = 1 - Math.max(0, tur.cooldown) / tur.interval;
+      ctx.fillStyle = ink;
+      ctx.beginPath(); ctx.arc(0, 0, R * 0.5 + 1.5, 0, TAU); ctx.fill();
+      ctx.globalAlpha = Math.max(0.2, fade) * (0.3 + ready * 0.7);
+      ctx.fillStyle = ready > 0.93 ? '#ffffff' : tur.color;
+      ctx.beginPath(); ctx.arc(0, 0, R * 0.5, 0, TAU); ctx.fill();
+      ctx.restore();
     }
   }
 
@@ -818,6 +1026,55 @@ export class Renderer {
         ctx.beginPath();
         ctx.arc(e.x, e.y, r, 0, TAU);
         ctx.stroke();
+        ctx.globalAlpha = 1;
+      } else if (e.type === 'clash') {
+        // A parry is the most satisfying thing that happens without anyone
+        // taking damage, so it gets its own flourish rather than a plain ring.
+        const ease = 1 - (1 - t) * (1 - t);
+        ctx.save();
+        ctx.translate(e.x, e.y);
+
+        // Two rings chasing each other outward.
+        ctx.globalAlpha = (1 - t) * 0.95;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 5 * (1 - t) + 1;
+        ctx.beginPath(); ctx.arc(0, 0, 10 + ease * 62, 0, TAU); ctx.stroke();
+        ctx.globalAlpha = (1 - t) * 0.6;
+        ctx.strokeStyle = e.color;
+        ctx.lineWidth = 9 * (1 - t) + 1;
+        ctx.beginPath(); ctx.arc(0, 0, 4 + ease * 38, 0, TAU); ctx.stroke();
+
+        // A four-point star flash at the contact point.
+        ctx.globalAlpha = Math.max(0, 1 - t * 2.4);
+        ctx.fillStyle = '#ffffff';
+        ctx.rotate(e.spin);
+        const arm = 40 * (1 - t * 0.5);
+        for (let i = 0; i < 4; i++) {
+          ctx.beginPath();
+          ctx.moveTo(0, -arm);
+          ctx.lineTo(5.5, 0);
+          ctx.lineTo(0, arm);
+          ctx.lineTo(-5.5, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.rotate(Math.PI / 4);
+        }
+
+        // Radiating shards.
+        ctx.globalAlpha = (1 - t) * 0.9;
+        ctx.strokeStyle = e.color;
+        ctx.lineWidth = 3 * (1 - t) + 0.8;
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 8; i++) {
+          const a = e.spin * 1.7 + (i / 8) * TAU;
+          const inner = 14 + ease * 30;
+          const outer = inner + 16 * (1 - t);
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * inner, Math.sin(a) * inner);
+          ctx.lineTo(Math.cos(a) * outer, Math.sin(a) * outer);
+          ctx.stroke();
+        }
+        ctx.restore();
         ctx.globalAlpha = 1;
       } else if (e.type === 'beam') {
         ctx.globalAlpha = 1 - t;

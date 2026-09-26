@@ -483,6 +483,45 @@ Weapons.defineAll([
   },
 ]);
 
+/* ------------------------------------------------------------- stats */
+
+/*
+ * The derived numbers the engine actually uses, in a form a person can read.
+ *
+ * These are not decorative: they are computed with the same constants
+ * core/engine.js uses, so the Codex cannot quietly disagree with the
+ * simulation. Length is the single most important figure — it decides how
+ * often a weapon meets anything — and it is deliberately compressed toward
+ * the mean, with the difference paid back as damage and recovery speed.
+ */
+const LENGTH_COMPRESSION = 0.5;
+const WEAPON_LENGTH_PER_RADIUS = 2.15;
+
+function compressedRatio(raw) { return 0.9 + (raw - 0.9) * LENGTH_COMPRESSION; }
+
+export function weaponStats(id) {
+  const def = Weapons.require(id);
+  const raw = def.w / 30;
+  const reach = WEAPON_LENGTH_PER_RADIUS * compressedRatio(raw);
+  const damage = 0.86 + raw * 0.24;
+  const cooldown = (0.74 + raw * 0.32) * (def.heavy ? 0.34 : 0.24);
+  const thickness = def.h * def.hitRadius;
+  return {
+    raw,
+    reachValue: reach,
+    damageValue: damage * (def.heavy ? 1.12 : 1),
+    cooldownValue: cooldown,
+    thicknessValue: thickness,
+    // Display forms.
+    reach: `${reach.toFixed(2)}x orb radius`,
+    damage: `${Math.round((damage * (def.heavy ? 1.12 : 1)) * 100)}%`,
+    recovery: `${cooldown.toFixed(2)}s between hits`,
+    hitbox: `${thickness.toFixed(1)} units thick`,
+    heavy: !!def.heavy,
+    size: `${def.w}x${def.h}`,
+  };
+}
+
 /* ------------------------------------------------------------ labels */
 
 /* Ids are terse because they are typed in definitions and packed into share

@@ -26,6 +26,7 @@ import { Powerups } from '../content/powerups.js';
 import { Weapons } from '../content/weapons.js';
 import { Perks, defaultLoadout, normalizeLoadout, buildMultiplier } from '../content/loadouts.js';
 import { Chassis, Drives } from '../content/parts.js';
+import { weaponAbility } from '../content/weapon-abilities.js';
 
 export const SIM_HZ = 120;
 const SIM_DT = 1 / SIM_HZ;
@@ -204,6 +205,7 @@ export class Ball {
       length: 1, half: 1,
       lastHit: new Map(),
       lastParry: -99,
+      ability: weaponAbility(this.weaponId),
       rawRatio: def.w / WEAPON_REF_WIDTH,
       widthRatio: compressedRatio(def.w / WEAPON_REF_WIDTH),
       dmgScale: weaponDamageScale(def.w / WEAPON_REF_WIDTH),
@@ -253,6 +255,7 @@ export class Engine {
     this.projectiles = [];
     this.pickups = [];
     this.hazards = [];       // potion brews, poison pools
+    this.turrets = [];       // deployed by weapons like the wrench
     this.effects = [];       // transient visuals: beams, pillars, rings
     this.texts = [];         // floating combat text
     this.fields = [];        // vortices and other timed force fields
@@ -272,6 +275,11 @@ export class Engine {
     this.weatherKind = null;
     this.weatherUntil = 0;
     this.speedScale = config.gameSpeed || 1;
+
+    // A campaign stage that runs long ends in sudden death rather than on a
+    // timer: the next clean hit wins, so a stalemate is still a gamble.
+    this.suddenDeathAt = config.suddenDeathAt || 0;
+    this.suddenDeath = false;
 
     this.listeners = new Map();
     this.mode = null;
@@ -295,6 +303,9 @@ export class Engine {
   }
 
   applyPerk(ball) {
+    const ability = weaponAbility(ball.weaponId);
+    if (ability && ability.onSpawn) ability.onSpawn(ball, this);
+
     const start = ball.chassis && ball.chassis.startStatus;
     if (start) this.applyStatus(ball, start.id, start.duration, { sourceId: ball.id });
     const perk = Perks.get(ball.loadout.perk);
@@ -425,6 +436,7 @@ export class Engine {
     this.resolveParries();
     this.resolveWeaponHits();
     this.updateProjectiles(dt);
+    this.updateTurrets(dt);
     this.updateHazards(dt);
     this.updateFields(dt);
     this.updatePickups(dt);
@@ -435,6 +447,15 @@ export class Engine {
     this.particles.update(dt);
     this.decayScreenEffects(dt);
     this.decayTransients(dt);
+
+    if (this.suddenDeathAt && !this.suddenDeath && this.time >= this.suddenDeathAt) {
+      this.suddenDeath = true;
+      this.flash('#ff2d1f', 0.45);
+      this.shake(18);
+      this.weather('suddendeath', 9999);
+      this.sfx('suddendeath');
+      this.emit('suddendeath', this);
+    }
 
     if (this.mode) this.mode.update(this, dt);
     if (!this.over && this.mode) {
@@ -462,7 +483,7 @@ export class Engine {
       m.healMul = 1; m.sizeMul = 1; m.reachMul = 1; m.lifesteal = 0;
       m.burnMul = 1; m.freezeMul = 1; m.shockMul = 1;
       m.ccImmune = false; m.canUlt = true;
-      m.evasion = 0; m.knockbackResist = 0; m.parryWins = false;
+      m.evasion = 0; m.knockbackResist = 0; m.parryWins = !!ball.shieldBash;
 
       for (const [id, inst] of ball.statuses) {
         const def = Statuses.get(id);
@@ -764,9 +785,16 @@ export class Engine {
     this.stats.parries++;
     this.particles.burst('spark', cx, cy, 16, 260, '#ffffff');
     this.particles.burst('spark', cx, cy, 8, 160, a.element.colors.light);
-    this.effects.push({ type: 'ring', x: cx, y: cy, r: 4, maxR: 46, age: 0, life: 0.3, color: '#ffffff' });
-    this.hitStop = Math.max(this.hitStop, 0.03);
-    this.shake(6);
+    this.effects.push({
+      type: 'clash', x: cx, y: cy, age: 0, life: 0.42,
+      color: a.element.colors.light,
+      spin: this.cosmeticRng.range(0, Math.PI),
+    });
+    this.particles.burst('shard', cx, cy, 10, 300, b.element.colors.light);
+    // A clash freezes time a touch longer than a hit — it is the single most
+    // satisfying thing that happens without anyone losing health.
+    this.hitStop = Math.max(this.hitStop, 0.055);
+    this.shake(9);
     this.sfx('parry', { aWeaponId: a.weaponId, bWeaponId: b.weaponId });
 
     for (const [ball, w] of [[a, wa], [b, wb]]) {
@@ -807,6 +835,10 @@ export class Engine {
   landWeaponHit(attacker, victim, w) {
     let amount = attacker.baseDamage * attacker.mods.dmgMul;
     amount *= effectiveness(attacker.element, victim.element);
+    // Tempo is the sword's ability: it stacks up as you land hits and is
+    // wiped the moment you take one.
+    if (attacker.tempo) amount *= 1 + attacker.tempo * 0.06;
+    if (w.ability && w.ability.bonus) amount *= w.ability.bonus({ engine: this, attacker, victim });
     const passive = attacker.element.passive;
     if (passive && passive.damageBonus) {
       amount *= passive.damageBonus(this, attacker, victim);
@@ -825,6 +857,7 @@ export class Engine {
       kind: 'weapon',
       knockback: w.heavy ? 200 : 90,
       fromX: w.tipX, fromY: w.tipY,
+      pierce: w.ability ? (w.ability.pierce || 0) : 0,
     });
     if (dealt <= 0) return;   // evaded
 
@@ -839,6 +872,9 @@ export class Engine {
 
     if (attacker.element.onHit) {
       attacker.element.onHit({ engine: this, attacker, victim, amount: dealt });
+    }
+    if (w.ability && w.ability.onHit) {
+      w.ability.onHit({ engine: this, attacker, victim, amount: dealt, weapon: w });
     }
     if (passive && passive.onHitExtra) passive.onHitExtra(this, attacker, victim);
 
@@ -886,7 +922,14 @@ export class Engine {
     }
 
     let dealt = amount;
-    if (!ignoreArmor) dealt *= target.mods.dmgTakenMul;
+    if (!ignoreArmor) {
+      // A piercing weapon shrinks the target's reduction rather than skipping
+      // it, so armour still matters — it just matters less.
+      const armour = opts.pierce
+        ? 1 - (1 - target.mods.dmgTakenMul) * (1 - opts.pierce)
+        : target.mods.dmgTakenMul;
+      dealt *= armour;
+    }
 
     // Campaign resistances are keyed by damage kind, so a run can specialise
     // against the thing that keeps killing it rather than buying generic bulk.
@@ -899,8 +942,19 @@ export class Engine {
     }
     dealt = Math.max(0, dealt);
 
+    if (kind === 'weapon') target.tempo = 0;
+
     target.hp -= dealt;
     target.hitFlash = 1;
+
+    // Sudden death: past the campaign's clock, the next clean hit ends it.
+    if (this.suddenDeath && target.hp > 0
+        && (kind === 'weapon' || kind === 'projectile' || kind === 'ult')) {
+      target.hp = 0;
+      this.announce(target, 'SUDDEN DEATH', '#ff2d1f', 2);
+      this.flash('#ff2d1f', 0.5);
+      this.shake(26);
+    }
 
     if (opts.knockback) {
       const src = this.byId(sourceId);
@@ -939,6 +993,7 @@ export class Engine {
   heal(ball, amount) {
     if (!ball || ball.dead || amount <= 0) return;
     if (this.noHealing) return;   // the Sudden Death stage modifier
+    if (ball.curseUntil && this.time < ball.curseUntil) amount *= 0.4;
     const healed = Math.min(amount * ball.mods.healMul, ball.maxHp - ball.hp);
     if (healed <= 0) return;
     ball.hp += healed;
@@ -1051,7 +1106,7 @@ export class Engine {
    */
   dropPotion(owner, fromUlt = false) {
     const pad = 40;
-    const jitter = fromUlt ? 190 : 70;
+    const jitter = fromUlt ? 210 : 150;
     this.spawnHazard({
       x: Math.max(pad, Math.min(this.arena.w - pad, owner.x + this.rng.range(-jitter, jitter))),
       y: Math.max(pad, Math.min(this.arena.h - pad, owner.y + this.rng.range(-jitter, jitter))),
@@ -1060,8 +1115,61 @@ export class Engine {
       affects: owner.flags.selfishBrews ? 'allies' : 'all',
       color: owner.element.colors.light,
       once: true,
-      heal: owner.maxHp * 0.12,
+      armAt: this.time + 1.1,
+      heal: owner.maxHp * 0.07,
     });
+  }
+
+  /* ---------------------------------------------------------- turrets */
+
+  /**
+   * A deployed turret: a small stationary emplacement that shoots at whoever
+   * is nearest. Weapons that build things are the most legible specials in
+   * the game — you can see the thing on the board — so they get a real
+   * entity rather than a hidden stat.
+   */
+  spawnTurret({ x, y, ownerId, teamId, damage, life = 12, interval = 1.1, color }) {
+    if (this.turrets.length > 24) this.turrets.shift();
+    this.turrets.push({
+      x, y, ownerId, teamId, damage, life, age: 0,
+      interval, cooldown: interval * 0.4,
+      angle: 0, radius: 13, color: color || '#f0a020',
+    });
+    this.particles.burst('shard', x, y, 16, 180, color || '#f0a020');
+    this.sfx('deploy');
+  }
+
+  updateTurrets(dt) {
+    for (let i = this.turrets.length - 1; i >= 0; i--) {
+      const t = this.turrets[i];
+      t.age += dt;
+      if (t.age >= t.life) {
+        this.particles.burst('shard', t.x, t.y, 12, 150, t.color);
+        this.turrets.splice(i, 1);
+        continue;
+      }
+
+      const foes = this.balls.filter((b) => !b.dead && b.teamId !== t.teamId);
+      if (!foes.length) continue;
+      let best = foes[0], bd = Math.hypot(best.x - t.x, best.y - t.y);
+      for (const f of foes) {
+        const d = Math.hypot(f.x - t.x, f.y - t.y);
+        if (d < bd) { bd = d; best = f; }
+      }
+      t.angle = Math.atan2(best.y - t.y, best.x - t.x);
+
+      t.cooldown -= dt;
+      if (t.cooldown > 0) continue;
+      t.cooldown = t.interval;
+      this.spawnProjectile({
+        x: t.x, y: t.y,
+        vx: Math.cos(t.angle) * 520, vy: Math.sin(t.angle) * 520,
+        ownerId: t.ownerId, teamId: t.teamId,
+        damage: t.damage, radius: 5, life: 2.5, style: 'shard',
+        color: t.color, homing: 120, seekId: best.id,
+      });
+      this.sfx('turret');
+    }
   }
 
   /* ---------------------------------------------------------- hazards */
@@ -1073,6 +1181,7 @@ export class Engine {
       ownerId: h.ownerId, teamId: h.teamId,
       affects: h.affects || 'enemies',
       color: h.color || '#ffffff',
+      armAt: h.armAt || 0,
       dps: h.dps || 0,
       heal: h.heal || 0,
       once: !!h.once,
@@ -1112,7 +1221,9 @@ export class Engine {
         if (dx * dx + dy * dy > rr * rr) continue;
 
         if (hz.once) {
-          // A brew is consumed by the first orb to reach it.
+          // A brew needs a moment to settle before anyone can drink it, so
+          // the brewer cannot simply stand on its own output.
+          if (hz.armAt && this.time < hz.armAt) continue;
           this.grantBrew(hz, ball);
           hz.dead = true;
           break;
@@ -1141,10 +1252,10 @@ export class Engine {
    */
   grantBrew(hz, ball) {
     const friendly = ball.teamId === hz.teamId;
-    const scale = friendly ? 1.7 : 0.65;
+    const scale = friendly ? 1.3 : 0.6;
     this.heal(ball, hz.heal * scale);
     const buff = this.rng.pick(['haste', 'shield', 'enrage', 'swift', 'regen']);
-    this.applyStatus(ball, buff, friendly ? 9 : 4.5, { power: ball.maxHp * 0.02, sourceId: hz.ownerId });
+    this.applyStatus(ball, buff, friendly ? 6 : 4, { power: ball.maxHp * 0.015, sourceId: hz.ownerId });
     this.announce(ball, 'BREW', hz.color, 1.1);
     this.particles.burst('mote', hz.x, hz.y, 26, 200, hz.color);
     this.sfx('pickup');

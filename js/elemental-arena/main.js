@@ -19,6 +19,9 @@ import { Fighters, uiColor, FAMILIES } from './content/roster.js';
 import { Powerups } from './content/powerups.js';
 import { Statuses } from './content/statuses.js';
 import { Perks } from './content/loadouts.js';
+import { Statuses as StatusDefs } from './content/statuses.js';
+import { Weapons, weaponLabel, weaponStats } from './content/weapons.js';
+import { weaponAbility } from './content/weapon-abilities.js';
 import { Modes } from './modes/index.js';
 import { randomSeedPhrase } from './core/rng.js';
 import { Forge, TEAM_NAMES, TEAM_TINTS } from './ui/forge.js';
@@ -231,12 +234,28 @@ class App {
       row.style.setProperty('--ea-color-dark', uiColor(el, true));
       row.style.setProperty('--ea-team', TEAM_TINTS[ball.teamId % TEAM_TINTS.length]);
       row.innerHTML = `
-        <div class="ea-meter"><div class="ea-meter-fill"></div><span class="ea-meter-label">${el.ult.name}</span></div>
+        <div class="ea-hud-name">
+          <span class="ea-hud-who">${el.glyph} ${el.name}</span>
+          <span class="ea-hud-weapon">${weaponLabel(ball.weaponId)}</span>
+        </div>
+        <div class="ea-meter">
+          <div class="ea-meter-fill"></div>
+          <span class="ea-meter-label">${el.ult.name}</span>
+          <span class="ea-meter-pct">0%</span>
+        </div>
         <div class="ea-hud-stat"></div>
+        <div class="ea-status-drawer" aria-live="polite"></div>
       `;
       wrap.appendChild(row);
       this.hudRows.set(ball.id, {
-        row, fill: $('.ea-meter-fill', row), stat: $('.ea-hud-stat', row), lastStat: '',
+        row,
+        fill: $('.ea-meter-fill', row),
+        pct: $('.ea-meter-pct', row),
+        stat: $('.ea-hud-stat', row),
+        drawer: $('.ea-status-drawer', row),
+        lastStat: '',
+        lastValue: null,
+        lastSig: '',
       });
     }
   }
@@ -250,8 +269,28 @@ class App {
       // transform beats width: it stays on the compositor and never reflows.
       entry.fill.style.transform = `scaleX(${ball.ultRatio.toFixed(3)})`;
       entry.row.classList.toggle('is-dead', ball.dead);
+      entry.row.classList.toggle('is-charged', ball.ultRatio > 0.999);
+
+      const pct = `${Math.round(ball.ultRatio * 100)}%`;
+      if (entry.pct.textContent !== pct) entry.pct.textContent = pct;
+
       const text = ball.element.ult.statLabel(ball, e);
-      if (text !== entry.lastStat) { entry.stat.textContent = text; entry.lastStat = text; }
+      if (text !== entry.lastStat) {
+        entry.stat.textContent = text;
+        entry.lastStat = text;
+        // Pulse the readout when the number behind it actually grew, so a
+        // Bulwark's reflect climbing is something you can see happening
+        // rather than something you would have to be watching for.
+        const value = parseFloat((text.match(/[\d.]+/) || [0])[0]);
+        if (entry.lastValue !== null && value > entry.lastValue) {
+          entry.stat.classList.remove('is-up');
+          void entry.stat.offsetWidth;   // restart the animation
+          entry.stat.classList.add('is-up');
+        }
+        entry.lastValue = value;
+      }
+
+      this.updateStatusDrawer(entry, ball, e);
     }
 
     const mode = e.mode;
@@ -262,6 +301,39 @@ class App {
       $('#statsReadout').textContent =
         `${e.livingBalls.length} alive · ${e.stats.hits} hits · ${e.stats.parries} parries · ${e.stats.ults} ults`;
     }
+  }
+
+  /**
+   * The status drawer under a fighter's nameplate.
+   *
+   * This is the answer to "why is that orb healing like crazy". Every active
+   * effect is listed by name with its stack count and how long is left, and
+   * the tooltip says where it came from — because the question after "what is
+   * that" is always "how did it get that".
+   */
+  updateStatusDrawer(entry, ball, engine) {
+    const active = [];
+    for (const [id, inst] of ball.statuses) {
+      const def = StatusDefs.get(id);
+      if (!def) continue;
+      active.push({ def, inst, left: Math.max(0, inst.until - engine.time) });
+    }
+    // Debuffs first — they are the ones you are trying to explain.
+    active.sort((a, b) => (a.def.beneficial ? 1 : 0) - (b.def.beneficial ? 1 : 0));
+
+    const sig = active.map((a) => `${a.def.id}:${a.inst.stacks}:${Math.ceil(a.left)}`).join('|');
+    if (sig === entry.lastSig) return;
+    entry.lastSig = sig;
+
+    if (!active.length) { entry.drawer.innerHTML = ''; return; }
+    entry.drawer.innerHTML = active.map(({ def, inst, left }) => `
+      <span class="ea-status ${def.beneficial ? 'is-good' : 'is-bad'}"
+            style="--s:${def.color}"
+            title="${def.name} — ${def.desc} Source: ${def.from}">
+        <i class="ea-status-icon">${def.icon}</i>
+        <b>${def.name}</b>${inst.stacks > 1 ? `<u>x${inst.stacks}</u>` : ''}
+        ${left < 900 ? `<em>${left.toFixed(1)}s</em>` : ''}
+      </span>`).join('');
   }
 
   updateTitleBar() {
@@ -665,10 +737,57 @@ class App {
     $('#codexPerks').innerHTML = Perks.all.filter((p) => p.id !== 'none').map((p) => `
       <li><strong>${p.name}</strong> — ${p.desc}</li>`).join('');
 
-    $('#codexStatuses').innerHTML = Statuses.all.map((s) => `
-      <li><span class="ea-dot" style="background:${s.color}"></span>
-        <strong>${s.name}</strong>${s.cc ? ' <em>(control)</em>' : ''}${s.beneficial ? ' <em>(buff)</em>' : ''}
-      </li>`).join('');
+    // Every status says what it does AND where it comes from. "Double damage
+    // when soaked" is useless without "only Water applies soaked".
+    $('#codexStatuses').innerHTML = Statuses.all.map((st) => `
+      <article class="ea-status-card ${st.beneficial ? 'is-good' : 'is-bad'}" style="--s:${st.color}">
+        <h5><i>${st.icon}</i> ${st.name}
+          <span class="ea-status-kind">${st.beneficial ? 'buff' : st.cc ? 'control' : 'debuff'}</span>
+        </h5>
+        <p>${st.desc}</p>
+        <p class="ea-status-from"><strong>How you get it:</strong> ${st.from}</p>
+      </article>`).join('');
+
+    // Weapons: the numbers, plus the special that actually distinguishes them.
+    $('#codexWeapons').innerHTML = Weapons.all.map((w) => {
+      const ab = weaponAbility(w.id);
+      const st = weaponStats(w.id);
+      return `
+      <article class="ea-weapon-card">
+        <h5>${weaponLabel(w.id)}${ab ? ` <span class="ea-wep-kind ea-wep-${ab.kind || 'passive'}">${ab.kind === 'deploy' ? 'deploys' : ab.kind === 'onhit' ? 'on hit' : 'passive'}</span>` : ''}</h5>
+        <dl class="ea-wep-stats">
+          <div><dt>Reach</dt><dd>${st.reach}</dd></div>
+          <div><dt>Damage</dt><dd>${st.damage}</dd></div>
+          <div><dt>Recovery</dt><dd>${st.recovery}</dd></div>
+          <div><dt>Hitbox</dt><dd>${st.hitbox}</dd></div>
+        </dl>
+        ${ab ? `<p class="ea-wep-ability"><strong>${ab.name}</strong> — ${ab.desc}</p>` : ''}
+      </article>`;
+    }).join('');
+
+    // The matchup grid, generated from the same lists the engine reads.
+    const ids = Fighters.ids;
+    $('#codexMatchups').innerHTML = `
+      <p class="ea-note">There is no single rock-paper-scissors loop — each template names
+      its own prey and its own predator. An attacker hits <strong>+25%</strong> into something
+      it is strong against and <strong>-20%</strong> into something it is weak against, and
+      both halves apply, so a favourable matchup is worth about 1.5x in practice.</p>
+      <div class="ea-matrix-wrap"><table class="ea-matrix">
+        <thead><tr><th>Attacker</th>${ids.map((id) => {
+          const f = Fighters.get(id);
+          return `<th title="${f.name}">${f.glyph}</th>`;
+        }).join('')}</tr></thead>
+        <tbody>${ids.map((aid) => {
+          const a = Fighters.get(aid);
+          return `<tr><th style="color:${uiColor(a, false)}">${a.glyph} ${a.name}</th>${ids.map((did) => {
+            if (aid === did) return '<td class="is-self">·</td>';
+            const d = Fighters.get(did);
+            if (a.strong.includes(did)) return `<td class="is-strong" title="${a.name} → ${d.name}: +25%">+</td>`;
+            if (a.weak.includes(did)) return `<td class="is-weak" title="${a.name} → ${d.name}: -20%">−</td>`;
+            return '<td></td>';
+          }).join('')}</tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
 
     $('#codexPowerups').innerHTML = Powerups.all.map((p) => `
       <li><span class="ea-dot" style="background:${p.color}"></span>

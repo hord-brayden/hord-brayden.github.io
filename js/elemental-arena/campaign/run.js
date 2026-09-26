@@ -23,7 +23,9 @@ import { Fighters } from '../content/roster.js';
 import { emptyBuild, buildToProfile, rollOffers, upgradeCost, Upgrades } from './upgrades.js';
 import { defaultLoadout, normalizeLoadout } from '../content/loadouts.js';
 import { MODIFIERS, rollModifier } from './modifiers.js';
-import { Chassis } from '../content/parts.js';
+import { Chassis, Drives } from '../content/parts.js';
+import { weaponStats, weaponLabel } from '../content/weapons.js';
+import { weaponAbility } from '../content/weapon-abilities.js';
 import { buildMultiplier } from '../content/loadouts.js';
 
 /*
@@ -247,13 +249,106 @@ export class CampaignRun {
     return true;
   }
 
-  /** What the orb's maximum health will be with the current build. */
-  previewMaxHp(baseHp = 100) {
-    const f = Fighters.get(this.build.fighterId);
+  /** What the orb's maximum health will be with the given build. */
+  previewMaxHp(baseHp = 100, build = this.build) {
+    const f = Fighters.get(build.fighterId);
     const chassisHp = (Chassis.get(this.loadout.chassisId) || { hpMul: 1 }).hpMul;
     const statHp = buildMultiplier(this.loadout, 'hp');
     return baseHp * (f ? f.hp : 1) * chassisHp * statHp
-      * this.build.maxHpMul * PLAYER_HP_BONUS;
+      * build.maxHpMul * PLAYER_HP_BONUS;
+  }
+
+  /** What one of its hits will be worth with the given build. */
+  previewDamage(baseDamage = 7, build = this.build) {
+    const f = Fighters.get(build.fighterId);
+    const chassis = Chassis.get(this.loadout.chassisId) || { damageMul: 1 };
+    const drive = Drives.get(this.loadout.driveId) || { damageMul: 1 };
+    return baseDamage * (f ? f.damage : 1) * buildMultiplier(this.loadout, 'dmg')
+      * chassis.damageMul * drive.damageMul * build.damageMul * PLAYER_DAMAGE_BONUS;
+  }
+
+  /**
+   * Real numbers for one shop offer: what each figure is now, and what it
+   * becomes if you buy it.
+   *
+   * Computed by cloning the build and actually applying the upgrade, rather
+   * than by restating the description. That way it cannot drift out of sync
+   * with what the upgrade does, and a card never has to say "+18% health"
+   * without saying 18% of what.
+   */
+  previewUpgrade(def) {
+    const clone = JSON.parse(JSON.stringify(this.build));
+    try { def.apply(clone); } catch (e) { return []; }
+
+    const rows = [];
+    const pushNum = (label, before, after, unit = '') => {
+      if (Math.abs(after - before) < 0.005) return;
+      rows.push({
+        label,
+        before: Math.round(before * 10) / 10 + unit,
+        after: Math.round(after * 10) / 10 + unit,
+        up: after > before,
+        pct: before ? Math.round(((after / before) - 1) * 100) : null,
+      });
+    };
+
+    pushNum('Health', this.previewMaxHp(100, this.build), this.previewMaxHp(100, clone));
+    pushNum('Damage / hit', this.previewDamage(7, this.build), this.previewDamage(7, clone));
+    pushNum('Move speed', this.build.speedMul * 100, clone.speedMul * 100, '%');
+    pushNum('Swing speed', this.build.spinMul * 100, clone.spinMul * 100, '%');
+    pushNum('Orb size', this.build.radiusMul * 100, clone.radiusMul * 100, '%');
+    pushNum('Ult charge', this.build.ultRate * 100, clone.ultRate * 100, '%');
+
+    if (clone.reachBonus !== this.build.reachBonus) {
+      rows.push({ label: 'Weapon reach', before: `${this.build.reachBonus.toFixed(2)}x`,
+                  after: `${clone.reachBonus.toFixed(2)}x`, up: clone.reachBonus > this.build.reachBonus });
+    }
+    if (clone.extraWeapons !== this.build.extraWeapons) {
+      rows.push({ label: 'Weapons held', before: `${this.build.extraWeapons + 1}`,
+                  after: `${clone.extraWeapons + 1}`, up: true });
+    }
+    if (clone.ccResist !== this.build.ccResist) {
+      rows.push({ label: 'Control resist', before: `${Math.round(this.build.ccResist * 100)}%`,
+                  after: `${Math.round(clone.ccResist * 100)}%`, up: true });
+    }
+    const cb = this.build.crit, cc = clone.crit;
+    if (JSON.stringify(cb) !== JSON.stringify(cc)) {
+      rows.push({ label: 'Crit chance', before: cb ? `${Math.round(cb.chance * 100)}%` : '0%',
+                  after: cc ? `${Math.round(cc.chance * 100)}%` : '0%', up: true });
+      if (cb && cc && cb.mult !== cc.mult) {
+        rows.push({ label: 'Crit damage', before: `${cb.mult.toFixed(1)}x`,
+                    after: `${cc.mult.toFixed(1)}x`, up: cc.mult > cb.mult });
+      }
+    }
+    for (const kind of new Set([...Object.keys(this.build.resists), ...Object.keys(clone.resists)])) {
+      const b = this.build.resists[kind] || 0, a = clone.resists[kind] || 0;
+      if (a === b) continue;
+      const name = kind === 'all' ? 'All damage taken' : `${kind} damage taken`;
+      rows.push({ label: name, before: `-${Math.round(b * 100)}%`, after: `-${Math.round(a * 100)}%`, up: true });
+    }
+    for (const perk of clone.perks) {
+      if (!this.build.perks.includes(perk)) rows.push({ label: 'Gains', before: '—', after: perk, up: true });
+    }
+    if (clone.weaponId !== this.build.weaponId) {
+      // A refit is the one upgrade whose whole value is in numbers the player
+      // cannot see, so it gets the full comparison rather than two names.
+      const f = Fighters.get(this.build.fighterId);
+      const beforeId = this.build.weaponId || (f ? f.weapon.id : 'sword');
+      const A = weaponStats(beforeId), B = weaponStats(clone.weaponId);
+      rows.push({ label: 'Weapon', before: weaponLabel(beforeId),
+                  after: weaponLabel(clone.weaponId), up: true, swap: true });
+      const cmp = (label, a, b, fmt, higherIsBetter = true) => {
+        if (Math.abs(a - b) < 0.005) return;
+        rows.push({ label, before: fmt(a), after: fmt(b),
+                    up: higherIsBetter ? b > a : b < a });
+      };
+      cmp('  reach', A.reachValue, B.reachValue, (v) => `${v.toFixed(2)}x`);
+      cmp('  damage', A.damageValue, B.damageValue, (v) => `${Math.round(v * 100)}%`);
+      cmp('  recovery', A.cooldownValue, B.cooldownValue, (v) => `${v.toFixed(2)}s`, false);
+      const ab = weaponAbility(clone.weaponId);
+      if (ab) rows.push({ label: '  special', before: '—', after: ab.name, up: true });
+    }
+    return rows;
   }
 
   /* ------------------------------------------------------------ battle */
@@ -293,7 +388,10 @@ export class CampaignRun {
       modeId: 'duel',
       seed: `${this.seed}#${this.stage}`,
       roster,
-      timeLimit: 150,
+      // No clock. A stage that runs long goes to sudden death instead, so a
+      // stalemate is still a gamble rather than a scoreboard decision.
+      timeLimit: 240,
+      suddenDeathAt: 70,
       powerupsEnabled: true,
       powerupInterval: 11,
       maxPickups: 3,

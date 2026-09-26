@@ -278,7 +278,7 @@ Fighters.define({
         vx: (dx / d) * 640, vy: (dy / d) * 640,
         ownerId: ball.id, teamId: ball.teamId,
         damage: ball.baseDamage * scale,
-        radius: 6, life: 3.5, style: 'arrow',
+        radius: 8, life: 3.5, style: 'arrow',
         color: ball.element.colors.accent,
         homing: 90, seekId: far.id,
       });
@@ -300,7 +300,7 @@ Fighters.define({
             vx: -Math.cos(a) * 700, vy: -Math.sin(a) * 700,
             ownerId: owner.id, teamId: owner.teamId,
             damage: owner.baseDamage * 0.6,
-            radius: 6, life: 2.5, style: 'arrow',
+            radius: 8, life: 2.5, style: 'arrow',
             color: owner.element.colors.accent,
             homing: 220, seekId: foe.id,
           });
@@ -334,22 +334,22 @@ Fighters.define({
   colors: { core: '#7c3aed', dark: '#2e1065', light: '#c4b5fd', accent: '#f0abfc', ink: '#ffffff', trail: '#a78bfa' },
   weapon: { id: 'vial', name: 'Brewglass', palette: wpal('alch', '#c4b5fd', '#ede9fe', '#4c1d95', '#f0abfc', '#3b2a1a') },
   cosmetic: 'bubbles',
-  hp: 1.1, damage: 0.94, speed: 1.0,
+  hp: 1.2, damage: 1.12, speed: 1.0,
   strong: ['bulwark', 'bombardier'],
   weak: ['archer', 'lancer'],
   particle: 'mote',
 
   onHit({ engine, attacker, victim, amount }) {
-    engine.heal(attacker, amount * 0.38);
+    engine.heal(attacker, amount * 0.11);
     engine.applyStatus(victim, 'corrode', 5, { sourceId: attacker.id });
   },
 
   passive: {
     name: 'Brewmaster',
-    desc: 'Drops a potion every 5s. It buffs whoever touches it, so position matters.',
+    desc: 'Drops a potion every 7.5s. It buffs whoever touches it, so position matters.',
     onTick(engine, ball, dt) {
       ball.brewTimer = (ball.brewTimer || 0) + dt;
-      if (ball.brewTimer < 5) return;
+      if (ball.brewTimer < 7.5) return;
       ball.brewTimer = 0;
       engine.dropPotion(ball);
     },
@@ -359,11 +359,11 @@ Fighters.define({
     name: 'Elixir Cascade',
     chargePerHit: 9,
     chargePerSecond: 2.3,
-    statLabel: (ball) => `Brew heal: ${(ball.maxHp * 0.12).toFixed(0)}`,
+    statLabel: (ball) => `Brew heal: ${(ball.maxHp * 0.07).toFixed(0)}`,
     cast(engine, owner) {
-      for (let i = 0; i < 7; i++) engine.dropPotion(owner, true);
-      engine.heal(owner, owner.maxHp * 0.35);
-      engine.applyStatus(owner, 'regen', 8, { power: owner.maxHp * 0.03, sourceId: owner.id });
+      for (let i = 0; i < 4; i++) engine.dropPotion(owner, true);
+      engine.heal(owner, owner.maxHp * 0.2);
+      engine.applyStatus(owner, 'regen', 6, { power: owner.maxHp * 0.018, sourceId: owner.id });
       engine.applyStatus(owner, 'shield', 6, { sourceId: owner.id });
       engine.particles.burst('mote', owner.x, owner.y, 100, 300, '#c4b5fd');
       engine.flash('#c4b5fd', 0.26);

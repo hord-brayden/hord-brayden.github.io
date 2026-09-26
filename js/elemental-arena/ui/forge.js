@@ -11,11 +11,13 @@
  */
 
 import { Fighters, FAMILIES, uiColor } from '../content/roster.js';
-import { Weapons, weaponLabel } from '../content/weapons.js';
+import { Weapons, weaponLabel, weaponStats } from '../content/weapons.js';
+import { weaponAbility } from '../content/weapon-abilities.js';
 import { Perks, BUILD_STATS, defaultLoadout, normalizeLoadout, buildSpend, BUILD_BUDGET } from '../content/loadouts.js';
 import { Chassis, Drives, partsLabel } from '../content/parts.js';
 import { Modes } from '../modes/index.js';
 import { attachPreview, updatePreview, detachPreview, refreshPreviews } from './preview.js';
+import { statTrack, STAT_RANGE } from './stat-track.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -365,6 +367,8 @@ export class Forge {
           </select>
         </label>
 
+        ${weaponCard(weaponId)}
+
         <label class="ea-row">
           <span>Chassis</span>
           <select id="insChassis">
@@ -398,7 +402,7 @@ export class Forge {
             <div class="ea-stepper" data-stat="${s.id}">
               <span class="ea-stepper-name">${s.name}</span>
               <button type="button" class="ea-step" data-dir="-1" aria-label="Lower ${s.name}">−</button>
-              <span class="ea-stepper-pips">${pips(l[s.id])}</span>
+              <span class="ea-stepper-pips">${statTrack(l[s.id], s.step)}</span>
               <button type="button" class="ea-step" data-dir="1" aria-label="Raise ${s.name}">+</button>
             </div>`).join('')}
           <p class="ea-inspect-note">Points come out of each other — raise one and something else gives.</p>
@@ -461,7 +465,7 @@ export class Forge {
         // something and the trade is visible immediately.
         if (dir > 0 && buildSpend(next) > BUILD_BUDGET) {
           const donors = BUILD_STATS
-            .filter((x) => x.id !== stat && next[x.id] > -2)
+            .filter((x) => x.id !== stat && next[x.id] > -STAT_RANGE)
             .sort((x, y) => next[y.id] - next[x.id]);
           if (!donors.length) { this.app.toast('Nothing left to trade away'); return; }
           next[donors[0].id] -= 1;
@@ -524,12 +528,21 @@ export class Forge {
   }
 }
 
-function pips(v) {
-  let out = '';
-  for (let i = -2; i <= 2; i++) {
-    if (i === 0) continue;
-    const on = (v > 0 && i > 0 && i <= v) || (v < 0 && i < 0 && i >= v);
-    out += `<i class="ea-pip ${on ? (v > 0 ? 'is-up' : 'is-down') : ''}"></i>`;
-  }
-  return out;
+
+/** The consultable numbers and the special, shown right under the picker. */
+function weaponCard(weaponId) {
+  const st = weaponStats(weaponId);
+  const ab = weaponAbility(weaponId);
+  return `
+    <div class="ea-wep-panel">
+      <dl class="ea-wep-stats">
+        <div><dt>Reach</dt><dd>${st.reachValue.toFixed(2)}x</dd></div>
+        <div><dt>Damage</dt><dd>${Math.round(st.damageValue * 100)}%</dd></div>
+        <div><dt>Recovery</dt><dd>${st.cooldownValue.toFixed(2)}s</dd></div>
+        <div><dt>Hitbox</dt><dd>${st.thicknessValue.toFixed(1)}</dd></div>
+      </dl>
+      ${ab ? `<p class="ea-wep-ability">
+        <span class="ea-wep-kind ea-wep-${ab.kind || 'passive'}">${ab.kind === 'deploy' ? 'deploys' : ab.kind === 'onhit' ? 'on hit' : 'passive'}</span>
+        <strong>${ab.name}</strong> — ${ab.desc}</p>` : ''}
+    </div>`;
 }
