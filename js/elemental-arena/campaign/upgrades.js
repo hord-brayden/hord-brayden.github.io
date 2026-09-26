@@ -18,6 +18,7 @@
 import { Registry } from '../core/registry.js';
 import { Weapons, weaponLabel } from '../content/weapons.js';
 import { Enchantments } from '../content/enchantments.js';
+import { Augments, levelRarity, roman } from '../content/augments.js';
 import { RARITIES } from '../content/rarity.js';
 
 /* The shop and the enchantment table read the same rarity ladder, so "Rare"
@@ -36,6 +37,7 @@ export function emptyBuild(fighterId) {
     weaponId: null,
     enchantId: null,
     goldMul: 1,
+    augments: {},        // augmentId -> level, and levels never stop
     maxHpMul: 1,
     damageMul: 1,
     speedMul: 1,
@@ -58,6 +60,9 @@ export function emptyBuild(fighterId) {
 export function buildToProfile(build) {
   return {
     enchantId: build.enchantId,
+    // Carried through so the renderer can coat the weapon and shell with
+    // whatever the run has bought.
+    augments: { ...build.augments },
     maxHpMul: build.maxHpMul,
     damageMul: build.damageMul,
     speedMul: build.speedMul,
@@ -344,7 +349,11 @@ for (const id of Weapons.ids) {
  */
 export function buildForSchedule(rng, fighterId, stage, incomeAt) {
   const build = emptyBuild(fighterId);
-  const pool = Upgrades.all.filter((d) => !d.tags.includes('gold'));
+  const base = Upgrades.all.filter((d) => !d.tags.includes('gold'));
+  const poolFor = () => [
+    ...base,
+    ...Augments.all.map((a) => augmentOffer(a, nextAugmentLevel(build, a.id))),
+  ];
   // One of each, for the whole build. `canOffer` only rejects the weapon
   // currently held, so without this the shopper buys refit after refit, each
   // overwriting the last, and spends its entire budget on nothing.
@@ -363,16 +372,19 @@ export function buildForSchedule(rng, fighterId, stage, incomeAt) {
   for (let s = 0; s <= stage; s++) {
     purse += incomeAt(s);
     for (let guard = 0; guard < 12 && purse > 0; guard++) {
-      const affordable = pool.filter((d) => {
+      const affordable = poolFor().filter((d) => {
         if (rejected.has(d.id)) return false;
         if (d.tags.includes('weapon') && weaponBought) return false;
         if (d.tags.includes('enchant') && enchantBought) return false;
-        return canOffer(d, build) && upgradeCost(d, s, build) <= purse;
+        const cost = d.tags.includes('augment')
+          ? augmentCost(d.level, s) : upgradeCost(d, s, build);
+        return (d.tags.includes('augment') || canOffer(d, build)) && cost <= purse;
       });
       if (!affordable.length) break;
       const pick = rng.weighted(affordable, (d) => {
         // Weapons and enchantments are one-offs, so they must not crowd out
         // the stat upgrades that are the bulk of a build's strength.
+        if (d.tags.includes('augment')) return 14 / Math.pow(d.level, 0.45);
         const w = TIERS[d.tier].weight;
         if (d.tags.includes('weapon')) return w * 0.25;
         if (d.tags.includes('enchant')) return w * 0.6;
@@ -393,7 +405,8 @@ export function buildForSchedule(rng, fighterId, stage, incomeAt) {
         continue;
       }
 
-      purse -= upgradeCost(pick, s, build);
+      purse -= pick.tags.includes('augment')
+        ? augmentCost(pick.level, s) : upgradeCost(pick, s, build);
       pick.apply(build);
       build.owned[pick.id] = (build.owned[pick.id] || 0) + 1;
       if (pick.tags.includes('weapon')) weaponBought = true;
@@ -401,6 +414,52 @@ export function buildForSchedule(rng, fighterId, stage, incomeAt) {
     }
   }
   return build;
+}
+
+/**
+ * The shop entry for the next level of one augment.
+ *
+ * Built fresh each roll rather than registered once, because everything about
+ * it — its name, its rarity, its price and what it claims to do — is a
+ * function of the level this particular build has it at.
+ */
+export function augmentOffer(aug, level) {
+  const tier = levelRarity(level);
+  return {
+    id: `aug_${aug.id}`,
+    name: `${aug.name} ${roman(level)}`,
+    tier,
+    max: 99,
+    tags: ['augment', aug.slot],
+    augmentId: aug.id,
+    slot: aug.slot,
+    visual: aug.visual,
+    color: aug.color,
+    level,
+    desc: aug.desc(level),
+    apply(b) {
+      b.augments[aug.id] = level;
+      aug.step(b, level);
+    },
+  };
+}
+
+/** The level a build would be buying next for a given augment. */
+export function nextAugmentLevel(build, augId) {
+  return (build.augments[augId] || 0) + 1;
+}
+
+/**
+ * Price for the next level of an augment.
+ *
+ * Superlinear in the level, so augments are the sink that can absorb any
+ * purse: a run sitting on six figures can always spend it, but each level
+ * costs meaningfully more than the last, so it buys depth rather than a
+ * runaway. Stage matters far less here than level does.
+ */
+export function augmentCost(level, stage) {
+  const base = 26 * Math.pow(level, 2);
+  return Math.round((base * (1 + stage * 0.06)) / 5) * 5;
 }
 
 /** Cost of an upgrade at a given stage. Later stages charge more. */
@@ -429,7 +488,11 @@ export function canOffer(def, build) {
  * degenerate into a rack of refits.
  */
 export function rollOffers(rng, build, stage, count = 3) {
-  const pool = Upgrades.all.filter((d) => canOffer(d, build));
+  // Augments are always in the pool, at whatever level this build has them
+  // at. This is what guarantees the shop can never run dry: capped upgrades
+  // eventually run out, augment levels do not.
+  const augs = Augments.all.map((a) => augmentOffer(a, nextAugmentLevel(build, a.id)));
+  const pool = [...Upgrades.all.filter((d) => canOffer(d, build)), ...augs];
   const out = [];
   let weaponTaken = false, enchantTaken = false;
 
@@ -438,6 +501,11 @@ export function rollOffers(rng, build, stage, count = 3) {
       if (out.some((o) => o.id === d.id)) return 0;
       if (d.tags.includes('weapon')) return weaponTaken ? 0 : TIERS[d.tier].weight * 0.35;
       if (d.tags.includes('enchant')) return enchantTaken ? 0 : TIERS[d.tier].weight * 0.7;
+      // Weighted by how deep the level already is rather than by its rarity:
+      // a God-like augment is not rare, it is expensive, and weighting it by
+      // tier would make late levels vanish from the shop exactly when they
+      // are the only thing left worth buying.
+      if (d.tags.includes('augment')) return 14 / Math.pow(d.level, 0.45);
       return TIERS[d.tier].weight;
     });
     if (!pick || out.some((o) => o.id === pick.id)) continue;

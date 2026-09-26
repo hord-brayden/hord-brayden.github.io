@@ -1340,3 +1340,76 @@ body.ea-recording #stage::after {
 /* In the Forge inspector the card sits under the weapon card, so it needs to
    sit flush with it rather than float in the panel. */
 .ea-inspect-body .ea-ench-card { margin-top: -2px; }
+
+/* ------------------------------------------------------ rarity treatment */
+
+/* Every card that carries a rarity gets its colour from --ea-tier, so a
+   Common augment and a Common upgrade look the same and a God-like one is
+   unmistakable across the whole app. */
+.ea-rar-common    { --ea-tier: #94a3b8; }
+.ea-rar-uncommon  { --ea-tier: #4ade80; }
+.ea-rar-rare      { --ea-tier: #38bdf8; }
+.ea-rar-epic      { --ea-tier: #c084fc; }
+.ea-rar-legendary { --ea-tier: #fbbf24; }
+.ea-rar-cursed    { --ea-tier: #f43f5e; }
+.ea-rar-godlike   { --ea-tier: #ff3ea5; }
+
+/* The top two tiers earn motion. A static border is enough to tell them
+   apart; a moving one is what makes finding a God-like feel like finding
+   something. Held to a slow sweep so a shop of three is not a disco. */
+.ea-offer.ea-rar-legendary,
+.ea-offer.ea-rar-godlike {
+  position: relative;
+  border-color: color-mix(in srgb, var(--ea-tier) 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ea-tier) 28%, transparent),
+              0 6px 26px -14px var(--ea-tier);
+}
+.ea-offer.ea-rar-legendary::after,
+.ea-offer.ea-rar-godlike::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(115deg,
+    transparent 30%,
+    color-mix(in srgb, var(--ea-tier) 42%, transparent) 46%,
+    color-mix(in srgb, #fff 55%, transparent) 50%,
+    color-mix(in srgb, var(--ea-tier) 42%, transparent) 54%,
+    transparent 70%);
+  background-size: 280% 100%;
+  animation: ea-rar-sweep 3.6s linear infinite;
+  mix-blend-mode: screen;
+  opacity: .55;
+}
+.ea-offer.ea-rar-godlike::after { animation-duration: 2.4s; opacity: .75; }
+@keyframes ea-rar-sweep {
+  from { background-position: 180% 0; }
+  to   { background-position: -80% 0; }
+}
+
+/* The slot an augment coats — weapon, armour or core. */
+.ea-offer-slot {
+  font-family: var(--font-mono); font-size: .58rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .12em;
+  color: var(--muted);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 1px 7px; margin-left: 6px;
+}
+
+/* An owned augment in the build strip, tinted by the level it has reached. */
+.ea-chip--aug {
+  border-color: color-mix(in srgb, var(--ea-tier) 60%, transparent);
+  background: color-mix(in srgb, var(--ea-tier) 12%, transparent);
+  color: var(--ea-tier);
+}
+.ea-chip--aug b { color: var(--ea-tier); font-weight: 700; }
+.ea-chip--aug.ea-rar-godlike,
+.ea-chip--aug.ea-rar-legendary {
+  box-shadow: 0 0 12px -4px var(--ea-tier);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ea-offer.ea-rar-legendary::after,
+  .ea-offer.ea-rar-godlike::after { animation: none; opacity: .3; }
+}

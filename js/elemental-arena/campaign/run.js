@@ -20,7 +20,7 @@
 
 import { Rng, randomSeedPhrase } from '../core/rng.js';
 import { Fighters } from '../content/roster.js';
-import { emptyBuild, buildToProfile, rollOffers, upgradeCost, Upgrades, buildForSchedule } from './upgrades.js';
+import { emptyBuild, buildToProfile, rollOffers, upgradeCost, augmentCost, Upgrades, buildForSchedule } from './upgrades.js';
 import { defaultLoadout, normalizeLoadout } from '../content/loadouts.js';
 import { MODIFIERS, rollModifier } from './modifiers.js';
 import { Chassis, Drives } from '../content/parts.js';
@@ -83,6 +83,13 @@ export const RunState = {
   BATTLE: 'battle',       // watching it resolve
   DEAD: 'dead',           // run over
 };
+
+/** Augments price off their level; everything else off the stage table. */
+function offerCost(def, stage, build) {
+  return def.tags && def.tags.includes('augment')
+    ? augmentCost(def.level, stage)
+    : upgradeCost(def, stage, build);
+}
 
 export class CampaignRun {
   constructor({ seed, fighterId, loadout } = {}) {
@@ -236,7 +243,7 @@ export class CampaignRun {
     this.state = RunState.SHOP;
     this.rerolls = 0;
     this.offers = rollOffers(this.rng, this.build, this.stage, 3)
-      .map((def) => ({ def, cost: upgradeCost(def, this.stage, this.build), bought: false }));
+      .map((def) => ({ def, cost: offerCost(def, this.stage, this.build), bought: false }));
   }
 
   get rerollCost() {
@@ -248,7 +255,7 @@ export class CampaignRun {
     this.gold -= this.rerollCost;
     this.rerolls++;
     this.offers = rollOffers(this.rng, this.build, this.stage, 3)
-      .map((def) => ({ def, cost: upgradeCost(def, this.stage, this.build), bought: false }));
+      .map((def) => ({ def, cost: offerCost(def, this.stage, this.build), bought: false }));
     return true;
   }
 

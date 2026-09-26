@@ -15,7 +15,8 @@ import { Chassis, Drives, partsLabel } from '../content/parts.js';
 import { CampaignRun, RunState, loadScores, clearScores, saveRun, loadRun, clearRun } from '../campaign/run.js';
 import { TIERS, Upgrades } from '../campaign/upgrades.js';
 import { enchantment } from '../content/enchantments.js';
-import { procLabel } from '../content/rarity.js';
+import { Augments, levelRarity, roman } from '../content/augments.js';
+import { procLabel, RARITIES } from '../content/rarity.js';
 import { MODIFIERS } from '../campaign/modifiers.js';
 import { attachPreview, detachPreview, refreshPreviews } from './preview.js';
 import { statTrack, STAT_RANGE } from './stat-track.js';
@@ -288,6 +289,16 @@ export class Campaign {
     // A refit is a real change to the build even though it moves no stat, so
     // it needs to show up here and not only in the header.
     if (build.weaponId) chips.push(['Refit', weaponLabel(build.weaponId)]);
+    const augChips = Object.entries(build.augments || {})
+      .sort((a, b) => b[1] - a[1])
+      .map(([id, lvl]) => {
+        const a = Augments.get(id);
+        if (!a) return '';
+        const r = RARITIES[levelRarity(lvl)];
+        return `<span class="ea-chip ea-chip--aug ea-rar-${levelRarity(lvl)}" style="--ea-tier:${r.color}"
+                      title="${a.name} ${roman(lvl)} — ${a.desc(lvl)}">
+          ${a.name} <b>${roman(lvl)}</b></span>`;
+      }).join('');
     if (Math.abs(build.maxHpMul - 1) > 0.005) chips.push(['Health', pct(build.maxHpMul)]);
     if (Math.abs(build.damageMul - 1) > 0.005) chips.push(['Damage', pct(build.damageMul)]);
     if (Math.abs(build.speedMul - 1) > 0.005) chips.push(['Speed', pct(build.speedMul)]);
@@ -305,8 +316,10 @@ export class Campaign {
       const p = Perks.get(id);
       if (p) chips.push([p.name, '']);
     }
-    if (!chips.length) return '<span class="ea-camp-empty">Stock orb. Nothing bolted on yet.</span>';
-    return chips.map(([k, v]) =>
+    if (!chips.length && !augChips) {
+      return '<span class="ea-camp-empty">Stock orb. Nothing bolted on yet.</span>';
+    }
+    return augChips + chips.map(([k, v]) =>
       `<span class="ea-chip">${k}${v ? ` <b>${v}</b>` : ''}</span>`).join('');
   }
 
@@ -362,9 +375,10 @@ export class Campaign {
             // clone of the build — never a restatement of the description.
             const rows = o.bought ? [] : run.previewUpgrade(o.def);
             return `
-            <article class="ea-offer ${o.bought ? 'is-bought' : ''} ${run.gold < o.cost ? 'is-poor' : ''}"
+            <article class="ea-offer ea-rar-${o.def.tier} ${o.bought ? 'is-bought' : ''} ${run.gold < o.cost ? 'is-poor' : ''}"
                      style="--ea-tier:${TIERS[o.def.tier].color}">
               <span class="ea-offer-tier">${TIERS[o.def.tier].name}</span>
+              ${o.def.slot ? `<span class="ea-offer-slot">${o.def.slot}</span>` : ''}
               ${(() => {
                 const en = o.def.enchantId ? enchantment(o.def.enchantId) : null;
                 return en ? `<span class="ea-offer-proc">${procLabel(en)} proc</span>` : '';

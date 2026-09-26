@@ -179,6 +179,7 @@ export class Ball {
     this.ccResist = 0;         // fraction shaved off control durations
     this.crit = null;          // { chance, mult }
     this.usedLastBreath = false;
+    this.augments = null;      // augmentId -> level, drives the coatings
     this.enchant = null;       // the proc rider on this orb's weapon
     this.enchantChance = 0;
     this.goldMul = 1;
@@ -349,6 +350,9 @@ export class Engine {
     if (!ball.enchant && ball.loadout.enchantId) {
       this.equipEnchant(ball, ball.loadout.enchantId);
     }
+    if (!ball.augments && ball.loadout.augments) {
+      ball.augments = { ...ball.loadout.augments };
+    }
 
     const start = ball.chassis && ball.chassis.startStatus;
     if (start) this.applyStatus(ball, start.id, start.duration, { sourceId: ball.id });
@@ -385,6 +389,7 @@ export class Engine {
     }
     if (p.flags) Object.assign(ball.flags, p.flags);
     if (p.enchantId) this.equipEnchant(ball, p.enchantId);
+    if (p.augments) ball.augments = { ...p.augments };
 
     for (let i = 1; i < (p.extraWeapons || 0) + 1; i++) ball.addWeapon(this, true);
     for (const id of p.perks || []) {
@@ -963,7 +968,8 @@ export class Engine {
       kind: 'weapon',
       knockback: w.heavy ? 200 : 90,
       fromX: w.tipX, fromY: w.tipY,
-      pierce: w.ability ? (w.ability.pierce || 0) : 0,
+      pierce: Math.min(0.85, (w.ability ? (w.ability.pierce || 0) : 0)
+        + (attacker.flags.augPierce || 0)),
       ignoreArmor: proc && !!ench.ignoreArmor,
     });
     if (dealt <= 0) return;   // evaded
@@ -983,6 +989,35 @@ export class Engine {
     if (w.ability && w.ability.onHit) {
       w.ability.onHit({ engine: this, attacker, victim, amount: dealt, weapon: w });
     }
+    // Augment coatings. Unlike an enchantment these are not a single roll —
+    // each coating carries its own chance and they all apply, which is what
+    // makes a heavily augmented weapon feel layered rather than swapped.
+    const F = attacker.flags;
+    if (F.augBurn) {
+      this.applyStatus(victim, 'burn', 4,
+        { power: dealt * F.augBurn, stacks: 1, sourceId: attacker.id });
+    }
+    if (F.augPoison) {
+      this.applyStatus(victim, 'poison', 5,
+        { power: dealt * F.augPoison, stacks: 1, sourceId: attacker.id });
+    }
+    if (F.augChill && this.rng.chance(F.augChill)) {
+      this.applyStatus(victim, 'chill', 3, { sourceId: attacker.id });
+    }
+    if (F.augShock && this.rng.chance(F.augShock)) {
+      let best = null, bestD = 300;
+      for (const foe of this.enemiesOf(attacker)) {
+        if (foe === victim) continue;
+        const d = this.dist(foe, victim);
+        if (d < bestD) { bestD = d; best = foe; }
+      }
+      if (best) {
+        this.damage(best, dealt * (F.augShockPower || 0.12),
+          { sourceId: attacker.id, kind: 'chain' });
+        this.beam(victim, best, '#facc15', 0.2);
+      }
+    }
+
     if (proc) {
       this.announce(victim, ench.short || ench.name.toUpperCase(), ench.color, 0.8);
       this.particles.burst('spark', victim.x, victim.y, 12, 230, ench.color);
@@ -1077,6 +1112,24 @@ export class Engine {
       }
       if (kind === 'weapon' || kind === 'ult') {
         attacker.ultCharge = Math.min(attacker.ultMax, attacker.ultCharge + dealt * 0.05);
+      }
+    }
+
+    // Armour coatings. Guarded on `kind` so a coating cannot retaliate
+    // against its own retaliation and loop two orbs to death.
+    if (attacker && attacker !== target && kind !== 'thorns' && kind !== 'retaliate') {
+      const TF = target.flags;
+      if (TF.augThorns) {
+        this.damage(attacker, dealt * TF.augThorns,
+          { sourceId: target.id, kind: 'thorns', silent: true });
+      }
+      if (TF.augRetaliate) {
+        this.damage(attacker, dealt * TF.augRetaliate,
+          { sourceId: target.id, kind: 'retaliate', silent: true });
+        this.particles.burst('ember', attacker.x, attacker.y, 6, 120, '#ef4444');
+      }
+      if (TF.augChillBack && this.rng.chance(TF.augChillBack)) {
+        this.applyStatus(attacker, 'chill', 2.5, { sourceId: target.id });
       }
     }
 
@@ -1716,6 +1769,7 @@ export class Engine {
   ambient(dt) {
     for (const ball of this.balls) {
       if (ball.dead) continue;
+      if (ball.flags.augRegen) this.heal(ball, ball.maxHp * ball.flags.augRegen * dt);
       const style = ball.element.particle;
       if (!style) continue;
       const speed = Math.hypot(ball.vx, ball.vy);

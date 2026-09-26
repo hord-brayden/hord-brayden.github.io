@@ -20,6 +20,9 @@ export const RARITIES = {
   rare:      { id: 'rare',      name: 'Rare',      color: '#38bdf8', weight: 14, cost: 1.85, proc: 0.28 },
   epic:      { id: 'epic',      name: 'Epic',      color: '#c084fc', weight: 6,  cost: 3.1,  proc: 0.34 },
   legendary: { id: 'legendary', name: 'Legendary', color: '#fbbf24', weight: 2,  cost: 5.0,  proc: 0.42 },
+  // Only augments reach this, by being levelled past Legendary. Nothing rolls
+  // God-like out of the shop, which is why it has no weight of its own.
+  godlike:   { id: 'godlike',   name: 'God-like',  color: '#ff3ea5', weight: 0,  cost: 7.5,  proc: 0.5  },
   // Cheap and loud. The downside is written into each cursed item.
   cursed:    { id: 'cursed',    name: 'Cursed',    color: '#f43f5e', weight: 5,  cost: 0.8,  proc: 0.50 },
 };

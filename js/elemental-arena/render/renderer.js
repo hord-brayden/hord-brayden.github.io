@@ -14,6 +14,8 @@
  */
 
 import { bakeWeapon, Weapons } from '../content/weapons.js';
+import { Augments } from '../content/augments.js';
+import { AugmentFx } from './augment-fx.js';
 import { Themes } from './themes.js';
 import { STYLES } from '../core/particles.js';
 
@@ -32,6 +34,7 @@ export class Renderer {
     this.height = 0;
 
     this.ballCache = new Map();
+    this.augFx = new AugmentFx();
     this.gridCanvas = null;
     this.gridCtx = null;
 
@@ -378,6 +381,10 @@ export class Renderer {
     ctx.translate(x, y);
 
     this.drawCosmetic(ctx, ball, r);
+    const augmented = AugmentFx.has(ball);
+    // Spines, runes and trails stand outside the shell, so they are drawn
+    // beneath it and read as attached rather than stuck on.
+    if (augmented) this.augFx.shell(ctx, ball, r, this.engine.time, Augments, 'under');
 
     if (this.theme.glow) {
       ctx.shadowColor = ball.element.colors.core;
@@ -388,6 +395,9 @@ export class Renderer {
     ctx.drawImage(sprite, -drawR, -drawR, drawR * 2, drawR * 2);
     ctx.shadowBlur = 0;
     ctx.imageSmoothingEnabled = true;
+    // Plate, crack, facet and bloom coat the shell itself, so they go on top
+    // of the opaque sprite — under it they were simply invisible.
+    if (augmented) this.augFx.shell(ctx, ball, r, this.engine.time, Augments, 'over');
 
     if (ball.parryFlash > 0) {
       ctx.globalAlpha = Math.min(0.9, ball.parryFlash);
@@ -718,8 +728,11 @@ export class Renderer {
         ctx.shadowBlur = 16;
       }
       ctx.drawImage(sprite, -sprite.anchorX, -sprite.anchorY);
-      ctx.imageSmoothingEnabled = true;
       ctx.shadowBlur = 0;
+      if (AugmentFx.has(ball)) {
+        this.augFx.weapon(ctx, ball, sprite, this.engine.time, Augments, this.theme.glow);
+      }
+      ctx.imageSmoothingEnabled = true;
       ctx.restore();
     }
   }
