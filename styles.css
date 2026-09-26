@@ -1310,3 +1310,37 @@ input:checked + .slider:before { transform: translateX(16px); background-color: 
   text-transform: uppercase;
   color: var(--muted);
 }
+
+/* ---------- Dark-mode toggle, now living in the nav ---------- */
+
+/* It used to be fixed bottom-right, where it sat on top of whatever the page
+   had there. Inside the nav list it rides in the hamburger on a phone and
+   inline on a desktop, which is where a site-wide setting belongs. */
+nav .nav-theme {
+  display: flex;
+  align-items: center;
+}
+nav .dark-mode-toggle {
+  position: static;
+  inset: auto;
+  width: auto;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+nav .dark-mode-label {
+  font-size: .82rem;
+  color: inherit;
+  white-space: nowrap;
+}
+/* On a wide screen the label is redundant beside a recognisable switch, and
+   the nav is tight on room. */
+@media (min-width: 861px) {
+  nav .dark-mode-label { display: none; }
+  nav .nav-theme { margin-left: 6px; }
+}

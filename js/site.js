@@ -26,17 +26,42 @@
       if (stored) return stored === 'enabled';
       return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     },
+    /**
+     * Put the theme switch in the nav rather than floating it over the page.
+     *
+     * As a fixed element bottom-right it sat on top of whatever the page had
+     * there — on the arena page that is the launch button and the match
+     * controls. In the nav list it rides inside the hamburger on a phone and
+     * sits inline on a desktop, which is where a site-wide setting belongs.
+     */
+    place(wrap) {
+      const list = document.querySelector('header-component nav ul, header nav ul, nav ul');
+      if (!list || wrap.closest('nav')) return !!wrap.closest('nav');
+      const li = document.createElement('li');
+      li.className = 'nav-theme';
+      li.appendChild(wrap);
+      list.appendChild(li);
+      return true;
+    },
     mount() {
       if (document.querySelector('.dark-mode-toggle')) return;
       const wrap = document.createElement('div');
       wrap.className = 'dark-mode-toggle';
       wrap.setAttribute('aria-label', 'Toggle dark mode');
       wrap.innerHTML = `
+        <span class="dark-mode-label">Dark mode</span>
         <label class="switch">
           <input type="checkbox" id="dark-mode-toggle-btn" aria-label="Dark mode" />
           <span class="slider round"></span>
         </label>`;
+      // The header is a custom element that may not have upgraded yet, so
+      // park it on the body and move it in the moment the nav appears.
       document.body.appendChild(wrap);
+      if (!this.place(wrap)) {
+        const obs = new MutationObserver(() => { if (this.place(wrap)) obs.disconnect(); });
+        obs.observe(document.documentElement, { childList: true, subtree: true });
+        setTimeout(() => obs.disconnect(), 8000);
+      }
 
       const btn = wrap.querySelector('#dark-mode-toggle-btn');
       const enabled = this.initial();

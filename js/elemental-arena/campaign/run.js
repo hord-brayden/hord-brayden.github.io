@@ -56,6 +56,27 @@ const ENEMY_INCOME_SHARE = 1;
  * three is no longer a different game. */
 const GOLD_MUL_CAP = 3;
 
+/* The rules a scored run is played under.
+ *
+ * The Forge's sliders exist so a sandbox match can be whatever you want, and
+ * `battleConfig` used to spread the whole player config into a campaign
+ * stage — which meant raising an orb's base health in Settings inflated
+ * every score on the board. A leaderboard is only worth having if every run
+ * on it was played the same way, so these are fixed here and the settings
+ * panel cannot reach them.
+ *
+ * Presentation is deliberately not in this list. Theme, particles, shake,
+ * sound and playback speed change nothing about the simulation — speedScale
+ * only feeds the fixed-timestep accumulator — so the player keeps those. */
+const CAMPAIGN_RULES = {
+  arenaW: 620,
+  arenaH: 620,
+  baseHp: 100,
+  baseDamage: 7,
+  ballRadius: 40,
+  ballSpeed: 395,
+};
+
 /** Encounter archetypes. Risk is priced in gold. */
 export const ENCOUNTERS = [
   {
@@ -79,6 +100,8 @@ export const ENCOUNTERS = [
     enemies: 2, power: 1.15, gold: 1.75, risk: 'high',
   },
 ];
+
+export { CAMPAIGN_RULES };
 
 export const RunState = {
   CHOOSING: 'choosing',   // picking the next encounter
@@ -516,6 +539,8 @@ export class CampaignRun {
     const mod = enc.modifier ? MODIFIERS[enc.modifier] : null;
     const cfg = {
       ...baseCfg,
+      // Fixed rules win over anything the player set in the Forge.
+      ...CAMPAIGN_RULES,
       modeId: 'duel',
       seed: `${this.seed}#${this.stage}`,
       roster,

@@ -190,7 +190,20 @@ export class Forge {
    * a rebuild invisible.
    */
   render() {
+    // Snapshot *every* scroller, not just the window.
+    //
+    // The first version of this only restored window.scrollY, which is right
+    // on a desktop where the page is the scroller. On a phone the inspector
+    // lives in a bottom sheet with its own overflow container, and replacing
+    // its contents makes Safari reset that container to the top — so a stat
+    // step still threw you back even though the page had not moved. Anything
+    // currently scrolled gets recorded and put back.
     const y = window.scrollY;
+    const scrolled = [];
+    for (const el of document.querySelectorAll('*')) {
+      if (el.scrollTop || el.scrollLeft) scrolled.push([el, el.scrollTop, el.scrollLeft]);
+    }
+
     const a = document.activeElement;
     // A selector that will still resolve after the rebuild.
     let refocus = null;
@@ -205,9 +218,16 @@ export class Forge {
 
     this.renderInner();
 
-    // The document can settle a frame late, so the offset is restored now and
-    // again after layout rather than only once.
-    const restore = () => { if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y); };
+    // Layout can settle a frame late, so everything is put back now and again
+    // after the next frame rather than only once.
+    const restore = () => {
+      if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+      for (const [el, top, left] of scrolled) {
+        if (!el.isConnected) continue;
+        if (Math.abs(el.scrollTop - top) > 1) el.scrollTop = top;
+        if (Math.abs(el.scrollLeft - left) > 1) el.scrollLeft = left;
+      }
+    };
     restore();
     requestAnimationFrame(restore);
     if (refocus) {

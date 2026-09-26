@@ -1596,11 +1596,14 @@ body.ea-recording #stage::after {
    where the play screen's control bar goes on a phone. Lift it clear rather
    than moving it, so it keeps its place on every other page. */
 @media (max-width: 720px) {
-  .dark-mode-toggle {
+  /* The toggle now lives in the nav, so it no longer needs lifting clear of
+     the sticky bars. These offsets only apply if it ever falls back to
+     floating, which happens only when the header fails to render. */
+  body > .dark-mode-toggle {
     bottom: calc(env(safe-area-inset-bottom) + 132px);
     opacity: .75;
   }
-  body.ea-playing .dark-mode-toggle {
+  body.ea-playing > .dark-mode-toggle {
     bottom: calc(env(safe-area-inset-bottom) + 176px);
   }
 
@@ -1925,4 +1928,13 @@ body.ea-recording #stage::after {
      and the same links are in the header menu. */
   /* It is a custom element, so `footer` alone never matched it. */
   body.ea-page footer-component { display: none; }
+}
+
+/* A note that changes what the controls under it mean. */
+.ea-note--warn {
+  padding: 9px 12px;
+  border-left: 3px solid var(--ea-tier, #fbbf24);
+  --ea-tier: #fbbf24;
+  background: color-mix(in srgb, #fbbf24 10%, transparent);
+  border-radius: 0 var(--radius) var(--radius) 0;
 }
