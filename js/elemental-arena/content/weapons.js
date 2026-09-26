@@ -157,19 +157,31 @@ Weapons.defineAll([
 Weapons.defineAll([
   {
     id: 'axe',
-    w: 30, h: 22,
-    hitRadius: 0.4, heavy: true,
+    w: 32, h: 24,
+    hitRadius: 0.42, heavy: true,
     draw(p, pal) {
-      grip(p, 18, pal);
-      p.rect(16, p.cy - 8, 4, 17, pal.mid);
-      // Flared bit, widening toward the cutting edge.
-      for (let i = 0; i < 9; i++) {
-        const spread = 3 + Math.round(i * 0.55);
-        p.rect(20 + i, p.cy - 5 - spread, 1, 11 + spread * 2, i > 5 ? pal.light : pal.mid);
+      grip(p, 19, pal);
+      p.rect(17, p.cy - 9, 3, 19, pal.hiltDark);        // haft collar
+      // A bearded axe head: the bit sweeps out and down into a crescent,
+      // which is the silhouette that reads as "axe". A flat rectangle does not.
+      for (let i = 0; i < 11; i++) {
+        const t = i / 10;
+        // Top edge rises gently; bottom edge drops away into the beard.
+        const top = Math.round(p.cy - 5 - t * 5);
+        const bot = Math.round(p.cy + 5 + Math.sin(t * Math.PI * 0.85) * 7);
+        for (let y = top; y <= bot; y++) {
+          const edge = y === top || y === bot || i === 10;
+          p.px(20 + i, y, edge ? pal.dark : t > 0.62 ? pal.light : pal.mid);
+        }
       }
-      p.rect(28, p.cy - 11, 1, 23, pal.light);
-      p.rect(16, p.cy - 8, 4, 2, pal.dark);
-      p.rect(16, p.cy + 7, 4, 2, pal.dark);
+      // The cutting edge itself, bright along the outer curve.
+      for (let i = 0; i < 11; i++) {
+        const t = i / 10;
+        const bot = Math.round(p.cy + 5 + Math.sin(t * Math.PI * 0.85) * 7);
+        p.px(20 + i, bot - 1, pal.light);
+      }
+      p.rect(17, p.cy - 9, 3, 2, pal.accent);
+      p.rect(17, p.cy + 7, 3, 2, pal.accent);
     },
   },
   {
@@ -212,46 +224,78 @@ Weapons.defineAll([
   },
   {
     id: 'scythe',
-    w: 34, h: 26,
+    w: 36, h: 28,
     hitRadius: 0.4, heavy: true,
     draw(p, pal) {
-      grip(p, 22, pal);
-      // Quarter-circle sweep — the arc is what reads as "scythe".
-      const cx = 22, cy = p.cy + 8, r = 16;
-      for (let a = -Math.PI * 0.52; a <= -0.04; a += 0.02) {
+      grip(p, 21, pal);
+      // The blade has to start *at* the haft, or it reads as two objects. A
+      // socket joins them, then the blade sweeps forward and up in an arc
+      // that thins toward the tip.
+      p.rect(19, p.cy - 3, 5, 7, pal.hiltDark);          // socket
+      p.rect(19, p.cy - 3, 5, 2, pal.accent);
+      const cx = 21, cy = p.cy + 9, r = 17;
+      for (let a = -Math.PI * 0.58; a <= -0.02; a += 0.012) {
         const x = cx + Math.cos(a) * r;
         const y = cy + Math.sin(a) * r;
+        // Thickness falls off toward the tip.
+        const t = (a + Math.PI * 0.58) / (Math.PI * 0.56);
+        const thick = Math.max(1, Math.round(3 * (1 - t * 0.7)));
         p.px(x, y, pal.light);
-        p.px(x, y + 1, pal.mid);
-        p.px(x, y + 2, pal.dark);
+        for (let k = 1; k <= thick; k++) p.px(x, y + k, k === thick ? pal.dark : pal.mid);
       }
-      p.rect(20, p.cy + 5, 4, 5, pal.hiltDark);
     },
   },
   {
     id: 'pitchfork',
-    w: 34, h: 20,
+    w: 34, h: 22,
     hitRadius: 0.32,
     draw(p, pal) {
-      grip(p, 24, pal);
-      p.rect(23, p.cy - 6, 2, 13, pal.mid);
-      for (const off of [-6, -2, 2, 6]) {
-        p.rect(25, p.cy + off - 1, 8, 2, pal.mid);
-        p.rect(25, p.cy + off - 1, 8, 1, pal.light);
+      grip(p, 23, pal);
+      p.rect(22, p.cy - 8, 3, 17, pal.hiltDark);         // ferrule
+      p.rect(22, p.cy - 8, 3, 2, pal.accent);
+      // Three tines, not four, and tapered to points — a comb has parallel
+      // teeth, a pitchfork has spikes that splay.
+      for (const off of [-6, 0, 6]) {
+        const tipY = p.cy + Math.round(off * 1.25);
+        for (let i = 0; i < 9; i++) {
+          const x = 25 + i;
+          const y = Math.round(p.cy + off + (tipY - (p.cy + off)) * (i / 8));
+          p.px(x, y, pal.light);
+          if (i < 6) p.px(x, y + 1, pal.mid);
+          if (i < 3) p.px(x, y + 2, pal.dark);
+        }
       }
     },
   },
   {
     id: 'club',
-    w: 26, h: 20,
-    hitRadius: 0.4, heavy: true,
+    w: 28, h: 22,
+    hitRadius: 0.42, heavy: true,
     draw(p, pal) {
-      grip(p, 10, pal);
-      for (let i = 0; i < 16; i++) {
-        const half = 2 + Math.round((i / 16) * 6);
-        p.rect(10 + i, p.cy - half, 1, half * 2 + 1, i % 5 === 0 ? pal.dark : pal.mid);
+      grip(p, 8, pal);
+      // A knobkerrie: a thin shaft that swells into a rounded head. The
+      // previous version tapered straight out to a flat cap, which reads as
+      // a wedge rather than as something you hit people with.
+      for (let i = 0; i < 20; i++) {
+        const x = 8 + i;
+        const t = i / 19;
+        let half;
+        if (t < 0.45) half = 2 + t * 2;                       // shaft
+        else {
+          // Head: a circular lobe, so it ends round instead of flat.
+          const u = (t - 0.45) / 0.55;
+          half = 3 + Math.sqrt(Math.max(0, 1 - (u - 0.55) * (u - 0.55) / 0.3)) * 6;
+        }
+        half = Math.max(1, Math.round(half));
+        for (let y = p.cy - half; y <= p.cy + half; y++) {
+          const rim = y === p.cy - half || y === p.cy + half;
+          p.px(x, y, rim ? pal.dark : y < p.cy - 2 ? pal.light : pal.mid);
+        }
       }
-      p.rect(10, p.cy - 8, 15, 2, pal.light);
+      // Grain and knots so it reads as wood.
+      for (const [kx, ky] of [[14, -3], [17, 2], [20, -4], [22, 3]]) p.px(kx, p.cy + ky, pal.dark);
+      // Iron studs ringing the head.
+      for (const ky of [-5, 0, 5]) p.px(23, p.cy + ky, pal.accent);
     },
   },
   {
@@ -332,14 +376,30 @@ Weapons.defineAll([
   },
   {
     id: 'gauntlet',
-    w: 22, h: 20,
-    hitRadius: 0.42, heavy: true,
+    w: 26, h: 22,
+    hitRadius: 0.44, heavy: true,
     draw(p, pal) {
-      grip(p, 6, pal);
-      p.rect(6, p.cy - 6, 10, 13, pal.mid);
-      p.rect(6, p.cy - 6, 10, 3, pal.light);
-      p.rect(6, p.cy + 4, 10, 3, pal.dark);
-      for (let i = 0; i < 4; i++) p.rect(16, p.cy - 6 + i * 3, 5, 2, pal.accent);
+      grip(p, 5, pal);
+      // A closed armoured fist, knuckles forward. Read from the back of the
+      // hand: cuff, then the wrist plate, then four knuckles with the thumb
+      // folded across the near side.
+      p.rect(5, p.cy - 7, 3, 15, pal.dark);            // cuff
+      p.rect(5, p.cy - 7, 3, 2, pal.accent);
+      p.rect(8, p.cy - 8, 8, 17, pal.mid);             // back of the hand
+      p.rect(8, p.cy - 8, 8, 3, pal.light);            // top highlight
+      p.rect(8, p.cy + 6, 8, 3, pal.dark);             // underside shadow
+      // Four knuckle plates, each domed, with a gap between them so the
+      // fingers read as separate rather than as one block.
+      for (let f = 0; f < 4; f++) {
+        const y = p.cy - 7 + f * 4;
+        p.rect(16, y, 6, 3, f === 0 ? pal.light : pal.mid);
+        p.rect(22, y, 2, 3, pal.accent);               // studded knuckle
+        p.px(15, y + 1, pal.dark);                     // finger seam
+      }
+      // Thumb, folded across the front.
+      p.rect(10, p.cy + 5, 7, 4, pal.mid);
+      p.rect(10, p.cy + 5, 7, 1, pal.light);
+      p.rect(16, p.cy + 5, 2, 4, pal.dark);
     },
   },
   {
@@ -425,40 +485,73 @@ Weapons.defineAll([
   },
   {
     id: 'flask',
-    w: 20, h: 20,
-    hitRadius: 0.42,
+    w: 22, h: 22,
+    hitRadius: 0.44,
     draw(p, pal) {
       grip(p, 4, pal);
-      p.rect(5, p.cy - 2, 3, 5, pal.hiltDark);
-      // Conical flask — visually distinct from the round vial at a glance.
-      for (let i = 0; i < 11; i++) {
-        const half = 1 + Math.round((i / 11) * 5);
-        const x = 8 + i;
-        for (let y = p.cy - half; y <= p.cy + half; y++) {
-          p.px(x, y, y === p.cy - half ? pal.light : i > 6 ? pal.accent : pal.mid);
+      // A round bomb with a fuse, not a funnel. The circle is the silhouette
+      // that reads at 20 pixels; the fuse and spark say what it does.
+      const cx = 12, cy = p.cy, r = 7;
+      for (let y = -r; y <= r; y++) {
+        const hw = Math.round(Math.sqrt(Math.max(0, r * r - y * y)));
+        for (let x = -hw; x <= hw; x++) {
+          const edge = hw - Math.abs(x) < 1 || Math.abs(y) === r;
+          p.px(cx + x, cy + y, edge ? pal.dark : (x + y < -3 ? pal.light : pal.mid));
         }
       }
-      p.rect(17, p.cy - 6, 2, 13, pal.dark);
-      p.px(11, p.cy - 2, pal.light);
+      // Banding across the shell so it does not read as a plain ball.
+      p.rect(cx - 6, cy - 1, 13, 2, pal.accent);
+      // Neck and cork at the top-left, where the grip meets it.
+      p.rect(5, cy - 2, 4, 4, pal.hiltDark);
+      p.rect(4, cy - 3, 2, 6, pal.hilt);
+      // Fuse, curling up and away, with a lit spark at the tip.
+      p.line(cx + 2, cy - 7, cx + 5, cy - 10, pal.dark);
+      p.line(cx + 5, cy - 10, cx + 8, cy - 9, pal.dark);
+      p.px(cx + 9, cy - 9, pal.accent);
+      p.px(cx + 9, cy - 10, pal.light);
+      p.px(cx + 10, cy - 9, pal.light);
     },
   },
   {
     id: 'shield',
-    w: 22, h: 26,
-    hitRadius: 0.46, heavy: true,
+    w: 26, h: 30,
+    hitRadius: 0.48, heavy: true,
     draw(p, pal) {
-      grip(p, 5, pal);
-      // Heater shield: square shoulders tapering to a point.
-      for (let i = 0; i < 16; i++) {
-        const x = 5 + i;
-        const half = i < 9 ? 11 : Math.max(1, 11 - Math.round((i - 9) * 1.6));
+      grip(p, 6, pal);
+      // A heater shield seen face-on: square shoulders, straight sides, and a
+      // long taper to a point.
+      const x0 = 6, cols = 19;
+      const halfAt = (i) => {
+        const t = i / (cols - 1);
+        if (t < 0.34) return 13;
+        const u = (t - 0.34) / 0.66;
+        return Math.max(1, Math.round(13 * Math.sqrt(1 - u * u)));
+      };
+      for (let i = 0; i < cols; i++) {
+        const half = halfAt(i);
         for (let y = p.cy - half; y <= p.cy + half; y++) {
-          const edge = y === p.cy - half || y === p.cy + half || i === 15;
-          p.px(x, y, edge ? pal.dark : i < 3 ? pal.light : pal.mid);
+          const rim = y === p.cy - half || y === p.cy + half || i === cols - 1;
+          // Shading in thirds. An earlier version put everything below centre
+          // in shadow, which read as a shield half-swallowed by the dark.
+          let c = pal.mid;
+          if (rim) c = pal.dark;
+          else if (y < p.cy - 5) c = pal.light;
+          else if (y > p.cy + 8) c = pal.dark;
+          p.px(x0 + i, y, c);
         }
       }
-      p.rect(9, p.cy - 1, 9, 3, pal.accent);        // boss
-      p.rect(7, p.cy - 9, 2, 18, pal.light);
+      p.rect(x0, p.cy - 13, 2, 27, pal.dark);
+      p.rect(x0 + 2, p.cy - 13, 1, 27, pal.light);
+      // Boss: a raised dome at the centre of mass.
+      for (let dy = -3; dy <= 3; dy++) {
+        const hw = Math.round(Math.sqrt(Math.max(0, 9 - dy * dy)));
+        for (let dx = -hw; dx <= hw; dx++) {
+          p.px(x0 + 7 + dx, p.cy + dy, dy < 0 ? pal.accent : pal.mid);
+        }
+      }
+      for (const [rx, ry] of [[2, -10], [2, 10], [8, -11], [8, 11], [13, -7], [13, 7]]) {
+        p.px(x0 + rx, p.cy + ry, pal.accent);
+      }
     },
   },
   {

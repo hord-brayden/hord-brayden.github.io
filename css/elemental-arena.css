@@ -1686,17 +1686,41 @@ body.ea-recording #stage::after {
 .ea-picker-weapon { font-size: .64rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
 
 @media (pointer: coarse), (max-width: 720px) {
-  .ea-orb-tools { opacity: 1; gap: 4px; }
+  /* On touch there is no hover, so the tools are always visible — which
+     means they cannot float on top of the orb. Three 34px buttons overlaid
+     on a chip covered the artwork completely and made the orbs look broken.
+     They get their own row under the name instead. */
+  .ea-orb {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 108px;
+  }
+  .ea-orb-tools {
+    position: static;
+    opacity: 1;
+    gap: 6px;
+    width: 100%;
+    justify-content: center;
+    margin-top: 2px;
+  }
   /* Square and explicitly sized: the global 44px minimum made these tall and
-     narrow, which is a worse target than a slightly smaller square. Three of
-     them plus gaps still fit inside a chip. */
+     narrow, which is a worse target than a slightly smaller square. */
   .ea-orb-tool {
-    width: 34px; height: 34px;
-    min-height: 34px;
+    width: 32px; height: 32px;
+    min-height: 32px;
     font-size: 1rem;
   }
+  /* The preview must keep its own box, or the flex row squashes it and the
+     canvas renders a sliver of the orb. */
+  .ea-orb .ea-orb-canvas {
+    width: 58px; height: 58px;
+    flex: 0 0 auto;
+  }
+  .ea-orb-count, .ea-orb-mod { position: static; }
   .ea-team-add { min-height: 48px; }
-  .ea-orb { min-width: 118px; }
 }
 
 @media (max-width: 720px) {
@@ -1726,8 +1750,9 @@ body.ea-recording #stage::after {
     font-size: .76rem;
     text-align: center;
   }
-  #modeTabs .ea-tab small,
-  #modeTabs .ea-tab span { display: none; }
+  /* Only the tagline goes. Hiding every span also hid the mode's *name*,
+     which left three blank white pills. */
+  #modeTabs .ea-tab .ea-tab-line { display: none; }
   #modeBlurb {
     font-size: .76rem;
     display: -webkit-box;

@@ -179,7 +179,44 @@ export class Forge {
 
   /* ------------------------------------------------------------ render */
 
+  /**
+   * Re-render, keeping the page where the player left it.
+   *
+   * Every control in the Forge calls render(), which rebuilds whole panels
+   * with innerHTML. That briefly collapses the document, the browser clamps
+   * the scroll offset to the shorter page, and you are thrown back to the
+   * top — so stepping a stat twice meant scrolling back down in between.
+   * Recording the offset and the focused control, then restoring both, makes
+   * a rebuild invisible.
+   */
   render() {
+    const y = window.scrollY;
+    const a = document.activeElement;
+    // A selector that will still resolve after the rebuild.
+    let refocus = null;
+    if (a && a !== document.body) {
+      if (a.id) refocus = `#${a.id}`;
+      else if (a.dataset && a.dataset.dir && a.closest('[data-stat]')) {
+        refocus = `.ea-stepper[data-stat="${a.closest('[data-stat]').dataset.stat}"] [data-dir="${a.dataset.dir}"]`;
+      } else if (a.dataset && a.dataset.act && a.closest('[data-index]')) {
+        refocus = `.ea-orb[data-index="${a.closest('[data-index]').dataset.index}"] [data-act="${a.dataset.act}"]`;
+      }
+    }
+
+    this.renderInner();
+
+    // The document can settle a frame late, so the offset is restored now and
+    // again after layout rather than only once.
+    const restore = () => { if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y); };
+    restore();
+    requestAnimationFrame(restore);
+    if (refocus) {
+      const el = document.querySelector(refocus);
+      if (el) el.focus({ preventScroll: true });
+    }
+  }
+
+  renderInner() {
     const cfg = this.app.config;
     const mode = Modes.get(cfg.modeId);
 
