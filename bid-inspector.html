@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bid Inspector</title>
+<meta name="description" content="A Chrome extension that shows the header-bidding auction as it happens in your browser: every bid including the ones that lost, the creatives behind them, the IDs you carry, and the targeting sent. Then change the targeting and prove a line item serves.">
+<meta property="og:title" content="Bid Inspector">
+<meta property="og:description" content="See every bid your browser gets, even the ones that lost.">
+<meta name="color-scheme" content="light dark">
+<link rel="canonical" href="https://hord-brayden.github.io/bid-inspector.html">
+<meta property="og:url" content="https://hord-brayden.github.io/bid-inspector.html">
+<!-- Same anonymous visit stats as the rest of the site (see privacy.html) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MKKD62VLDH"></script>
+<script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-MKKD62VLDH');</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%233d5afe'/%3E%3Cpath d='M6 17V7h5a5 5 0 0 1 0 10z' fill='none' stroke='%23fff' stroke-width='2.2'/%3E%3Cpath d='M9 15v-3M12 15V9' stroke='%2312b76a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+/* Fonts are served from this site (OFL), not from Google, so visitors' IPs never go to a third party. */
+@font-face { font-family: "Bricolage Grotesque"; src: url("fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 400 800; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("fonts/instrument-sans.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("fonts/jetbrains-mono-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+html, body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+:root {
+  --paper: #f3eee3; --surface: #fffcf5; --ink: #141210; --muted: #5d574f; --line: #141210;
+  --blue: #3d5afe; --yellow: #ffd83d; --green: #12b76a; --red: #ff4b3e; --violet: #c9d2ff;
+  --good-bg: #d9f3e6; --bad-bg: #ffe0dc; --chip: #ebe4d6;
+  --sh: 5px 5px 0 var(--ink);
+  --display: "Bricolage Grotesque", "Arial Black", system-ui, sans-serif;
+  --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #141210; --surface: #1e1b18; --ink: #f3eee3; --muted: #b3aa9d; --line: #3a352f;
+    --good-bg: #173a2a; --bad-bg: #45211d; --chip: #2a2622; --sh: 5px 5px 0 #000;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #141210; --surface: #1e1b18; --ink: #f3eee3; --muted: #b3aa9d; --line: #3a352f;
+  --good-bg: #173a2a; --bad-bg: #45211d; --chip: #2a2622; --sh: 5px 5px 0 #000;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 400 17px/1.6 var(--body); padding-inline: 20px; padding-block: 0 64px; }
+.wrap { max-width: 1080px; margin: 0 auto; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.02; letter-spacing: -0.025em; text-wrap: balance; margin: 0; }
+p { margin: 0; }
+code { font: 500 0.86em var(--mono); background: var(--chip); padding: 1px 6px; border-radius: 5px; }
+.label { font: 600 12px/1 var(--body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+
+/* top bar */
+.bar { display: flex; align-items: center; gap: 12px; padding-block: 22px; border-bottom: 2px solid var(--ink); }
+.logo { width: 38px; height: 38px; border-radius: 10px; background: var(--blue); border: 2px solid #141210; display: grid; place-items: center; box-shadow: 3px 3px 0 #141210; overflow: hidden; }
+.logo svg { width: 22px; height: 22px; }
+.bar b { font: 800 20px/1 var(--display); letter-spacing: -0.02em; white-space: nowrap; }
+.bar .tag { margin-left: auto; font: 600 13px/1 var(--body); padding: 8px 12px; border-radius: 999px; background: var(--green); color: #0b2a1b; border: 2px solid #141210; text-decoration: none; }
+
+/* hero */
+.hero { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 48px; align-items: center; padding-block: 56px 40px; }
+.hero h1 { font-size: clamp(44px, 7vw, 84px); font-weight: 800; }
+.hero h1 em { font-style: normal; background: var(--blue); color: #fff; padding: 0 0.12em; border-radius: 8px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.hero .lede { font-size: 20px; color: var(--muted); max-width: 36ch; margin-top: 22px; }
+.proof { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+.proof span { font: 600 14px/1.3 var(--body); padding: 10px 14px; border: 2px solid var(--ink); border-radius: 999px; background: var(--surface); }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+.btnx { display: inline-flex; align-items: center; gap: 8px; font: 700 16px/1 var(--body); padding: 14px 20px; border-radius: 12px; border: 2px solid #141210; text-decoration: none; box-shadow: 4px 4px 0 #141210; transition: transform .08s, box-shadow .08s; color: var(--ink); }
+.btnx:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 #141210; }
+.btnx:active { transform: translate(3px, 3px); box-shadow: 0 0 0 #141210; }
+.btnx:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+.btnx.primary { background: var(--yellow); color: #141210; }
+.btnx.ghost { background: var(--surface); color: var(--ink); }
+
+/* "shots": illustrated panels drawn in HTML, in the extension's own layout */
+.shot { border: 2px solid #141210; border-radius: 18px; overflow: hidden; box-shadow: var(--sh); background: var(--surface); }
+.hero .shot { max-width: 440px; justify-self: end; transform: rotate(1.2deg); }
+.panel { font: 500 13px/1.4 var(--body); }
+.panel-top { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 2px solid var(--line); background: var(--chip); }
+.panel-top b { font: 700 13px/1 var(--display); }
+.chip { font: 600 11px/1 var(--body); padding: 5px 8px; border-radius: 999px; border: 1.5px solid var(--ink); background: var(--surface); }
+.chip.on { background: var(--green); color: #0b2a1b; }
+.chip.blue { background: var(--violet); color: #141210; }
+.panel-body { padding: 12px 14px; display: grid; gap: 8px; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.kpi { border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--paper); }
+.kpi small { display: block; font: 600 10px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.kpi b { font: 700 17px/1 var(--display); }
+.rows { display: grid; gap: 6px; }
+.row { display: grid; grid-template-columns: 92px 1fr auto auto; align-items: center; gap: 10px; }
+.row .bidder { font-weight: 600; }
+.row .track { height: 14px; border-radius: 4px; background: var(--chip); overflow: hidden; }
+.row .fill { height: 100%; width: var(--w); background: var(--blue); border-radius: 4px; }
+.row.won .fill { background: var(--green); }
+.row.out .fill { background: var(--red); width: 100%; opacity: .35; }
+.row .cpm { font: 500 12px/1 var(--mono); min-width: 52px; text-align: right; }
+.row .st { font: 600 10px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; padding: 4px 6px; border-radius: 999px; border: 1.5px solid var(--ink); min-width: 54px; text-align: center; }
+.row.won .st { background: var(--green); color: #0b2a1b; }
+.row.out .st { background: var(--bad-bg); }
+@media (prefers-reduced-motion: no-preference) {
+  .row .fill { animation: grow .9s cubic-bezier(.2,.9,.3,1) both; animation-delay: var(--d, 0s); transform-origin: left; }
+  @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+}
+
+/* timeline strip: the auction as a divider */
+.lanes { border-block: 2px solid var(--ink); padding-block: 14px; display: grid; gap: 8px; margin-block: 16px 64px; position: relative; }
+.lane { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 12px; font: 600 13px/1 var(--body); }
+.track2 { position: relative; height: 14px; border-bottom: 2px dashed var(--line); }
+.blip { position: absolute; top: 0; width: 14px; height: 14px; border-radius: 50%; background: var(--c); border: 2px solid #141210; transform: translateX(-50%); }
+.blip.won { box-shadow: 0 0 0 3px var(--green); }
+.blip.late { border-radius: 2px; transform: translateX(-50%) rotate(45deg); background: var(--red); }
+.timeout { position: absolute; top: 0; bottom: 0; left: 78%; border-left: 2px solid var(--red); }
+.timeout span { position: absolute; top: -18px; left: 6px; font: 600 10px/1 var(--mono); color: var(--red); white-space: nowrap; }
+.lanes .legend { grid-column: 1 / -1; font: 500 12px/1 var(--mono); color: var(--muted); margin-top: 6px; }
+@media (prefers-reduced-motion: no-preference) {
+  .blip { animation: pop 0.5s cubic-bezier(.2,1.6,.4,1) both; animation-delay: var(--d, 0s); }
+  @keyframes pop { from { transform: translateX(-50%) scale(0.2); } to { transform: translateX(-50%) scale(1); } }
+  .blip.late { animation: none; }
+}
+
+/* jobs */
+.sech { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+.sech h2 { font-size: clamp(32px, 4.4vw, 48px); font-weight: 800; }
+.sech p { color: var(--muted); max-width: 40ch; }
+.jobs { display: grid; gap: 56px; }
+.job { display: grid; grid-template-columns: 0.95fr 1.05fr; gap: 44px; align-items: center; }
+.job:nth-child(even) .jtext { order: 2; }
+.jtext { display: grid; gap: 14px; }
+.jtag { display: inline-flex; align-self: start; justify-self: start; align-items: center; gap: 8px; font: 700 13px/1 var(--body); padding: 8px 12px; border-radius: 999px; border: 2px solid #141210; color: #141210; }
+.jtag.see { background: var(--violet); } .jtag.prove { background: #ffd2a8; } .jtag.compare { background: #ffc9f0; } .jtag.know { background: #c8f0dc; }
+.job h3 { font-size: clamp(26px, 3vw, 34px); font-weight: 700; }
+.job p { color: var(--muted); max-width: 46ch; }
+.finding { border: 2px solid var(--ink); border-left-width: 8px; border-radius: 12px; padding: 12px 16px; background: var(--bad-bg); font-weight: 600; }
+.finding.good { background: var(--good-bg); border-left-color: var(--green); }
+.finding.bad { border-left-color: var(--red); }
+.finding.note { background: var(--surface); border-left-color: var(--blue); }
+.finding small { display: block; font: 500 13px/1.4 var(--body); color: var(--muted); margin-top: 4px; }
+.job .shot { max-width: 520px; }
+
+/* creatives grid inside a shot */
+.creatives { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.creative { border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--paper); }
+.creative .art { height: 64px; background: repeating-linear-gradient(135deg, var(--chip) 0 8px, var(--paper) 8px 16px); display: grid; place-items: center; font: 700 11px/1 var(--display); color: var(--muted); }
+.creative .art.won { background: var(--good-bg); color: #0b2a1b; }
+.creative .meta { padding: 6px 8px; font: 500 11px/1.35 var(--body); }
+.creative .meta b { display: block; font: 500 11px/1 var(--mono); margin-bottom: 3px; }
+/* injector rule inside a shot */
+.rule { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--paper); }
+.rule code { background: transparent; padding: 0; }
+.rule .ok { font: 700 11px/1 var(--body); padding: 5px 8px; border-radius: 999px; background: var(--green); color: #0b2a1b; }
+.rule .partial { font: 700 11px/1 var(--body); padding: 5px 8px; border-radius: 999px; background: var(--yellow); color: #141210; }
+.rule .kind { font: 600 10px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+/* compare table inside a shot */
+.cmp { width: 100%; border-collapse: collapse; font: 500 12px/1.4 var(--body); }
+.cmp th, .cmp td { text-align: left; padding: 6px 8px; border-bottom: 1.5px solid var(--line); }
+.cmp th { font: 600 10px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.cmp td.mono { font: 500 12px/1.4 var(--mono); }
+.cmp td .delta { color: #0b6b3a; font-weight: 700; }
+.dark .cmp td .delta { color: var(--green); }
+/* identity list inside a shot */
+.ids { display: grid; gap: 6px; }
+.id { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; border: 1.5px solid var(--line); border-radius: 10px; padding: 7px 10px; background: var(--paper); }
+.id b { font: 600 12px/1.3 var(--body); }
+.id code { font-size: 11px; }
+.id .src { font: 600 10px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+
+/* audiences */
+.aud { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border: 2px solid var(--ink); border-radius: 18px; overflow: hidden; background: var(--surface); margin-top: 96px; }
+.aud > div { padding: 24px 22px 26px; display: grid; gap: 10px; align-content: start; }
+.aud > div + div { border-left: 2px solid var(--ink); }
+.aud h3 { font-size: 22px; font-weight: 700; }
+.aud p { font-size: 15px; color: var(--muted); }
+.aud .q { font: 600 15px/1.35 var(--body); color: var(--ink); }
+
+/* inventory of sections */
+.inv { margin-top: 72px; }
+.inv h2 { font-size: clamp(28px, 3.6vw, 40px); font-weight: 800; margin-bottom: 18px; }
+.inv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.inv-grid div { border: 2px solid var(--ink); border-radius: 14px; padding: 14px 16px; background: var(--surface); }
+.inv-grid b { display: block; font: 700 15px/1.2 var(--display); margin-bottom: 6px; }
+.inv-grid p { font-size: 14px; color: var(--muted); }
+
+/* demo */
+.demo { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 96px; padding: 36px; border-radius: 22px; background: #141210; color: #f3eee3; border: 2px solid #141210; }
+.demo h2 { font-size: clamp(30px, 4vw, 44px); font-weight: 800; }
+.demo h2 span { color: var(--yellow); }
+.demo p { color: #cfc6b8; margin-top: 14px; max-width: 40ch; }
+.demo ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; counter-reset: s; }
+.demo li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; font-size: 15px; }
+.demo li::before { content: counter(s); width: 30px; height: 30px; border-radius: 50%; background: var(--yellow); color: #141210; font: 800 15px/30px var(--display); text-align: center; }
+.demo code { background: #2b2723; color: #ffe98a; }
+.demo b { color: #fff; }
+.demo .btnx.ghost { background: transparent; color: #f3eee3; border-color: #f3eee3; box-shadow: 4px 4px 0 #f3eee3; }
+
+/* limits */
+.limits { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 72px; padding-top: 32px; border-top: 2px solid var(--ink); }
+.limits h3 { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+.limits p, .limits li { color: var(--muted); font-size: 15px; }
+.limits ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.foot { margin-top: 48px; font-size: 13px; color: var(--muted); }
+.foot a { color: var(--muted); }
+.crumb { display: flex; gap: 8px; align-items: center; padding-block: 12px 0; font: 600 13px/1 var(--body); color: var(--muted); }
+.crumb a { color: var(--muted); text-decoration: none; border-bottom: 1.5px solid transparent; }
+.crumb a:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.crumb b { color: var(--ink); }
+
+@media (max-width: 860px) {
+  .hero, .job, .demo, .limits { grid-template-columns: 1fr; gap: 28px; }
+  .hero .shot { justify-self: start; transform: none; }
+  .job:nth-child(even) .jtext { order: 0; }
+  .aud { grid-template-columns: 1fr 1fr; }
+  .aud > div:nth-child(3) { border-left: 0; }
+  .aud > div:nth-child(n+3) { border-top: 2px solid var(--ink); }
+  .inv-grid { grid-template-columns: 1fr 1fr; }
+  .demo { padding: 26px 20px; }
+}
+@media (max-width: 520px) {
+  body { font-size: 16px; }
+  .aud { grid-template-columns: 1fr; }
+  .aud > div + div { border-left: 0; border-top: 2px solid var(--ink); }
+  .inv-grid { grid-template-columns: 1fr; }
+  .lane { grid-template-columns: 76px 1fr; }
+  .hero { padding-block: 36px 24px; }
+  .bar .tag .long { display: none; }
+  .kpis { grid-template-columns: 1fr 1fr; }
+  .row { grid-template-columns: 70px 1fr auto; }
+  .row .st { display: none; }
+  .creatives { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb" aria-label="Breadcrumb"><a href="index.html">hord.brayden</a><span aria-hidden="true">/</span><a href="index.html#tools">Tools</a><span aria-hidden="true">/</span><b>Bid Inspector</b></nav>
+  <header class="bar">
+    <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M6 18V6h5a6 6 0 0 1 0 12z" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/><path d="M9.5 15v-3M12.5 15V9" stroke="#12b76a" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+    <b>Bid Inspector</b>
+    <span class="tag">Local only<span class="long">: nothing leaves the browser</span></span>
+  </header>
+
+  <section class="hero">
+    <div>
+      <p class="label">A Chrome extension for anyone who buys, sells, or audits programmatic ads</p>
+      <h1 style="margin-top:14px">See every bid your browser gets, <em>even the ones that lost.</em></h1>
+      <p class="lede">Open it on any ad-supported page and it shows the header-bidding auction as it happened: every bidder and price, the creatives that bid on you, the advertisers behind them, the IDs you carry, and exactly what targeting was sent. Then change that targeting and prove your line item serves.</p>
+      <div class="proof">
+        <span>Prebid.js · Amazon TAM · Google Ad Manager</span>
+        <span>~160 vendors classified</span>
+        <span>Losing bids and their creatives</span>
+        <span>First of its kind</span>
+      </div>
+      <div class="cta">
+        <a class="btnx primary" href="#access">Get access <span aria-hidden="true">&rarr;</span></a>
+        <a class="btnx ghost" href="https://www.linkedin.com/in/brayden-hord" target="_blank" rel="noopener">DM me on LinkedIn &#8599;</a>
+      </div>
+    </div>
+    <figure class="shot" style="margin:0" role="img" aria-label="Illustration of the Overview panel: 9 bids from 6 bidders, a top CPM of $2.41, and a bar per bidder showing price and outcome">
+      <div class="panel">
+        <div class="panel-top"><b>Overview</b><span class="chip on">Prebid 9.x</span><span class="chip blue">GPT</span><span class="chip">TAM</span><span class="chip">TCF v2.2</span></div>
+        <div class="panel-body">
+          <div class="kpis">
+            <div class="kpi"><small>Bids</small><b>9</b></div>
+            <div class="kpi"><small>Top CPM</small><b>$2.41</b></div>
+            <div class="kpi"><small>Vendors</small><b>38</b></div>
+            <div class="kpi"><small>IDs on you</small><b>14</b></div>
+          </div>
+          <div class="rows" aria-hidden="true">
+            <div class="row won"><span class="bidder">rubicon</span><div class="track"><div class="fill" style="--w:96%;--d:.1s"></div></div><span class="cpm">$2.41</span><span class="st">won</span></div>
+            <div class="row"><span class="bidder">appnexus</span><div class="track"><div class="fill" style="--w:78%;--d:.2s"></div></div><span class="cpm">$1.96</span><span class="st">lost</span></div>
+            <div class="row"><span class="bidder">ttd</span><div class="track"><div class="fill" style="--w:70%;--d:.3s"></div></div><span class="cpm">$1.75</span><span class="st">lost</span></div>
+            <div class="row"><span class="bidder">pubmatic</span><div class="track"><div class="fill" style="--w:44%;--d:.4s"></div></div><span class="cpm">$1.10</span><span class="st">lost</span></div>
+            <div class="row"><span class="bidder">amazon</span><div class="track"><div class="fill" style="--w:52%;--d:.5s"></div></div><span class="cpm">enc.</span><span class="st">lost</span></div>
+            <div class="row out"><span class="bidder">openx</span><div class="track"><div class="fill"></div></div><span class="cpm">&nbsp;</span><span class="st">timeout</span></div>
+          </div>
+        </div>
+      </div>
+    </figure>
+  </section>
+
+  <div class="lanes" aria-hidden="true">
+    <div class="lane"><span>rubicon</span><div class="track2"><i class="blip won" style="--c:#12b76a;left:31%;--d:.1s"></i></div></div>
+    <div class="lane"><span>appnexus</span><div class="track2"><i class="blip" style="--c:#3d5afe;left:24%;--d:.2s"></i></div></div>
+    <div class="lane"><span>ttd</span><div class="track2"><i class="blip" style="--c:#3d5afe;left:46%;--d:.3s"></i></div></div>
+    <div class="lane"><span>openx</span><div class="track2"><i class="blip late" style="left:91%"></i></div></div>
+    <div class="timeout"><span>timeout 1200 ms</span></div>
+    <div class="legend">auction timeline · one lane per bidder · a square past the red line is a bid that arrived too late to count</div>
+  </div>
+
+  <div class="sech">
+    <h2>Four jobs, one panel</h2>
+    <p>Each one answers a question people currently answer by asking the SSP, reading DevTools, or shrugging.</p>
+  </div>
+
+  <div class="jobs">
+    <article class="job">
+      <div class="jtext">
+        <span class="jtag see">See</span>
+        <h3>What did the auction actually do?</h3>
+        <p>Every Prebid bid with its price, outcome, latency and deal ID, on a timeline with the timeout line drawn in. Amazon TAM slots and signals. The line item and creative Google Ad Manager finally served in each slot, with an overlay that draws it on the page itself. And the part nobody else shows: the creatives that bid on you and lost, rendered in a sealed sandbox.</p>
+        <div class="finding good">9 bids, 6 bidders, winner $2.41 CPM at 340 ms<small>openx timed out at 1,310 ms. Three losing creatives captured.</small></div>
+      </div>
+      <figure class="shot" style="margin:0" role="img" aria-label="Illustration of the Creatives panel: six captured ads, one marked won and the rest marked lost with their bid prices">
+        <div class="panel">
+          <div class="panel-top"><b>Creatives</b><span class="chip">6 captured</span><span class="chip blue">incl. 5 outbid</span></div>
+          <div class="panel-body">
+            <div class="creatives" aria-hidden="true">
+              <div class="creative"><div class="art won">300&times;250</div><div class="meta"><b>rubicon · $2.41</b>won · acme-autos.com</div></div>
+              <div class="creative"><div class="art">300&times;250</div><div class="meta"><b>appnexus · $1.96</b>lost · fintechcard.co</div></div>
+              <div class="creative"><div class="art">728&times;90</div><div class="meta"><b>ttd · $1.75</b>lost · resort-deals.net</div></div>
+              <div class="creative"><div class="art">300&times;600</div><div class="meta"><b>pubmatic · $1.10</b>lost · mattress-brand.com</div></div>
+              <div class="creative"><div class="art">320&times;50</div><div class="meta"><b>ix · $0.88</b>lost · streaming.tv</div></div>
+              <div class="creative"><div class="art">300&times;250</div><div class="meta"><b>sovrn · $0.62</b>lost · localgrocer.com</div></div>
+            </div>
+          </div>
+        </div>
+      </figure>
+    </article>
+
+    <article class="job">
+      <div class="jtext">
+        <span class="jtag prove">Prove</span>
+        <h3>Will my test line item serve?</h3>
+        <p>Add a targeting rule for the site: a GPT key-value, Prebid first-party data, a test ID in a cookie, or a debug URL parameter. It is queued ahead of the site's own ad code on every load until you switch it off. Save &amp; reload snapshots a baseline, reloads, and then reports per rule whether it landed, checked in the Prebid config and in the actual OpenRTB bid requests.</p>
+        <div class="finding good">&#10003; Verified: <code>arena_test=qa1</code> reached GPT before the first ad request<small>Slot /1234/home_top served line item 6789012, creative 1382900. Compare baseline to live to see the change.</small></div>
+      </div>
+      <figure class="shot" style="margin:0" role="img" aria-label="Illustration of the Injector panel: three targeting rules for a site, two verified and one partial">
+        <div class="panel">
+          <div class="panel-top"><b>Injector</b><span class="chip">example-news.com</span><span class="chip on">3 rules on</span></div>
+          <div class="panel-body">
+            <div class="rule"><span class="kind">GPT key</span><code>arena_test = qa1</code><span class="ok">&#10003; Verified</span></div>
+            <div class="rule"><span class="kind">Prebid ortb2</span><code>site.ext.data.section = sports</code><span class="ok">&#10003; Verified</span></div>
+            <div class="rule"><span class="kind">Cookie</span><code>_test_uid = 7f3a…</code><span class="partial">&#9684; Partial</span></div>
+            <div class="finding note" style="font-size:12px;padding:8px 12px">Partial means Prebid has the value but no captured bidder request carried it. Usually the site's adapters don't forward that field.</div>
+          </div>
+        </div>
+      </figure>
+    </article>
+
+    <article class="job">
+      <div class="jtext">
+        <span class="jtag compare">Compare</span>
+        <h3>What changed between these two loads?</h3>
+        <p>One click snapshots a whole page load: bids, creatives, network, IDs, targeting, rules. Compare any two, or a snapshot against the live page: headline deltas, the winner and top CPM per slot, the GAM line item and creative, bidders added or removed, vendors and advertisers. Export a self-contained HTML report or an 18-sheet Excel workbook to attach to the ticket.</p>
+        <div class="finding note">Auctions are noisy. A single CPM swing is weather; a changed line item on the slot you targeted is signal.<small>Save two or three snapshots per side before you call it.</small></div>
+      </div>
+      <figure class="shot" style="margin:0" role="img" aria-label="Illustration of the Compare view: a table of slots with baseline and live winners, CPMs and line items">
+        <div class="panel">
+          <div class="panel-top"><b>Compare</b><span class="chip">baseline 10:41</span><span class="chip blue">live</span></div>
+          <div class="panel-body">
+            <table class="cmp" aria-hidden="true">
+              <thead><tr><th>Slot</th><th>Winner</th><th>Top CPM</th><th>Line item</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">home_top</td><td>rubicon &rarr; rubicon</td><td class="mono">$2.41 &rarr; $2.38</td><td class="mono">6789012 <span class="delta">changed</span></td></tr>
+                <tr><td class="mono">home_right</td><td>appnexus &rarr; ttd</td><td class="mono">$1.20 &rarr; $1.31</td><td class="mono">unchanged</td></tr>
+                <tr><td class="mono">article_inline</td><td>pubmatic &rarr; pubmatic</td><td class="mono">$0.94 &rarr; $0.90</td><td class="mono">unchanged</td></tr>
+                <tr><td class="mono">footer</td><td>none &rarr; ix</td><td class="mono">&mdash; &rarr; $0.55</td><td class="mono">house &rarr; 6789012</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </figure>
+    </article>
+
+    <article class="job">
+      <div class="jtext">
+        <span class="jtag know">Know</span>
+        <h3>What do bidders know about me?</h3>
+        <p>Decoded identifiers with the vendor that set them, Prebid eIDs, cookie-sync traffic, and browser storage. TCF, GPP, and US Privacy consent strings read out in plain language. The "what bidders were told about you" profile: city and ZIP, IAB interest categories decoded through the bundled taxonomy, and the OpenRTB signals sent. Every underlined term has a hover card that says whether it is documented, inferred, or publisher-defined.</p>
+        <div class="finding bad">14 identifiers on this browser, 6 shared with bidders as eIDs<small>Consent string says purposes 1, 3 and 4 granted. Two bidders received geo to the ZIP anyway.</small></div>
+      </div>
+      <figure class="shot" style="margin:0" role="img" aria-label="Illustration of the Identity panel: a list of decoded IDs with the vendor that set each one">
+        <div class="panel">
+          <div class="panel-top"><b>Identity &amp; IDs</b><span class="chip">14 IDs</span><span class="chip">6 eIDs</span></div>
+          <div class="panel-body">
+            <div class="ids" aria-hidden="true">
+              <div class="id"><span><b>UID2</b> <code>token · 2 days old</code></span><span class="src">Prebid eID</span></div>
+              <div class="id"><span><b>ID5</b> <code>ID5*…9kQ</code></span><span class="src">Prebid eID</span></div>
+              <div class="id"><span><b>_ga</b> <code>GA1.1.…</code></span><span class="src">Cookie · Google</span></div>
+              <div class="id"><span><b>tuuid</b> <code>c2f1…</code></span><span class="src">Cookie · ttd sync</span></div>
+              <div class="id"><span><b>cto_bundle</b> <code>base64 · decoded</code></span><span class="src">Storage · Criteo</span></div>
+            </div>
+          </div>
+        </div>
+      </figure>
+    </article>
+  </div>
+
+  <section class="aud" aria-label="Who it's for">
+    <div>
+      <p class="label">Ad ops</p>
+      <h3>Prove it before launch</h3>
+      <p class="q">"Is the test line item actually eligible?"</p>
+      <p>Inject the key, reload, read Verified, see the line item on the slot. Ten minutes instead of a Slack thread with the SSP.</p>
+    </div>
+    <div>
+      <p class="label">Publishers &amp; sales</p>
+      <h3>Know your own stack</h3>
+      <p class="q">"Who is bidding, and who is timing out?"</p>
+      <p>Bidder latency against the timeout, ads.txt authorization for every bidder on the page, and an OpenSincera publisher record next to it.</p>
+    </div>
+    <div>
+      <p class="label">Privacy &amp; compliance</p>
+      <h3>Evidence, redacted</h3>
+      <p class="q">"What was shared after the visitor chose 'reject'?"</p>
+      <p>Consent state, the eIDs and geo still sent, and exports that mask identifier values by default so a report can be forwarded.</p>
+    </div>
+    <div>
+      <p class="label">Leadership</p>
+      <h3>Fewer silent losses</h3>
+      <p class="q">"Why did that campaign underdeliver?"</p>
+      <p>Snapshots and a compare view turn "the platform says it's fine" into a before and after anyone can read.</p>
+    </div>
+  </section>
+
+  <section class="inv">
+    <h2>What's in the panel</h2>
+    <div class="inv-grid">
+      <div><b>Overview</b><p>KPIs, plain-English findings for the page, four charts.</p></div>
+      <div><b>Auctions &amp; Bids</b><p>Every bid, auction timelines with the timeout line, ad units, Prebid config and modules.</p></div>
+      <div><b>Creatives</b><p>Bid creatives including outbid ones, rendered on demand in an isolated sandbox.</p></div>
+      <div><b>Advertisers</b><p>Brands and domains behind the bids, win counts, max and average CPM.</p></div>
+      <div><b>Network</b><p>Every ad and marketing request, classified into ~160 vendors and 14 categories, with headers and payloads.</p></div>
+      <div><b>Identity &amp; IDs</b><p>Decoded identifiers, cookies, Prebid eIDs, storage, cookie-sync calls.</p></div>
+      <div><b>Targeting &amp; Consent</b><p>What bidders were told about you, TCF/GPP/USP consent, hb_* keys, GPT key-values, GAM line items per slot.</p></div>
+      <div><b>Amazon TAM</b><p>apstag detection, bid requests and slots, amzn_* signals.</p></div>
+      <div><b>TTD Open</b><p>OpenPath, OpenPass, UID2/EUID and ads.txt checks for The Trade Desk, plus OpenSincera publisher intelligence.</p></div>
+      <div><b>Injector</b><p>Targeting, identity and geo rules per site, with per-rule verification and reusable profiles.</p></div>
+      <div><b>Sessions</b><p>Snapshot library, A/B compare, HTML, Excel and JSON export, import.</p></div>
+      <div><b>Geo &amp; locale</b><p>Nineteen city presets or custom: geolocation, time zone, language, Prebid geo, optional proxy.</p></div>
+    </div>
+  </section>
+
+  <section class="demo" id="access">
+    <div>
+      <p class="label" style="color:#cfc6b8">Private beta</p>
+      <h2 style="margin-top:12px">Want it for your team? <span>Ask me for access.</span></h2>
+      <p>Bid Inspector isn't on the Chrome Web Store. I'm giving it to a small group of ad-ops, publisher, and privacy people who want to see what the auction is doing instead of guessing. Send me a DM on LinkedIn with a line about what you'd use it for and I'll set you up with a walkthrough.</p>
+      <div class="cta">
+        <a class="btnx primary" href="https://www.linkedin.com/in/brayden-hord" target="_blank" rel="noopener">DM me on LinkedIn &#8599;</a>
+        <a class="btnx ghost" href="pixel-lab.html">Also see Pixel Lab</a>
+      </div>
+    </div>
+    <ol>
+      <li><span><b>Open:</b> visit any ad-supported page, open the side panel, hit Reload so capture starts from the first byte.</span></li>
+      <li><span><b>Read:</b> the Overview explains the auction in plain English. Hover any term for what it means and who owns it.</span></li>
+      <li><span><b>Change:</b> add a targeting rule in the Injector, Save &amp; reload, and read Verified next to it.</span></li>
+      <li><span><b>Prove:</b> compare baseline to live, export the report, attach it to the ticket.</span></li>
+    </ol>
+  </section>
+
+  <section class="limits">
+    <div>
+      <h3>How it stays safe</h3>
+      <ul>
+        <li>All analysis is local. Nothing is transmitted except an OpenSincera lookup you trigger yourself, with your own key.</li>
+        <li>HTML and Excel exports mask cookie values, decoded IDs, consent strings and ID-bearing URL parameters by default.</li>
+        <li>Creatives never auto-render. Rendering one loads that ad's markup in a sandbox and does fire its own tracking pixels, because that is what ad markup does.</li>
+        <li>Injected values are visible to scripts on that site. Use test values, never real customer data.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>What it isn't</h3>
+      <p>Bid Inspector shows what one browser saw on one page load. Auctions are noisy by nature, so treat a single CPM difference as weather and a changed line item as signal. It is evidence for a review, not a legal opinion, a certification of compliance, or a substitute for the SSP's own reporting. Full JSON snapshots contain your own browser's identifiers; share those carefully.</p>
+    </div>
+  </section>
+
+  <p class="foot">Bid Inspector · private beta · Chrome 116+ · <a href="index.html">Back to hord.brayden</a> · <a href="pixel-lab.html">Pixel Lab</a> · <a href="privacy.html">Privacy</a></p>
+</div>
+</body>
+</html>

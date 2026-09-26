@@ -1,5 +1,5 @@
 /* ============================================================
-   testing-kit.js — NIST-style RNG statistical testing kit.
+   testing-kit.js - NIST-style RNG statistical testing kit.
    Consolidates: rng-classes, rng-functions, statistical-tests,
                  file-utils, rng-test.
    Loaded as ES module from testing-kit.html.

@@ -13,10 +13,11 @@
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>F1-style reaction timer — Brayden Hord</title>
+  <title>F1-style reaction timer | Brayden Hord</title>
   <meta name="description" content="Watch the five lights, wait for lights-out, then react. Browser-side reaction-time trainer with jump-start detection and a persistent best.">
 
   <link rel="apple-touch-icon" sizes="180x180" href="img/apple-icon-180x180.png">
+  <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
   <link rel="manifest" href="img/manifest.json">
@@ -30,7 +31,7 @@
 
   <style>
     /* ---- F1 timer page-local styles ----
-       The page deliberately overrides background while armed/go/fail —
+       The page deliberately overrides background while armed/go/fail, since
        state is communicated visually via color, the way the real
        lights work at Albert Park. Everything else stays on the
        global design system. */
@@ -56,7 +57,7 @@
       transition: background-color .25s var(--ease), color .25s var(--ease);
     }
 
-    /* In-flight state backgrounds — use solid blocks with white type so
+    /* In-flight state backgrounds: use solid blocks with white type so
        they read clearly in either theme without fighting the design tokens. */
     body.timer-armed { background: linear-gradient(180deg, #a52e0b 0%, #6b1f08 100%); }
     body.timer-go    { background: linear-gradient(180deg, #166534 0%, #052e16 100%); }
@@ -66,7 +67,7 @@
     body.timer-go .timer-stage,
     body.timer-fail .timer-stage { color: #fff; }
 
-    /* Hide the field-notebook chrome while a sequence is live —
+    /* Hide the field-notebook chrome while a sequence is live:
        the GoL canvas and dot-grid would just distract from a 200ms task. */
     body.timer-armed #gameOfLifeCanvas,
     body.timer-go #gameOfLifeCanvas,
@@ -174,7 +175,7 @@
     }
     .timer-controls .btn { min-width: 160px; }
 
-    /* Help card — only visible at idle */
+    /* Help card, only visible at idle */
     .timer-help {
       max-width: 60ch;
       font-size: 0.93rem;
@@ -238,8 +239,8 @@
     </div>
 
     <div class="timer-stats">
-      <span class="stat-pill" id="lastTime">last — —</span>
-      <span class="stat-pill" id="bestTime">best — —</span>
+      <span class="stat-pill" id="lastTime">last · -</span>
+      <span class="stat-pill" id="bestTime">best · -</span>
     </div>
 
     <div class="timer-controls">
@@ -253,7 +254,7 @@
       after the fifth light is randomized between 0.8s and 3.2s. When the
       lights go out, react as fast as you can. Anything under 200&nbsp;ms is
       professional-driver territory. Anything that looks under 150&nbsp;ms is
-      probably a bad sample — humans don't actually go that fast.
+      probably a bad sample. Humans don't actually go that fast.
     </div>
   </main>
 
@@ -302,7 +303,7 @@
       }
       function renderBest() {
         const best = loadBest();
-        bestEl.textContent = best ? `best · ${best} ms` : 'best · —';
+        bestEl.textContent = best ? `best · ${best} ms` : 'best · -';
       }
 
       function reset() {
@@ -364,12 +365,12 @@
         setBodyState('');
         message.innerHTML = `<span class="timer-result-ms">${ms}<span class="unit">ms</span></span>`;
         detail.textContent =
-          ms < 150 ? "Suspiciously fast — you sure you didn't anticipate?" :
+          ms < 150 ? "Suspiciously fast. You sure you didn't anticipate?" :
           ms < 200 ? 'Pro-driver tier.' :
           ms < 250 ? 'Sharp.' :
           ms < 350 ? 'Very respectable.' :
           ms < 500 ? 'Solid human reaction time.' :
-                     'A bit slow — give it another go.';
+                     'A bit slow. Give it another go.';
         hint.textContent = 'press anything to go again';
         lastEl.textContent = `last · ${ms} ms`;
 

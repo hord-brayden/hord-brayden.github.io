@@ -1,5 +1,5 @@
 /* ============================================================
-   nfc-card.js — business-card NFC experience.
+   nfc-card.js - business-card NFC experience.
 
    The chip on the card points at  /?via=nfc
      1st scan on a device  → short, skippable "get in touch" form
@@ -31,7 +31,7 @@
   if (params.get('via') !== 'nfc') return;
 
   // ------------------------------------------------------------
-  // State (per device, best-effort — storage can be unavailable)
+  // State (per device, best-effort - storage can be unavailable)
   // ------------------------------------------------------------
   function load() {
     try { return JSON.parse(localStorage.getItem(STORE_KEY)) || null; } catch (e) { return null; }
@@ -99,7 +99,7 @@
   history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
 
   function track(name, extra) {
-    // Event names/stages only — never form contents.
+    // Event names/stages only - never form contents.
     if (typeof window.gtag === 'function') window.gtag('event', name, extra || {});
   }
 
@@ -431,7 +431,7 @@
         return;
       }
       const ctx = [meet.n && `for ${meet.n}`, meet.at, when.stamp, meet.re && `re ${meet.re}`].filter(Boolean).join(' · ');
-      if (ctx) data.note = `${data.note ? data.note + ' — ' : ''}[card: ${ctx}]`.slice(0, 1000);
+      if (ctx) data.note = `${data.note ? data.note + ' - ' : ''}[card: ${ctx}]`.slice(0, 1000);
       data.elapsed = String(Date.now() - openedAt);
       data.src = 'nfc';
 

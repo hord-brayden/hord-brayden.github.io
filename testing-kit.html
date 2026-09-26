@@ -13,10 +13,11 @@
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NIST-style RNG testing kit — Brayden Hord</title>
+  <title>NIST-style RNG testing kit | Brayden Hord</title>
   <meta name="description" content="Pick a generator, run a sample, and watch four classical statistical tests evaluate it: chi-squared equidistribution, Benford's Law, and the SP 800-22 Monobit and Runs tests.">
 
   <link rel="apple-touch-icon" sizes="180x180" href="img/apple-icon-180x180.png">
+  <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
   <link rel="manifest" href="img/manifest.json">
@@ -60,9 +61,9 @@
 
       <p class="hero-lede reveal" data-delay="3">
         Pick a generator, set a sample size, hit run. The kit evaluates
-        the stream against four classical tests — chi-squared
+        the stream against four classical tests: chi-squared
         equidistribution, Benford's Law, and the Monobit and Runs tests
-        from <a href="https://csrc.nist.gov/pubs/sp/800/22/r1/upd1/final" target="_blank" rel="noopener">NIST SP 800-22 Rev. 1a</a> —
+        from <a href="https://csrc.nist.gov/pubs/sp/800/22/r1/upd1/final" target="_blank" rel="noopener">NIST SP 800-22 Rev. 1a</a>,
         and shows you what the numbers actually say.
       </p>
 
@@ -86,10 +87,10 @@
           <div class="options">
             <label>RNG method:
               <select id="rngSelect">
-                <option value="mathRandom">Math.random() — V8 xorshift128+</option>
+                <option value="mathRandom">Math.random() (V8 xorshift128+)</option>
                 <option value="xorShift">32-bit XORShift (Marsaglia 2003)</option>
                 <option value="lcg">Linear Congruential (Numerical Recipes)</option>
-                <option value="cryptoRandomValues">crypto.getRandomValues() — CSPRNG</option>
+                <option value="cryptoRandomValues">crypto.getRandomValues() (CSPRNG)</option>
               </select>
             </label>
             <label>Sample count:
@@ -140,7 +141,7 @@
           <p><strong>Frequency / equidistribution.</strong>
             Bin the samples uniformly across $[0, 1)$ and compare bin counts
             to expectation via chi-squared. A truly uniform RNG won't sit at
-            exactly $\chi^2 = 0$ — the test uses $df = \text{numBins} - 1$
+            exactly $\chi^2 = 0$. The test uses $df = \text{numBins} - 1$
             and the critical value at $\alpha = 0.05$. Falling below critical
             is "consistent with uniform"; way above means the bins are too
             uneven to be chance.
@@ -173,7 +174,7 @@
             analogs of a small subset of SP 800-22's full test battery.
             A passing run here is necessary but not sufficient evidence
             of cryptographic suitability. A single failing run is also
-            not proof of a broken RNG — repeat the test and look at the
+            not proof of a broken RNG. Repeat the test and look at the
             distribution of $p$-values across many runs.
           </p>
         </div>

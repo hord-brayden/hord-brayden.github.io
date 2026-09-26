@@ -1,5 +1,5 @@
 /* ============================================================
-   playground.js — RNG toys: password generator, array shuffle,
+   playground.js - RNG toys: password generator, array shuffle,
    Math.random() + 32-bit xorshift plots, clipboard helper.
    Consolidates: password_generator, arraymama, xorshift_rng,
                  plot_random_numbers.

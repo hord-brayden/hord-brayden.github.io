@@ -13,9 +13,10 @@
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Playground — Brayden Hord</title>
+  <title>Playground | Brayden Hord</title>
   <meta name="description" content="RNG toys: password generator, array shuffle, side-by-side Math.random vs xorshift plots, Game of Life background.">
 
+  <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
   <meta name="theme-color" content="#f7f4ee">
 
@@ -128,7 +129,7 @@
           </p>
           <p>
             Modern V8/SpiderMonkey implement <code>Math.random()</code>
-            with xorshift128+, so the output is statistically high quality —
+            with xorshift128+, so the output is statistically high quality,
             but it is <em>not</em> cryptographically secure: the internal
             state can be reconstructed from a handful of outputs. Don't
             use it for tokens, secrets, or anything an attacker would
@@ -180,7 +181,7 @@
           <p>
             Points $(x, y)$ where both coordinates come from
             <code>Math.random()</code>. The plot runs in
-            \(\mathcal{O}(n)\) per call — constant work per sample.
+            \(\mathcal{O}(n)\) per call, constant work per sample.
           </p>
           <p>
             With $n = 250$ points the four quadrants of $[0,1]^2$
@@ -206,7 +207,7 @@
             generator (Marsaglia 2003) seeded once from
             <code>crypto.getRandomValues()</code>. It's the
             <code>x ^= x &lt;&lt; 13; x ^= x &gt;&gt; 17; x ^= x &lt;&lt; 5;</code>
-            recurrence — fast, statistically decent at short lengths,
+            recurrence: fast, statistically decent at short lengths,
             and a useful baseline for comparison.
           </p>
           <p>

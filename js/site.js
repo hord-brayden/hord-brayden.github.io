@@ -1,6 +1,6 @@
 /* ============================================================
-   site.js — header & footer components, theme toggle,
-   mobile nav, canvas resize, Game-of-Life background.
+   site.js - header & footer components, grouped nav menus,
+   theme toggle, mobile nav, canvas resize, Game-of-Life background.
    Consolidates: page-components, dark_mode_toggle,
                  hamburgesa, canvi-resize, gameOfLife.
    ============================================================ */
@@ -54,30 +54,51 @@
   class HeaderComponent extends HTMLElement {
     connectedCallback() {
       const current = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+      // Top-level items, with two grouped menus so every page on the site is
+      // one click from the header without the row wrapping.
       const links = [
-        { href: 'index.html',        label: 'Work' },
-        { href: 'resume.html',       label: 'Resume' },
-        { href: 'pixel-lab.html',    label: 'Pixel Lab' },
-        { href: 'playground.html',   label: 'Playground' },
-        { href: 'testing-kit.html',  label: 'RNG Kit' },
-        { href: 'elemental-arena.html', label: 'Elemental Arena' },
-        { href: 'https://arenawins.com/', label: 'Arena', external: true },
+        { href: 'index.html',  label: 'Work' },
+        { href: 'resume.html', label: 'Resume' },
+        { group: 'Tools', items: [
+          { href: 'pixel-lab.html',     label: 'Pixel Lab',     note: 'ad pixel testing, Chrome' },
+          { href: 'bid-inspector.html', label: 'Bid Inspector', note: 'header bidding, Chrome' },
+          { href: 'https://github.com/hord-brayden/lidless', label: 'Lidless', note: 'macOS, open source', external: true }
+        ]},
+        { group: 'Play', items: [
+          { href: 'elemental-arena.html', label: 'Elemental Arena', note: 'the orb battle game' },
+          { href: 'playground.html',      label: 'Playground',      note: 'RNG and crypto toys' },
+          { href: 'testing-kit.html',     label: 'RNG testing kit', note: 'NIST-style tests' },
+          { href: 'f1-timer.html',        label: 'Reaction timer',  note: 'F1 lights' }
+        ]},
+        { href: 'https://arenawins.com/', label: 'ArenaWins', tag: 'day job', external: true, title: 'Arena, where I run engineering, IT and AI' },
         { href: 'https://github.com/hord-brayden/', label: 'GitHub', external: true }
       ];
-      const items = links.map((l) => {
+      const item = (l) => {
         const isActive = !l.external && l.href.toLowerCase() === current;
         const target = l.external ? ' target="_blank" rel="noopener"' : '';
-        return `<li><a href="${l.href}"${target} class="${isActive ? 'active' : ''}">${l.label}</a></li>`;
+        const title = l.title ? ` title="${l.title}"` : '';
+        const tag = l.tag ? `<span class="nav-tag">${l.tag}</span>` : '';
+        const ext = l.external ? '<span class="nav-ext" aria-hidden="true">&#8599;</span>' : '';
+        const note = l.note ? `<small>${l.note}</small>` : '';
+        return `<a href="${l.href}"${target}${title} class="${isActive ? 'active' : ''}">${l.label}${tag}${ext}${note}</a>`;
+      };
+      const items = links.map((l) => {
+        if (!l.group) return `<li>${item(l)}</li>`;
+        const open = l.items.some((i) => !i.external && i.href.toLowerCase() === current);
+        return `<li class="nav-group${open ? ' is-current' : ''}" data-label="${l.group}">
+          <button type="button" class="nav-group-btn${open ? ' active' : ''}" aria-expanded="false" aria-haspopup="true">${l.group}<span class="nav-caret" aria-hidden="true"></span></button>
+          <ul class="nav-sub">${l.items.map((i) => `<li>${item(i)}</li>`).join('')}</ul>
+        </li>`;
       }).join('');
 
       this.innerHTML = `
         <header class="site-header" data-site-header>
-          <nav>
+          <nav aria-label="Site">
             <a class="brand" href="index.html">hord<span class="brand-dot">.</span>brayden</a>
             <button class="hamburger-menu" aria-label="Toggle menu" aria-expanded="false" type="button">
               <span class="bar"></span><span class="bar"></span><span class="bar"></span>
             </button>
-            <ul role="menu">${items}</ul>
+            <ul class="nav-list">${items}</ul>
           </nav>
         </header>`;
     }
@@ -92,9 +113,13 @@
             <div class="privacy-block">
               <a href="resume.html">Resume</a>
               <a href="pixel-lab.html">Pixel Lab</a>
+              <a href="bid-inspector.html">Bid Inspector</a>
+              <a href="https://github.com/hord-brayden/lidless" target="_blank" rel="noopener">Lidless</a>
+              <a href="elemental-arena.html">Elemental Arena</a>
               <a href="privacy.html">Privacy</a>
               <a href="https://www.linkedin.com/in/brayden-hord" target="_blank" rel="noopener">LinkedIn</a>
               <a href="https://github.com/hord-brayden/" target="_blank" rel="noopener">GitHub</a>
+              <a href="https://arenawins.com/" target="_blank" rel="noopener">ArenaWins</a>
               <button id="reSeed" type="button">Reseed background</button>
             </div>
             <p>&copy; ${year} Brayden Hord &middot; built and broken in the open</p>
@@ -113,7 +138,7 @@
   // ------------------------------------------------------------
   function initHamburger() {
     const burger = document.querySelector('.site-header .hamburger-menu');
-    const menu = document.querySelector('.site-header nav ul');
+    const menu = document.querySelector('.site-header nav ul.nav-list');
     if (!burger || !menu) return;
     const toggle = () => {
       const open = menu.classList.toggle('is-open');
@@ -131,6 +156,38 @@
           burger.setAttribute('aria-expanded', 'false');
         }
       });
+    });
+  }
+
+  // ------------------------------------------------------------
+  // Grouped menus (Tools, Play). Hover opens them on a desktop pointer;
+  // click or keyboard toggles them everywhere; Escape and outside clicks
+  // close them. On narrow screens the groups are laid out inline instead.
+  // ------------------------------------------------------------
+  function initNavGroups() {
+    const groups = Array.from(document.querySelectorAll('.site-header .nav-group'));
+    if (!groups.length) return;
+    const setOpen = (g, open) => {
+      g.classList.toggle('is-open', open);
+      g.querySelector('.nav-group-btn').setAttribute('aria-expanded', String(open));
+    };
+    const closeAll = (except) => groups.forEach((g) => { if (g !== except) setOpen(g, false); });
+    groups.forEach((g) => {
+      const btn = g.querySelector('.nav-group-btn');
+      btn.addEventListener('click', () => {
+        const open = !g.classList.contains('is-open');
+        closeAll(g);
+        setOpen(g, open);
+      });
+      g.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { setOpen(g, false); btn.focus(); }
+      });
+      g.addEventListener('focusout', (e) => {
+        if (!g.contains(e.relatedTarget)) setOpen(g, false);
+      });
+    });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.site-header .nav-group')) closeAll();
     });
   }
 
@@ -271,7 +328,7 @@
   }
 
   // ------------------------------------------------------------
-  // Reveal animation gating — respects reduced-motion
+  // Reveal animation gating - respects reduced-motion
   // ------------------------------------------------------------
   function initReveal() {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -285,6 +342,7 @@
   function boot() {
     Theme.mount();
     initHamburger();
+    initNavGroups();
     initHeaderScroll();
     initGol();
     initGolMode();

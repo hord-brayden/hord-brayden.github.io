@@ -3,7 +3,7 @@
  AN/VL_-___  ·  BLE link terminal  (one file, any unit - it takes its name
  from whichever unit you connect to)
  Open in CHROME / EDGE (desktop or Android) or the BLUEFY app on iOS.
- Talks to the unit over Bluetooth (Web Bluetooth) — no WiFi association needed.
+ Talks to the unit over Bluetooth (Web Bluetooth), no WiFi association needed.
  If blocked from a file:// path, serve it (python3 -m http.server) or host on
  GitHub Pages and open the https URL.
 =========================================================================== -->
@@ -156,7 +156,7 @@ async function reconnectKnown(){
 // re-syncing is safe and never duplicates.
 async function syncNow(){
   if(!rxc){ setSync('not connected'); return; }
-  if(!CFG.ntfy && !CFG.url){ setSync('nothing configured — open RELAY SETUP'); toggleCfg(); return; }
+  if(!CFG.ntfy && !CFG.url){ setSync('nothing configured: open RELAY SETUP'); toggleCfg(); return; }
   const key=SEENK+(unitName||'unit');
   const since=parseInt(localStorage.getItem(key)||'0',10)||0;
   setSync('reading events…');
@@ -189,7 +189,7 @@ async function syncNow(){
     }catch(e){ fail++; }
   }
   if(!fail){ try{ localStorage.setItem(key,String(top)); }catch(e){} }
-  setSync(ok+' sent'+(fail?(', '+fail+' failed — will retry next sync'):' · up to #'+top));
+  setSync(ok+' sent'+(fail?(', '+fail+' failed, will retry next sync'):' · up to #'+top));
   $('out').textContent='Relayed '+ok+' event(s) from '+unit+(geo?('\nlocation: '+geo):'')+'\n\n'+rows.join('\n');
 }
 // The page takes its identity from whichever unit you connect to, so one copy
@@ -213,7 +213,7 @@ async function attach(d){
   $('out').textContent='◎ link established. pulling status…';
   await request('SUM').then(t=>{
     $('out').textContent=t;
-    if(t.indexOf('LOCKED')===0){ setSync('unit is passcode-locked — enter it and reconnect'); return; }
+    if(t.indexOf('LOCKED')===0){ setSync('unit is passcode-locked: enter it and reconnect'); return; }
     const first=(t.split('\n')[0]||'').trim();          // first line is the designation
     if(/^[A-Za-z0-9/_.-]{3,32}$/.test(first) && first!=='unit') setDesig(first);
   }).catch(()=>{});
