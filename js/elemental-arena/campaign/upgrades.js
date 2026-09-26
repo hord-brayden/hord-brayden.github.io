@@ -226,8 +226,8 @@ Upgrades.defineAll([
 
 Upgrades.defineAll([
   {
-    id: 'midas', name: 'Midas Engine', tier: 'cursed', max: 1,
-    desc: 'Double gold from every fight for the rest of the run. You deal 20% less damage. Take it early or not at all.',
+    id: 'midas', name: 'Midas Engine', tier: 'cursed', max: 1, tags: ['gold'],
+    desc: 'Double gold from every fight for the rest of the run. You deal 20% less damage. Gold multipliers cap at 3x in total.',
     apply(b) { b.goldMul *= 2; b.damageMul *= 0.8; },
   },
   {
@@ -264,9 +264,9 @@ Upgrades.defineAll([
     },
   },
   {
-    id: 'gambler', name: "Gambler's Purse", tier: 'cursed', max: 3,
-    desc: '+45% gold, and every enemy you face is 10% stronger. Stacks.',
-    apply(b) { b.goldMul *= 1.45; b.flags.threatBonus = (b.flags.threatBonus || 0) + 0.1; },
+    id: 'gambler', name: "Gambler's Purse", tier: 'cursed', max: 3, tags: ['gold'],
+    desc: '+45% gold, and every enemy you face is 25% stronger. Stacks, and the difficulty stacks with it.',
+    apply(b) { b.goldMul *= 1.45; b.flags.threatBonus = (b.flags.threatBonus || 0) + 0.25; },
   },
   {
     id: 'juggernaut', name: 'Juggernaut Frame', tier: 'epic', max: 1,
@@ -301,7 +301,7 @@ for (const ench of Enchantments.all) {
     name: `Enchant: ${ench.name}`,
     tier: ench.rarity,
     max: 1,
-    tags: ['enchant'],
+    tags: ['enchant', ...(ench.tags || [])],
     enchantId: ench.id,
     desc: `${ench.desc} Replaces whatever enchantment you are carrying.`,
     apply(b) {
@@ -329,6 +329,79 @@ for (const id of Weapons.ids) {
 }
 
 /* =============================================================== offers */
+
+/**
+ * Build an orb the way a player would have, shopping stage by stage.
+ *
+ * Deliberately the same registry, the same caps and the same `upgradeCost`
+ * the player pays. An enemy that grows by buying upgrades grows along the
+ * same curve the player does — multiplicatively, across many axes — instead
+ * of by a single scalar that a compounding player build eventually laps.
+ *
+ * Picks are weighted by tier but otherwise random, so two encounters at the
+ * same stage are built differently. Gold upgrades are skipped: an enemy has
+ * no purse, so buying one would spend its income on nothing.
+ */
+export function buildForSchedule(rng, fighterId, stage, incomeAt) {
+  const build = emptyBuild(fighterId);
+  const pool = Upgrades.all.filter((d) => !d.tags.includes('gold'));
+  // One of each, for the whole build. `canOffer` only rejects the weapon
+  // currently held, so without this the shopper buys refit after refit, each
+  // overwriting the last, and spends its entire budget on nothing.
+  let weaponBought = false, enchantBought = false;
+  let purse = 0;
+  // Trade-off upgrades a random shopper cannot evaluate. Left unchecked it
+  // buys Glass Cannon every time it is offered and arrives at stage 45 with
+  // four times the damage and half the health of a stock orb.
+  const rejected = new Set();
+
+  // Walk the run the way the player did. Buying at each stage's own prices is
+  // the whole point: a player reaching stage 45 bought most of their build
+  // cheaply on the way up and kept it. An enemy handed the same total gold at
+  // stage-45 prices could afford a fraction of it, which is exactly how the
+  // opposition fell behind a compounding build.
+  for (let s = 0; s <= stage; s++) {
+    purse += incomeAt(s);
+    for (let guard = 0; guard < 12 && purse > 0; guard++) {
+      const affordable = pool.filter((d) => {
+        if (rejected.has(d.id)) return false;
+        if (d.tags.includes('weapon') && weaponBought) return false;
+        if (d.tags.includes('enchant') && enchantBought) return false;
+        return canOffer(d, build) && upgradeCost(d, s, build) <= purse;
+      });
+      if (!affordable.length) break;
+      const pick = rng.weighted(affordable, (d) => {
+        // Weapons and enchantments are one-offs, so they must not crowd out
+        // the stat upgrades that are the bulk of a build's strength.
+        const w = TIERS[d.tier].weight;
+        if (d.tags.includes('weapon')) return w * 0.25;
+        if (d.tags.includes('enchant')) return w * 0.6;
+        return w;
+      });
+      if (!pick) break;
+
+      // A competent-but-not-optimal shopper: it will take a trade-off, but it
+      // will not tip itself into being made of paper or unable to hurt anyone.
+      const test = structuredClone(build);
+      pick.apply(test);
+      if (test.maxHpMul < build.maxHpMul * 0.9 && test.maxHpMul < 0.95) {
+        rejected.add(pick.id);
+        continue;
+      }
+      if (test.damageMul < build.damageMul * 0.9 && test.damageMul < 0.95) {
+        rejected.add(pick.id);
+        continue;
+      }
+
+      purse -= upgradeCost(pick, s, build);
+      pick.apply(build);
+      build.owned[pick.id] = (build.owned[pick.id] || 0) + 1;
+      if (pick.tags.includes('weapon')) weaponBought = true;
+      if (pick.tags.includes('enchant')) enchantBought = true;
+    }
+  }
+  return build;
+}
 
 /** Cost of an upgrade at a given stage. Later stages charge more. */
 export function upgradeCost(def, stage, build) {

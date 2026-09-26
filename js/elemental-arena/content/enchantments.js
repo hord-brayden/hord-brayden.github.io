@@ -281,7 +281,7 @@ Enchantments.defineAll([
     short: 'HEX',
     color: '#f43f5e',
     tags: ['gold'],
-    desc: 'Double gold from every fight, and you deal 20% less damage for the rest of the run. Exactly the trade it sounds like.',
+    desc: 'Double gold from every fight, and you deal 20% less damage for the rest of the run. Gold multipliers cap at 3x in total.',
     goldMul: 2,
     onEquip(engine, ball) { ball.baseDamage *= 0.8; },
   },

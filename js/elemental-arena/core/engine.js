@@ -337,7 +337,9 @@ export class Engine {
     if (!ench) return;
     ball.enchant = ench;
     ball.enchantChance = procChance(ench);
-    if (ench.goldMul) ball.goldMul = (ball.goldMul || 1) * ench.goldMul;
+    // Note: an enchantment's goldMul is applied by the campaign build that
+    // bought it, never here. Doing both double-counted it. ball.goldMul is
+    // for in-match sources only, such as the Miser's Hoard pickup.
     if (ench.onEquip) ench.onEquip(this, ball);
   }
 

@@ -20,7 +20,7 @@
 
 import { Rng, randomSeedPhrase } from '../core/rng.js';
 import { Fighters } from '../content/roster.js';
-import { emptyBuild, buildToProfile, rollOffers, upgradeCost, Upgrades } from './upgrades.js';
+import { emptyBuild, buildToProfile, rollOffers, upgradeCost, Upgrades, buildForSchedule } from './upgrades.js';
 import { defaultLoadout, normalizeLoadout } from '../content/loadouts.js';
 import { MODIFIERS, rollModifier } from './modifiers.js';
 import { Chassis, Drives } from '../content/parts.js';
@@ -40,6 +40,18 @@ const PLAYER_DAMAGE_BONUS = 1.3;
 
 const SAVE_KEY = 'elementalArena.campaign.v1';
 const SCORE_KEY = 'elementalArena.scores.v1';
+
+/* How much of a player's stage income the opposition is built on. Below 1
+ * because the player also picks their upgrades deliberately, while an enemy
+ * shops at random — the same gold buys a worse build. */
+const ENEMY_INCOME_SHARE = 1;
+
+/* Gold multipliers stack multiplicatively, and three of them compounding —
+ * Midas Engine, Gambler's Purse and Hexed Coin — reached 12x, which bought
+ * every upgrade in the game by stage 40 and put a run permanently out of
+ * reach of the difficulty curve. Taking two is still a real build; taking
+ * three is no longer a different game. */
+const GOLD_MUL_CAP = 3;
 
 /** Encounter archetypes. Risk is priced in gold. */
 export const ENCOUNTERS = [
@@ -110,10 +122,28 @@ export class CampaignRun {
    * dies and the score stops meaning anything.
    */
   get threat() {
-    const base = 0.72 + this.stage * 0.15 + Math.pow(this.stage, 1.5) * 0.021;
+    // Deliberately shallow. Enemies now grow the same way the player does —
+    // by buying upgrades — so this is only the encounter's own weighting plus
+    // a gentle drift, not the difficulty curve itself.
+    const base = 0.8 + this.stage * 0.035;
     // Gambler's Purse buys gold with difficulty, so the bet has to actually
     // be priced into the enemies rather than being free money.
     return base * (1 + (this.build.flags.threatBonus || 0));
+  }
+
+  /**
+   * What an enemy roster is built with, mirrored off the player's own purse.
+   *
+   * Using the player's actual earnings rather than a stage table means the
+   * opposition tracks how well the run is going: a player who found a
+   * runaway combo and is banking huge stage clears is met by orbs that
+   * bought just as much. That is the whole point — the fight stays
+   * competitive at stage 40 instead of the build simply lapping the curve.
+   */
+  enemyIncomeAt(stage) {
+    // Mirrors the player's own clear reward, so the opposition is shopping on
+    // roughly the income a run actually produces at that stage.
+    return (35 + stage * 9) * 1.3 * ENEMY_INCOME_SHARE;
   }
 
   get isBoss() {
@@ -170,10 +200,13 @@ export class CampaignRun {
       const id = this.rng.pick(ids);
       // Per-enemy jitter so two Skirmishes never feel identical.
       const variance = this.rng.range(0.85, 1.2);
+      // Split the purse across the roster: a lone Duel orb is built with
+      // everything, four Swarm orbs get a quarter each. Action economy is
+      // already the pressure a big roster applies, so it must not also buy
+      // four full builds.
       out.push({
         fighterId: id,
         power: power * variance,
-        // Enemies get upgrades of their own as the run goes on.
         traits: this.rollEnemyTraits(),
       });
     }
@@ -376,12 +409,20 @@ export class CampaignRun {
     }];
 
     const threat = this.threat;
+    const share = 1 / Math.pow(enc.roster.length, 0.62);
     for (const e of enc.roster) {
+      if (!e.build) {
+        e.build = buildForSchedule(this.rng, e.fighterId, this.stage,
+          (s) => this.enemyIncomeAt(s) * share);
+      }
       roster.push({
         fighterId: e.fighterId,
         teamId: 1,
         count: 1,
-        loadout: { weaponId: null, perk: 'none', hp: 0, dmg: 0, spd: 0 },
+        // A refit an enemy bought has to actually reach its hands; the
+        // enchantment rides in on the profile instead.
+        loadout: { weaponId: (e.build && e.build.weaponId) || null,
+                   perk: 'none', hp: 0, dmg: 0, spd: 0 },
         profile: enemyProfile(e, threat),
       });
     }
@@ -424,7 +465,8 @@ export class CampaignRun {
     // Reward is mostly for clearing; performance is a bonus, not the point.
     // Gold multipliers and proc-dropped gold both land here, so a Midas build
     // is paid on everything it earned rather than only on the clear bonus.
-    const goldMul = (this.build.goldMul || 1) * (player ? player.goldMul || 1 : 1);
+    const goldMul = Math.min(GOLD_MUL_CAP,
+      (this.build.goldMul || 1) * (player ? player.goldMul || 1 : 1));
     const clearGold = survived ? Math.round((35 + this.stage * 9) * enc.gold) : 0;
     const perfGold = Math.round(dmg * 0.12 + kills * 12 + parries * 1.5);
     const dropped = Math.round(engine.bonusGold || 0);
@@ -503,22 +545,26 @@ export class CampaignRun {
 /** Enemy profiles are generated, so difficulty scales without hand-authoring. */
 function enemyProfile(entry, threat) {
   const p = entry.power * threat;
+  // The enemy's shop build is the bulk of its strength; the scalar below is
+  // only the encounter weighting on top of it.
+  const bought = entry.build ? buildToProfile(entry.build) : null;
   const profile = {
+    ...(bought || {}),
     // Health and damage scale on different curves on purpose. Player health
     // grows faster than player damage over a run, so enemy *damage* is the
     // side that has to keep pace, or late stages turn into unloseable slogs.
-    maxHpMul: Math.pow(p, 0.88),
-    damageMul: Math.pow(p, 0.84),
-    speedMul: 1,
-    radiusMul: entry.power > 1.5 ? 1.15 : 1,
-    spinMul: 1,
-    ultRate: 1,
-    extraWeapons: 0,
-    ccResist: 0,
-    resists: {},
-    perks: [],
-    crit: null,
-    flags: {},
+    maxHpMul: (bought ? bought.maxHpMul : 1) * Math.pow(p, 0.88),
+    damageMul: (bought ? bought.damageMul : 1) * Math.pow(p, 0.84),
+    speedMul: bought ? bought.speedMul : 1,
+    radiusMul: (bought ? bought.radiusMul : 1) * (entry.power > 1.5 ? 1.15 : 1),
+    spinMul: bought ? bought.spinMul : 1,
+    ultRate: bought ? bought.ultRate : 1,
+    extraWeapons: bought ? bought.extraWeapons : 0,
+    ccResist: bought ? bought.ccResist : 0,
+    resists: bought ? { ...bought.resists } : {},
+    perks: bought ? [...bought.perks] : [],
+    crit: bought && bought.crit ? { ...bought.crit } : null,
+    flags: bought ? { ...bought.flags } : {},
   };
   for (const t of entry.traits || []) {
     if (t === 'tough') profile.maxHpMul *= 1.25;
