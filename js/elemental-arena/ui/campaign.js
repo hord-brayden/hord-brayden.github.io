@@ -13,6 +13,7 @@ import { Weapons, weaponLabel } from '../content/weapons.js';
 import { Perks, BUILD_STATS, defaultLoadout, normalizeLoadout, buildSpend, BUILD_BUDGET } from '../content/loadouts.js';
 import { Chassis, Drives, partsLabel } from '../content/parts.js';
 import { CampaignRun, RunState, loadScores, clearScores, saveRun, loadRun, clearRun } from '../campaign/run.js';
+import { leaderboardEnabled, fetchTop, submitScore, cleanName } from '../campaign/leaderboard.js';
 import { TIERS, Upgrades } from '../campaign/upgrades.js';
 import { enchantment } from '../content/enchantments.js';
 import { Augments, levelRarity, roman } from '../content/augments.js';
@@ -49,7 +50,12 @@ export class Campaign {
     });
     $('#campClearScores').addEventListener('click', () => {
       clearScores();
+      this.board = 'local';
       this.renderScores();
+    });
+    $('#scoreTabs').addEventListener('click', (ev) => {
+      const b = ev.target.closest('[data-board]');
+      if (b) this.setBoard(b.dataset.board);
     });
   }
 
@@ -458,6 +464,14 @@ export class Campaign {
           · ${run.stats.parries} parries${rank === 0 ? ' · <b>new best</b>' : rank > 0 ? ` · #${rank + 1} all time` : ''}
         </p>
         <div class="ea-dead-log">${run.log.slice(-10).map((l) => `<span>${l}</span>`).join('')}</div>
+        ${leaderboardEnabled() ? `
+          <form class="ea-post" id="campPost" autocomplete="off">
+            <label for="campName">Post this run</label>
+            <input type="text" id="campName" maxlength="18" placeholder="Your name"
+                   value="${cleanName(localStorage.getItem('elementalArena.name') || '')}">
+            <button type="submit" id="campPostBtn">Post</button>
+          </form>
+          <p class="ea-note" id="campPostNote"></p>` : ''}
         <div class="ea-panel-actions" style="border:0;padding:0;margin-top:18px">
           <button type="button" id="campAgain">New run</button>
           <button type="button" class="btn--ghost" id="campSeeScores">High scores</button>
@@ -466,9 +480,86 @@ export class Campaign {
 
     $('#campAgain').addEventListener('click', () => { clearRun(); this.run = null; this.pickStarter(); });
     $('#campSeeScores').addEventListener('click', () => { this.renderScores(); this.app.showOverlay('panelScores'); });
+
+    const form = $('#campPost');
+    if (form) {
+      form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const btn = $('#campPostBtn');
+        const note = $('#campPostNote');
+        const name = cleanName($('#campName').value);
+        // One post per run: the button is the guard, since a failed network
+        // call would otherwise invite someone to spam the table.
+        btn.disabled = true;
+        btn.textContent = 'Posting…';
+        try { localStorage.setItem('elementalArena.name', name); } catch (e) { /* ignore */ }
+        const res = await submitScore(run, name);
+        if (res.ok) {
+          btn.textContent = 'Posted';
+          note.textContent = `Posted as ${name}.`;
+        } else {
+          btn.disabled = false;
+          btn.textContent = 'Retry';
+          note.textContent = res.reason === 'network'
+            ? 'Could not reach the leaderboard. Your run is still saved on this device.'
+            : `Could not post (${res.reason}). Your run is still saved on this device.`;
+        }
+      });
+    }
   }
 
-  renderScores() {
+  /** Which board the panel is showing. Global when there is one to show. */
+  setBoard(which) {
+    this.board = which;
+    $$('#scoreTabs .ea-tab').forEach((b) =>
+      b.classList.toggle('is-on', b.dataset.board === which));
+    this.renderScores();
+  }
+
+  async renderScores() {
+    const board = this.board || (leaderboardEnabled() ? 'global' : 'local');
+    this.board = board;
+    $('#scoreTabs').hidden = !leaderboardEnabled();
+    $$('#scoreTabs .ea-tab').forEach((b) =>
+      b.classList.toggle('is-on', b.dataset.board === board));
+
+    if (board === 'global') {
+      $('#scoresLede').textContent = 'Everyone who has posted a run.';
+      $('#scoresBody').innerHTML = '<p class="ea-note">Loading…</p>';
+      const rows = await fetchTop();
+      if (!rows) {
+        $('#scoresBody').innerHTML =
+          '<p class="ea-note">Could not reach the leaderboard. Your own runs are under “This device”.</p>';
+        return;
+      }
+      if (!rows.length) {
+        $('#scoresBody').innerHTML = '<p class="ea-note">Nobody has posted a run yet. Be first.</p>';
+        return;
+      }
+      $('#scoresBody').innerHTML = `
+        <table id="scoresTable">
+          <thead><tr><th>#</th><th>Name</th><th>Score</th><th>Stage</th><th>Orb</th></tr></thead>
+          <tbody>
+            ${rows.map((s, i) => {
+              const f = Fighters.get(s.fighter);
+              return `<tr>
+                <td>${i + 1}</td>
+                <td>${cleanName(s.name)}</td>
+                <td><b>${Number(s.score).toLocaleString()}</b></td>
+                <td>${s.stage}</td>
+                <td style="color:${f ? uiColor(f, false) : 'inherit'}">${f ? f.name : s.fighter}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`;
+      return;
+    }
+
+    $('#scoresLede').textContent = 'Saved in this browser only.';
+    this.renderLocalScores();
+  }
+
+  renderLocalScores() {
     const scores = loadScores();
     if (!scores.length) {
       $('#scoresBody').innerHTML = '<p class="ea-note">No runs recorded yet.</p>';

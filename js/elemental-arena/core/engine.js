@@ -1201,6 +1201,10 @@ export class Engine {
     this.particles.burst('dust', ball.x, ball.y, 40, 260, ball.element.colors.light);
     this.effects.push({ type: 'ring', x: ball.x, y: ball.y, r: ball.radius,
       maxR: ball.radius * 7, age: 0, life: 0.6, color: ball.element.colors.core });
+    this.shockwave(ball.x, ball.y, ball.element.colors.core, 1.15);
+    // A beat of held time on a kill. Short enough not to feel like a stutter,
+    // long enough that the death registers before the fight moves on.
+    this.hitStop = Math.max(this.hitStop, 0.09);
     this.shake(20);
     this.flash(ball.element.colors.core, 0.25);
     this.sfx('death');
@@ -1227,6 +1231,10 @@ export class Engine {
         ball.ultCharge = 0;
         ball.ultCount++;
         this.announce(ball, ball.element.ult.name.toUpperCase(), ball.element.colors.core, 1.8);
+        this.shockwave(ball.x, ball.y, ball.element.colors.light, 1.45);
+        this.flash(ball.element.colors.core, 0.22);
+        this.shake(15);
+        this.hitStop = Math.max(this.hitStop, 0.06);
         ball.element.ult.cast(this, ball);
         this.stats.ults++;
         this.emit('ult', ball);
@@ -1693,6 +1701,29 @@ export class Engine {
       if (this.time < job.at) continue;
       this.pending.splice(i, 1);
       job.fn();
+    }
+  }
+
+  /**
+   * The big one: a double shockwave with a ring of shards thrown clear.
+   *
+   * Reserved for kills and ultimates. Everything else in the game gets a
+   * single ring, so when this fires it reads as "that mattered" without
+   * anyone needing to read a number.
+   */
+  shockwave(x, y, color, scale = 1) {
+    this.effects.push({ type: 'shock', x, y, color, scale, age: 0, life: 0.7 });
+    // Shards: short radial streaks that outrun the wave and fade.
+    const n = Math.round(10 * scale);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + this.cosmeticRng.range(-0.2, 0.2);
+      this.effects.push({
+        type: 'shard', x, y, color,
+        angle: a,
+        // Far enough to clear the wave rather than sitting inside it.
+        reach: (150 + this.cosmeticRng.range(0, 80)) * scale,
+        age: 0, life: 0.42 + this.cosmeticRng.range(0, 0.18),
+      });
     }
   }
 

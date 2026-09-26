@@ -381,7 +381,11 @@
 
     <section class="ea-panel" id="panelScores" hidden>
       <h2>High scores</h2>
-      <p class="ea-lede">Saved in this browser only.</p>
+      <div id="scoreTabs" class="ea-score-tabs">
+        <button type="button" class="ea-tab is-on" data-board="global">Global</button>
+        <button type="button" class="ea-tab" data-board="local">This device</button>
+      </div>
+      <p class="ea-lede" id="scoresLede"></p>
       <div id="scoresBody"></div>
       <div class="ea-panel-actions">
         <button type="button" data-close-panel>Close</button>

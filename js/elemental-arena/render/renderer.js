@@ -1092,6 +1092,39 @@ export class Renderer {
         ctx.arc(e.x, e.y, r, 0, TAU);
         ctx.stroke();
         ctx.globalAlpha = 1;
+      } else if (e.type === 'shock') {
+        // Two waves at different speeds: a fast thin leading edge and a
+        // slower thick body behind it. One ring reads as a ripple; two read
+        // as a detonation.
+        const k = e.scale || 1;
+        // `speed` divides the clock, so a smaller number is a *faster* wave.
+        // The thin leading edge has to be the fast one; the first version had
+        // these the wrong way round and the thick body overtook it.
+        for (const [speed, width, alpha] of [[0.66, 3, 0.9], [1, 11, 0.45]]) {
+          const tt = Math.min(1, t / speed);
+          const ease = 1 - Math.pow(1 - tt, 3);
+          ctx.globalAlpha = (1 - tt) * alpha;
+          ctx.strokeStyle = e.color;
+          ctx.lineWidth = Math.max(1, width * (1 - tt) * k);
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, 10 * k + ease * 150 * k, 0, TAU);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      } else if (e.type === 'shard') {
+        // A streak thrown clear of the blast, decelerating as it goes.
+        const ease = 1 - Math.pow(1 - t, 2.4);
+        const d = ease * e.reach;
+        const len = 18 * (1 - t);
+        ctx.globalAlpha = (1 - t) * 0.95;
+        ctx.strokeStyle = e.color;
+        ctx.lineCap = 'round';
+        ctx.lineWidth = Math.max(1, 4 * (1 - t));
+        ctx.beginPath();
+        ctx.moveTo(e.x + Math.cos(e.angle) * d, e.y + Math.sin(e.angle) * d);
+        ctx.lineTo(e.x + Math.cos(e.angle) * (d + len), e.y + Math.sin(e.angle) * (d + len));
+        ctx.stroke();
+        ctx.globalAlpha = 1;
       } else if (e.type === 'clash') {
         // A parry is the most satisfying thing that happens without anyone
         // taking damage, so it gets its own flourish rather than a plain ring.

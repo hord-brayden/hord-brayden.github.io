@@ -1853,3 +1853,25 @@ body.ea-recording #stage::after {
   .ea-masthead .ea-mode-switch { width: 100%; display: flex; }
   .ea-masthead .ea-mode-switch button { flex: 1; }
 }
+
+/* ----------------------------------------------------------- leaderboard */
+
+.ea-score-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+
+.ea-post {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-top: 16px; padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.ea-post label {
+  font-family: var(--font-mono); font-size: .74rem;
+  text-transform: uppercase; letter-spacing: .1em; color: var(--muted);
+}
+.ea-post input {
+  flex: 1 1 160px;
+  font-family: var(--font-mono); font-size: .84rem;
+  padding: 8px 11px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+  background: var(--bg); color: var(--ink);
+}
+.ea-post button { font-family: var(--font-mono); font-size: .78rem; }
