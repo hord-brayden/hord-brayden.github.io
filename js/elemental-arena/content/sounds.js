@@ -37,6 +37,17 @@ export const MATERIALS = {
   /** Bladed steel: a bright clank over a solid body. */
   steel: {
     base: 340,
+    /* Struck steel keeps singing well after the strike. A pair of quiet
+       high partials arriving a beat late, which the ear reads as a blade
+       ringing rather than as a second hit. */
+    tail(A, { base, power, pan }) {
+      A.modal({
+        base: base * 2.04,
+        partials: [{ ratio: 1, gain: 1, decay: 1 }, { ratio: 1.51, gain: 0.35, decay: 0.6 }],
+        dur: 0.42 + power * 0.3, gain: 0.05 + power * 0.045,
+        strike: 0.002, delay: 0.035, pan,
+      });
+    },
     impact(A, { base, power, t, pan }) {
       A.modal({
         base,
@@ -81,6 +92,12 @@ export const MATERIALS = {
   /** Blunt iron: a deep CLUNK with very little top end. */
   iron: {
     base: 170,
+    /* Iron does not sing, it booms and dies. The tail is the room answering
+       rather than the metal. */
+    tail(A, { base, power }) {
+      A.noise({ dur: 0.3 + power * 0.2, gain: 0.045 + power * 0.04,
+                filter: 'lowpass', freq: base * 3.2, sweepTo: base * 0.9, delay: 0.03 });
+    },
     impact(A, { base, power, t, pan }) {
       A.modal({
         base,
@@ -114,6 +131,11 @@ export const MATERIALS = {
   /** Wood: a dry knock. Almost no ring — the modes die immediately. */
   wood: {
     base: 260,
+    /* Splinter and creak — dry, mid, and short. */
+    tail(A, { base, power }) {
+      A.noise({ dur: 0.16 + power * 0.1, gain: 0.05 + power * 0.04,
+                filter: 'bandpass', freq: base * 4.5, q: 2.2, delay: 0.02 });
+    },
     impact(A, { base, power, t, pan }) {
       A.modal({
         base,
@@ -139,13 +161,17 @@ export const MATERIALS = {
   },
 
   /** Bone: dry and hollow, a clack with a short woody tail. */
-  bone: {
-    base: 320,
+  bone: { base: 320,
+    /* A dry clatter after the clack, like something settling. */
+    tail(A, { base, power }) {
+      A.noise({ dur: 0.2, gain: 0.04 + power * 0.035,
+                filter: 'bandpass', freq: base * 5.5, q: 4, delay: 0.04, sweepTo: base * 2.2 });
+    },
     impact(A, { base, power, t, pan }) {
       A.modal({
         base,
         partials: [
-          { ratio: 1, gain: 1, decay: 1 },
+          { ratio: 1, gain: 1, decay: 1, sub: 0.5 },
           { ratio: 1.73, gain: 0.55, decay: 0.5 },
           { ratio: 2.61, gain: 0.3, decay: 0.35 },
         ],
@@ -165,6 +191,18 @@ export const MATERIALS = {
   /** Glass: the one material that is meant to be bright. */
   glass: {
     base: 820,
+    /* Shards. Three quick bright taps at falling pitches — the sound of
+       pieces landing, not of the vial breaking again. */
+    tail(A, { base, power, pan }) {
+      for (let i = 0; i < 3; i++) {
+        A.modal({
+          base: base * (2.6 - i * 0.55),
+          partials: [{ ratio: 1, gain: 1 }, { ratio: 2.76, gain: 0.3 }],
+          dur: 0.1, gain: (0.04 + power * 0.03) * (1 - i * 0.25),
+          strike: 0.001, delay: 0.05 + i * 0.055, pan: pan * (i % 2 ? -1 : 1),
+        });
+      }
+    },
     impact(A, { base, power, t, pan }) {
       A.modal({
         base,
@@ -213,37 +251,41 @@ const WEAPON_MATERIAL = {
  * modes, `decay` how long it rings, `noise` how much scrape is in the strike,
  * `body` the low end, `gain` the overall weight.
  */
-const TWEAK_DEFAULTS = { bright: 1, decay: 1, noise: 1, gain: 1, body: 1, pitch: 1 };
+/* `sub` is how much of the octave-below layer a weapon gets — the weight you
+ * feel rather than hear. A dagger gets none of it; a greatsword gets all of
+ * it. This is the single biggest difference between a heavy weapon sounding
+ * heavy and merely sounding loud. */
+const TWEAK_DEFAULTS = { bright: 1, decay: 1, noise: 1, gain: 1, body: 1, pitch: 1, sub: 0 };
 
 const WEAPON_TWEAKS = {
   // steel
-  sword:      {},
-  katana:     { bright: 1.15, decay: 1.6, noise: 0.6, pitch: 1.05 },   // clean, singing
+  sword:      { sub: 0.35 },
+  katana:     { bright: 1.15, decay: 1.6, noise: 0.6, pitch: 1.05, sub: 0.3 },   // clean, singing
   dagger:     { bright: 1.3, decay: 0.5, gain: 0.8, pitch: 1.5 },      // short shick
-  greatsword: { bright: 0.7, decay: 1.8, body: 1.8, gain: 1.3, pitch: 0.62 },
+  greatsword: { bright: 0.7, decay: 1.8, body: 1.8, gain: 1.3, pitch: 0.62, sub: 1.15 },
   rapier:     { bright: 1.45, decay: 0.85, noise: 0.45, body: 0.6, pitch: 1.35 },
-  axe:        { bright: 0.78, decay: 0.7, noise: 2.2, body: 1.4, gain: 1.15, pitch: 0.78 },
-  spear:      { bright: 1.1, decay: 0.5, noise: 0.8, body: 0.8, pitch: 1.15 },
-  trident:    { bright: 1.0, decay: 1.2, chorus: true, pitch: 0.9 },
-  scythe:     { bright: 0.9, decay: 1.3, noise: 2.0, pitch: 0.85 },     // slice
+  axe:        { bright: 0.78, decay: 0.7, noise: 2.2, body: 1.4, gain: 1.15, pitch: 0.78, sub: 0.95 },
+  spear:      { bright: 1.1, decay: 0.5, noise: 0.8, body: 0.8, pitch: 1.15, sub: 0.25 },
+  trident:    { bright: 1.0, decay: 1.2, chorus: true, pitch: 0.9, sub: 0.5 },
+  scythe:     { bright: 0.9, decay: 1.3, noise: 2.0, pitch: 0.85, sub: 0.6 },     // slice
   shuriken:   { bright: 1.5, decay: 0.45, noise: 1.4, body: 0.5, pitch: 1.6 },
-  chakram:    { bright: 1.25, decay: 1.7, noise: 0.75, pitch: 1.25 },   // whirr
+  chakram:    { bright: 1.25, decay: 1.7, noise: 0.75, pitch: 1.25, sub: 0.2 },   // whirr
   caltrop:    { bright: 1.4, decay: 0.4, rattle: true, body: 0.5, pitch: 1.7 },
   // iron
-  hammer:     { bright: 0.8, decay: 1.4, body: 1.5, gain: 1.25, pitch: 0.7 },   // BANG
-  wrench:     { bright: 1.15, decay: 0.9, noise: 0.85, body: 0.9, pitch: 1.1 },
-  gauntlet:   { bright: 0.66, decay: 0.7, noise: 1.6, body: 1.15, gain: 0.95, pitch: 0.95 },
-  shield:     { bright: 0.55, decay: 1.8, body: 1.6, noise: 0.6, gain: 1.2, pitch: 0.6 }, // CLUNK
+  hammer:     { bright: 0.8, decay: 1.4, body: 1.5, gain: 1.25, pitch: 0.7, sub: 1.3 },   // BANG
+  wrench:     { bright: 1.15, decay: 0.9, noise: 0.85, body: 0.9, pitch: 1.1, sub: 0.7 },
+  gauntlet:   { bright: 0.66, decay: 0.7, noise: 1.6, body: 1.15, gain: 0.95, pitch: 0.95, sub: 0.95 },
+  shield:     { bright: 0.55, decay: 1.8, body: 1.6, noise: 0.6, gain: 1.2, pitch: 0.6, sub: 1.2 }, // CLUNK
   // wood
-  club:       { decay: 1.35, body: 1.5, noise: 1.2, gain: 1.2, pitch: 0.78 },
-  staff:      { decay: 0.9, body: 0.8, bright: 1.2, noise: 0.7, pitch: 1.1 },
-  pitchfork:  { decay: 0.6, body: 0.7, bright: 1.45, noise: 1.6, pitch: 1.25 },
-  bow:        { decay: 1.6, body: 0.7, bright: 0.72, noise: 0.5, pitch: 0.9 },  // twang
+  club:       { decay: 1.35, body: 1.5, noise: 1.2, gain: 1.2, pitch: 0.78, sub: 1.1 },
+  staff:      { decay: 0.9, body: 0.8, bright: 1.2, noise: 0.7, pitch: 1.1, sub: 0.35 },
+  pitchfork:  { decay: 0.6, body: 0.7, bright: 1.45, noise: 1.6, pitch: 1.25, sub: 0.3 },
+  bow:        { decay: 1.6, body: 0.7, bright: 0.72, noise: 0.5, pitch: 0.9, sub: 0.2 },  // twang
   // bone
-  bone:       { decay: 1.25, noise: 1.3 },
+  bone:       { decay: 1.25, noise: 1.3, sub: 0.5 },
   // glass
-  vial:       { decay: 1.25, bright: 0.9, pitch: 0.95 },
-  flask:      { decay: 0.8, bright: 1.2, noise: 1.5, pitch: 1.15 },
+  vial:       { decay: 1.25, bright: 0.9, pitch: 0.95, sub: 0.15 },
+  flask:      { decay: 0.8, bright: 1.2, noise: 1.5, pitch: 1.15, sub: 0.2 },
 };
 
 export function weaponVoice(weaponId) {

@@ -314,6 +314,34 @@ export class Audio {
    * accent on top.
    * @param {object} o { weaponId, coreId, power } — power is 0..1
    */
+  /**
+   * Sub — the octave under the body.
+   *
+   * A long, slow sine sweep well below the modal ring. On a phone speaker it
+   * is nearly inaudible; on anything with low end it is the difference
+   * between a greatsword landing and a greatsword clicking. Kept short of
+   * 30Hz because below that it is only cone excursion and mud.
+   */
+  sub({ freq = 58, dur = 0.34, gain = 0.2, drop = 1.6, delay = 0, pan = 0 }) {
+    if (!this.ready || !this._claim()) return;
+    const t = this.ctx.currentTime + delay;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = 'sine';
+    const f = Math.max(28, freq * this.drift);
+    osc.frequency.setValueAtTime(f * drop, t);
+    osc.frequency.exponentialRampToValueAtTime(f, t + dur * 0.55);
+    // A soft attack rather than a click: a sub with a hard edge reads as a
+    // pop, which is the opposite of weight.
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(gain, t + 0.018);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g); g.connect(this._dest(pan));
+    osc.start(t);
+    osc.stop(t + dur + 0.02);
+    osc.onended = () => this._release();
+  }
+
   hit({ weaponId, coreId, power = 0.4 }) {
     // Throttle per weapon rather than globally: two different weapons landing
     // in the same instant should both be heard, or a crowded fight collapses
@@ -337,10 +365,29 @@ export class Audio {
       pan: pan * 0.4,
     });
 
-    // 2. Ring — the weapon's material, tinted by how bright the core is.
+    // 2. Sub — the octave under the body, scaled by how heavy the weapon is.
+    //    A dagger gets almost none of this; a greatsword gets all of it.
+    if (w.t.sub) {
+      this.sub({
+        freq: c.note * 0.42,
+        dur: 0.26 + power * 0.22,
+        gain: (0.14 + power * 0.2) * w.t.sub,
+        drop: 1.8,
+        pan: pan * 0.25,
+      });
+    }
+
+    // 3. Ring — the weapon's material, tinted by how bright the core is.
     w.material.impact(this, { base: w.base * c.bright, power, t: w.t, pan });
 
-    // 3. Accent — a short elemental flourish over the top.
+    // 4. Tail — what the material leaves behind after the strike. This is the
+    //    layer that makes an impact sound like it happened in a place rather
+    //    than in a vacuum.
+    if (w.material.tail && power > 0.25) {
+      w.material.tail(this, { base: w.base * c.bright, power, t: w.t, pan: -pan });
+    }
+
+    // 5. Accent — a short elemental flourish over the top.
     if (c.accent) c.accent(this, { power });
     this.drift = 1;
   }
@@ -362,6 +409,18 @@ export class Audio {
     // The duller material is heard underneath as the body of the collision,
     // which is what makes a sword on a shield sound different from two swords.
     if (under) under.impact(this, { base: base * 0.7, power: 0.5, t: b.t, pan: -pan });
+
+    // Weight under the clang, from whichever weapon is heavier.
+    const heft = Math.max(a.t.sub || 0, b.t.sub || 0);
+    if (heft) this.sub({ freq: 52, dur: 0.3, gain: 0.16 * heft, drop: 1.7 });
+
+    // A struck blade keeps singing after the strike. Two short detuned
+    // partials well above the clash, arriving a beat late.
+    this.modal({
+      base: base * 2.02,
+      partials: [{ ratio: 1, gain: 1, decay: 1 }, { ratio: 1.49, gain: 0.4, decay: 0.7 }],
+      dur: 0.55, gain: 0.075, strike: 0.002, delay: 0.03, pan: pan * 0.8,
+    });
     this.drift = 1;
   }
 
