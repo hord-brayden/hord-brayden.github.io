@@ -1468,7 +1468,7 @@ body.ea-recording #stage::after {
      than vh because Safari's toolbar changes the viewport as you scroll. */
   body.ea-playing { overflow: hidden; }
   body.ea-playing header-component,
-  body.ea-playing .ea-mode-switch,
+  body.ea-playing .ea-masthead,
   body.ea-playing footer,
   body.ea-playing #statsReadout { display: none; }
 
@@ -1757,4 +1757,74 @@ body.ea-recording #stage::after {
     gap: 8px;
   }
   .ea-picker-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+}
+
+/* ============================================================== masthead */
+
+/* The page had no game title on it anywhere — "The Forge" is the name of a
+   screen, not of the thing you are playing. This is the lockup: a wordmark,
+   a one-line statement of what it is, and the section switch, on one row. */
+.ea-masthead {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ea-wordmark { display: flex; align-items: center; gap: 11px; }
+
+/* Two orbs, one eclipsing the other — the whole game in 26 pixels. */
+.ea-wordmark-mark {
+  position: relative;
+  width: 30px; height: 26px;
+  flex: 0 0 auto;
+}
+.ea-wm-orb {
+  position: absolute; top: 50%;
+  width: 17px; height: 17px;
+  margin-top: -8.5px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+}
+.ea-wm-orb--a { left: 0; background: #e8503a; }
+.ea-wm-orb--b { right: 0; background: #3aa7e8; }
+
+.ea-wordmark-text {
+  font-family: var(--font-mono);
+  font-size: 1.12rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+/* Light then heavy is the oldest trick in game-title setting and it works:
+   the eye lands on the noun. */
+.ea-wordmark-1 { font-weight: 400; color: var(--muted); }
+.ea-wordmark-2 { font-weight: 700; color: var(--ink); margin-left: .38em; }
+
+.ea-wordmark-tag {
+  margin: 0;
+  font-size: .76rem;
+  color: var(--muted);
+  letter-spacing: .02em;
+}
+
+.ea-masthead .ea-mode-switch { margin: 0; }
+
+@media (max-width: 720px) {
+  /* The wordmark and the switch together are wider than a 390px row, so they
+     stack rather than compete. The switch goes full width, which also makes
+     it a better target. */
+  .ea-masthead {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding-bottom: 10px;
+  }
+  /* The tagline is the first thing to go. */
+  .ea-wordmark-tag { display: none; }
+  .ea-wordmark-text { font-size: .95rem; }
+  .ea-masthead .ea-mode-switch { width: 100%; display: flex; }
+  .ea-masthead .ea-mode-switch button { flex: 1; }
 }

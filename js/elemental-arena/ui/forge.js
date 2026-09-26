@@ -427,7 +427,7 @@ export class Forge {
         <div class="ea-inspect-empty">
           <p class="ea-inspect-title">Nothing selected</p>
           <p>Tap an orb to change its weapon, give it a perk, or shift points between health, damage and speed.</p>
-          <p class="ea-inspect-tip">Drag a template from the library into a team, or just tap it to add it to the highlighted team.</p>
+          <p class="ea-inspect-tip">Use a team's <strong>Add orb</strong> button to pick from the roster. Each orb carries its own count and remove controls; drag one between teams if you prefer.</p>
         </div>`;
       return;
     }
