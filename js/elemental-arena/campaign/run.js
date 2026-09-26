@@ -23,6 +23,9 @@ import { Fighters } from '../content/roster.js';
 import { emptyBuild, buildToProfile, rollOffers, upgradeCost, augmentCost, Upgrades, buildForSchedule } from './upgrades.js';
 import { defaultLoadout, normalizeLoadout } from '../content/loadouts.js';
 import { MODIFIERS, rollModifier } from './modifiers.js';
+import { enchantment } from '../content/enchantments.js';
+import { procLabel } from '../content/rarity.js';
+import { Augments, roman } from '../content/augments.js';
 import { Chassis, Drives } from '../content/parts.js';
 import { weaponStats, weaponLabel } from '../content/weapons.js';
 import { weaponAbility } from '../content/weapon-abilities.js';
@@ -82,6 +85,37 @@ export const RunState = {
   SHOP: 'shop',           // spending gold before the fight
   BATTLE: 'battle',       // watching it resolve
   DEAD: 'dead',           // run over
+};
+
+
+/* How each build flag is shown in a shop card's before/after list.
+ *
+ * Augments mostly work by setting flags rather than by moving one of the
+ * headline multipliers, so without this a Searing V card stated its effect
+ * in prose and then showed no numbers at all — which is exactly the thing
+ * the before/after rows exist to prevent.
+ *
+ *   pct   a fraction shown as a percentage
+ *   flat  a number shown as-is
+ *   bool  a capability you either have or do not
+ */
+const FLAG_ROWS = {
+  augBurn:      { label: 'Burn on hit', kind: 'pct', of: 'damage' },
+  augPoison:    { label: 'Poison on hit', kind: 'pct', of: 'damage' },
+  augChill:     { label: 'Chill chance', kind: 'pct' },
+  augShock:     { label: 'Arc chance', kind: 'pct' },
+  augShockPower:{ label: 'Arc damage', kind: 'pct', of: 'hit' },
+  augPierce:    { label: 'Armour ignored', kind: 'pct' },
+  augThorns:    { label: 'Melee reflected', kind: 'pct' },
+  augRetaliate: { label: 'Fire returned', kind: 'pct' },
+  augChillBack: { label: 'Chill attackers', kind: 'pct' },
+  augRegen:     { label: 'Regen', kind: 'pct', perSecond: true, places: 2 },
+  threatBonus:  { label: 'Enemy strength', kind: 'pct', bad: true },
+  berserk:      { label: 'Below half health', kind: 'bool', text: '+50% damage' },
+  lastBreath:   { label: 'Survive a lethal hit', kind: 'bool', text: 'once per stage' },
+  vineWake:     { label: 'Vines on wall bounce', kind: 'bool', text: 'yes' },
+  immovable:    { label: 'Knockback', kind: 'bool', text: 'immune' },
+  costlyRepairs:{ label: 'Repair cost', kind: 'bool', text: 'doubled', bad: true },
 };
 
 /** Augments price off their level; everything else off the stage table. */
@@ -372,6 +406,51 @@ export class CampaignRun {
     }
     for (const perk of clone.perks) {
       if (!this.build.perks.includes(perk)) rows.push({ label: 'Gains', before: '—', after: perk, up: true });
+    }
+
+    // Flag-driven effects — where nearly every augment actually lives.
+    for (const [key, spec] of Object.entries(FLAG_ROWS)) {
+      const b = this.build.flags[key] || 0;
+      const a = clone.flags[key] || 0;
+      if (a === b) continue;
+      if (spec.kind === 'bool') {
+        rows.push({ label: spec.label, before: '—', after: spec.text, up: !spec.bad });
+        continue;
+      }
+      const places = spec.places || 0;
+      const fmt = (v) => `${(v * 100).toFixed(places)}%`
+        + (spec.of ? ` of ${spec.of}` : '') + (spec.perSecond ? '/s' : '');
+      rows.push({
+        label: spec.label,
+        before: b ? fmt(b) : '—',
+        after: fmt(a),
+        up: spec.bad ? a < b : a > b,
+        pct: b ? Math.round(((a / b) - 1) * 100) : null,
+      });
+    }
+
+    // Gold multiplier, which is otherwise invisible until the stage settles.
+    if (clone.goldMul !== this.build.goldMul) {
+      rows.push({ label: 'Gold earned', before: `${this.build.goldMul.toFixed(2)}x`,
+                  after: `${clone.goldMul.toFixed(2)}x`, up: clone.goldMul > this.build.goldMul });
+    }
+    if (clone.enchantId !== this.build.enchantId) {
+      const was = enchantment(this.build.enchantId), now = enchantment(clone.enchantId);
+      rows.push({ label: 'Enchantment', before: was ? was.name : '—',
+                  after: now ? now.name : '—', up: true, swap: true });
+      if (now) {
+        rows.push({ label: '  procs on', before: was ? procLabel(was) : '—',
+                    after: procLabel(now), up: true });
+      }
+    }
+    // An augment's own level, so the card says what it is stepping from.
+    for (const [id, lvl] of Object.entries(clone.augments || {})) {
+      const was = (this.build.augments || {})[id] || 0;
+      if (was === lvl) continue;
+      const aug = Augments.get(id);
+      if (!aug) continue;
+      rows.unshift({ label: aug.name, before: was ? roman(was) : '—',
+                     after: roman(lvl), up: true, swap: true });
     }
     if (clone.weaponId !== this.build.weaponId) {
       // A refit is the one upgrade whose whole value is in numbers the player

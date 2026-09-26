@@ -1596,9 +1596,12 @@ body.ea-recording #stage::after {
    where the play screen's control bar goes on a phone. Lift it clear rather
    than moving it, so it keeps its place on every other page. */
 @media (max-width: 720px) {
+  .dark-mode-toggle {
+    bottom: calc(env(safe-area-inset-bottom) + 132px);
+    opacity: .75;
+  }
   body.ea-playing .dark-mode-toggle {
     bottom: calc(env(safe-area-inset-bottom) + 176px);
-    opacity: .75;
   }
 
   /* Recording a canvas stream is unreliable on iOS Safari, and it is not
@@ -1875,3 +1878,51 @@ body.ea-recording #stage::after {
   background: var(--bg); color: var(--ink);
 }
 .ea-post button { font-family: var(--font-mono); font-size: .78rem; }
+
+@media (max-width: 720px) {
+  /* The library column is redundant on a phone: adding an orb goes through
+     the per-team picker sheet, which is both closer to the thing you are
+     editing and 368px cheaper. */
+  .ea-col--library { display: none; }
+
+  /* The inspector becomes a sheet, opened by tapping an orb. As a column it
+     cost 255px of scroll showing an empty state most of the time. */
+  #inspectorWrap { display: none; }
+  #panelOrb #inspector { display: block; }
+
+  /* The launch bar is sticky, so every pixel of it is permanently spent —
+     it was 197px, nearly a quarter of the viewport, for four rows. Two rows:
+     the seed beside its reseed button, then Settings, Codex and Launch. The
+     matchup summary is already visible in the teams above it. */
+  .ea-launch {
+    display: grid;
+    /* Launch takes the remaining width so its label cannot be clipped; the
+       two secondary buttons size to their own text. */
+    grid-template-columns: auto auto 1fr;
+    grid-template-areas:
+      'seed seed seed'
+      'settings codex launch';
+    gap: 8px;
+    padding-top: 10px;
+  }
+  .ea-launch #forgeSummary { display: none; }
+  .ea-launch .ea-seed-field { grid-area: seed; display: flex; align-items: center; gap: 8px; }
+  .ea-launch .ea-seed-field input { flex: 1; min-width: 0; }
+  .ea-launch [data-open-panel="panelSettings"] { grid-area: settings; }
+  .ea-launch [data-open-panel="panelCodex"] { grid-area: codex; }
+  .ea-launch #launchBtn { grid-area: launch; min-width: 0; padding-inline: 8px; }
+  .ea-launch .btn--ghost { padding: 7px 13px !important; font-size: .74rem; }
+
+  /* The mode blurb repeats what the selected tab already says. */
+  #modeBlurb { display: none; }
+}
+
+@media (max-width: 720px) {
+  /* The site footer is 205px of links sitting underneath a sticky launch
+     bar. On a content page that is fine; on a game screen with its primary
+     action pinned to the bottom it is dead weight you scroll past to reach
+     nothing. Scoped to this page only — every other page keeps its footer,
+     and the same links are in the header menu. */
+  /* It is a custom element, so `footer` alone never matched it. */
+  body.ea-page footer-component { display: none; }
+}

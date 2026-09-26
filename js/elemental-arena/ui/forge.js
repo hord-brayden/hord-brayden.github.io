@@ -347,6 +347,7 @@ export class Forge {
       this.selected = index;
       this.focusTeam = entry.teamId;
       this.render();
+      if (this.isCompact()) this.openInspectorSheet();
     });
     chip.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); chip.click(); }
@@ -426,6 +427,34 @@ export class Forge {
     entry.count = want;
     this.app.persist();
     this.render();
+  }
+
+  /** Narrow enough that the Forge is stacked rather than in columns. */
+  isCompact() {
+    return window.matchMedia('(max-width: 720px)').matches;
+  }
+
+  /**
+   * Lend the live inspector to a bottom sheet.
+   *
+   * The element is moved rather than duplicated, so everything that renders
+   * into `#inspector` keeps working and there is no second copy to keep in
+   * sync. It is put back the moment the sheet closes.
+   */
+  openInspectorSheet() {
+    const panel = $('#orbSheetHost');
+    const ins = $('#inspector');
+    if (!panel || !ins) return;
+    panel.appendChild(ins);
+    this.app.onOverlayHide = () => this.returnInspector();
+    this.app.showOverlay('panelOrb');
+  }
+
+  returnInspector() {
+    const home = $('#inspectorWrap');
+    const ins = $('#inspector');
+    if (home && ins && ins.parentElement !== home) home.appendChild(ins);
+    this.app.onOverlayHide = null;
   }
 
   bindDropTarget(el, teamId) {

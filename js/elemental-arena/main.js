@@ -382,6 +382,8 @@ class App {
   hideOverlay() {
     $('#overlay').hidden = true;
     $$('.ea-panel').forEach((p) => { p.hidden = true; });
+    // Screens that lend a live element to a sheet need it back.
+    if (this.onOverlayHide) this.onOverlayHide();
   }
 
   showResult(result) {
