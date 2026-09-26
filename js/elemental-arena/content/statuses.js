@@ -377,6 +377,32 @@ Statuses.defineAll([
       mods.dmgTakenMul *= 0.9;
     },
   },
+  {
+    id: 'voidmark',
+    name: 'Marked',
+    short: 'MRK',
+    color: '#8b5cf6',
+    icon: '◉',
+    desc: 'Takes 35% more damage from every source.',
+    from: 'The Voidmark enchantment, which has an 18% chance to apply it on hit.',
+    beneficial: false,
+    modify(mods) {
+      mods.dmgTakenMul *= 1.35;
+    },
+  },
+  {
+    id: 'famine',
+    name: 'Famine',
+    short: 'FAM',
+    color: '#94a3b8',
+    icon: '☩',
+    desc: 'Cannot be healed at all. Regeneration, lifesteal and brews all do nothing.',
+    from: 'The Famine enchantment, which has a 24% chance to apply it on hit.',
+    beneficial: false,
+    modify(mods) {
+      mods.healMul = 0;
+    },
+  },
 ]);
 
 /** The neutral stat bundle every ball starts each tick from. */

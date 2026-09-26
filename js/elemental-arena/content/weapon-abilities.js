@@ -55,7 +55,7 @@ export const WEAPON_ABILITIES = {
     desc: '+20% chance to land a critical hit for 1.8x damage.',
     onSpawn(ball) {
       ball.crit = ball.crit || { chance: 0, mult: 1.8 };
-      ball.crit.chance = Math.min(0.75, ball.crit.chance + 0.2);
+      ball.crit.chance = Math.min(0.45, ball.crit.chance + 0.2);
     },
   },
   scythe: {

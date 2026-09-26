@@ -110,7 +110,10 @@ export class CampaignRun {
    * dies and the score stops meaning anything.
    */
   get threat() {
-    return 0.72 + this.stage * 0.15 + Math.pow(this.stage, 1.5) * 0.021;
+    const base = 0.72 + this.stage * 0.15 + Math.pow(this.stage, 1.5) * 0.021;
+    // Gambler's Purse buys gold with difficulty, so the bet has to actually
+    // be priced into the enemies rather than being free money.
+    return base * (1 + (this.build.flags.threatBonus || 0));
   }
 
   get isBoss() {
@@ -200,7 +203,7 @@ export class CampaignRun {
     this.state = RunState.SHOP;
     this.rerolls = 0;
     this.offers = rollOffers(this.rng, this.build, this.stage, 3)
-      .map((def) => ({ def, cost: upgradeCost(def, this.stage), bought: false }));
+      .map((def) => ({ def, cost: upgradeCost(def, this.stage, this.build), bought: false }));
   }
 
   get rerollCost() {
@@ -212,7 +215,7 @@ export class CampaignRun {
     this.gold -= this.rerollCost;
     this.rerolls++;
     this.offers = rollOffers(this.rng, this.build, this.stage, 3)
-      .map((def) => ({ def, cost: upgradeCost(def, this.stage), bought: false }));
+      .map((def) => ({ def, cost: upgradeCost(def, this.stage, this.build), bought: false }));
     return true;
   }
 
@@ -231,7 +234,8 @@ export class CampaignRun {
   get repairCost() {
     const missing = this.missingHpFraction;
     if (missing <= 0.001) return 0;
-    return Math.max(5, Math.round((18 + this.stage * 3) * missing / 5) * 5);
+    const mul = this.build.flags.costlyRepairs ? 2 : 1;
+    return Math.max(5, Math.round((18 + this.stage * 3) * missing * mul / 5) * 5);
   }
 
   get missingHpFraction() {
@@ -418,9 +422,13 @@ export class CampaignRun {
     const parries = player ? player.parries : 0;
 
     // Reward is mostly for clearing; performance is a bonus, not the point.
+    // Gold multipliers and proc-dropped gold both land here, so a Midas build
+    // is paid on everything it earned rather than only on the clear bonus.
+    const goldMul = (this.build.goldMul || 1) * (player ? player.goldMul || 1 : 1);
     const clearGold = survived ? Math.round((35 + this.stage * 9) * enc.gold) : 0;
     const perfGold = Math.round(dmg * 0.12 + kills * 12 + parries * 1.5);
-    const earned = survived ? clearGold + perfGold : 0;
+    const dropped = Math.round(engine.bonusGold || 0);
+    const earned = survived ? Math.round((clearGold + perfGold + dropped) * goldMul) : 0;
 
     this.stats.damage += dmg;
     this.stats.kills += kills;
@@ -444,7 +452,8 @@ export class CampaignRun {
       recordScore(this);
     }
 
-    return { survived, timedOut, earned, clearGold, perfGold, dmg, kills, parries, stage: this.stage };
+    return { survived, timedOut, earned, clearGold, perfGold, dropped, goldMul,
+             dmg, kills, parries, stage: this.stage };
   }
 
   /* -------------------------------------------------------- persistence */

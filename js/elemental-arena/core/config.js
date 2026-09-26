@@ -16,6 +16,7 @@ import { Powerups } from '../content/powerups.js';
 import { Perks, defaultLoadout, normalizeLoadout, BUILD_STATS } from '../content/loadouts.js';
 import { Chassis, Drives } from '../content/parts.js';
 import { Weapons } from '../content/weapons.js';
+import { Enchantments } from '../content/enchantments.js';
 import { randomSeedPhrase } from './rng.js';
 
 const STORE_KEY = 'elementalArena.settings.v2';
@@ -156,20 +157,22 @@ export function loadConfig() {
 function loadoutToWire(l) {
   const d = defaultLoadout();
   const untouched = BUILD_STATS.every((s) => l[s.id] === d[s.id])
-    && l.perk === d.perk && !l.weaponId
+    && l.perk === d.perk && !l.weaponId && !l.enchantId
     && l.chassisId === d.chassisId && l.driveId === d.driveId;
   if (untouched) return 0;
   return [l.weaponId || 0, Perks.ids.indexOf(l.perk), l.hp, l.dmg, l.spd,
-          Chassis.ids.indexOf(l.chassisId), Drives.ids.indexOf(l.driveId)];
+          Chassis.ids.indexOf(l.chassisId), Drives.ids.indexOf(l.driveId),
+          l.enchantId || 0];
 }
 
 function loadoutFromWire(w) {
   if (!w || !Array.isArray(w)) return defaultLoadout();
   // Positions 5 and 6 post-date the first share links, so they are optional
   // and fall back to the stock parts rather than invalidating an old URL.
-  const [weaponId, perkIdx, hp, dmg, spd, chassisIdx, driveIdx] = w;
+  const [weaponId, perkIdx, hp, dmg, spd, chassisIdx, driveIdx, enchantId] = w;
   return normalizeLoadout({
     weaponId: weaponId && Weapons.has(weaponId) ? weaponId : null,
+    enchantId: enchantId && Enchantments.has(enchantId) ? enchantId : null,
     perk: Perks.ids[perkIdx] || 'none',
     chassisId: Chassis.ids[chassisIdx] || 'standard',
     driveId: Drives.ids[driveIdx] || 'orbit',

@@ -22,6 +22,8 @@ import { Perks } from './content/loadouts.js';
 import { Statuses as StatusDefs } from './content/statuses.js';
 import { Weapons, weaponLabel, weaponStats } from './content/weapons.js';
 import { weaponAbility } from './content/weapon-abilities.js';
+import { Enchantments } from './content/enchantments.js';
+import { RARITIES, procLabel, procChance } from './content/rarity.js';
 import { Modes } from './modes/index.js';
 import { randomSeedPhrase } from './core/rng.js';
 import { Forge, TEAM_NAMES, TEAM_TINTS } from './ui/forge.js';
@@ -758,6 +760,29 @@ class App {
 
     // Every status says what it does AND where it comes from. "Double damage
     // when soaked" is useless without "only Water applies soaked".
+    $('#codexRarities').innerHTML = Object.values(RARITIES).map((r) => `
+      <span class="ea-rarity-chip" style="--ea-tier:${r.color}">
+        <b>${r.name}</b>
+        <em>${r.proc ? `${Math.round(r.proc * 100)}% proc` : 'no proc'}</em>
+      </span>`).join('');
+
+    // Grouped by rarity so the ladder reads as a ladder.
+    const order = Object.keys(RARITIES);
+    $('#codexEnchants').innerHTML = [...Enchantments.all]
+      .sort((a, b) => order.indexOf(a.rarity) - order.indexOf(b.rarity)
+        || procChance(b) - procChance(a))
+      .map((en) => {
+        const r = RARITIES[en.rarity];
+        return `
+        <article class="ea-ench-card" style="--ea-tier:${r.color}">
+          <h5><i>${en.glyph}</i> ${en.name}
+            <span class="ea-ench-rarity">${r.name}</span>
+            <span class="ea-ench-proc">${procLabel(en)}</span>
+          </h5>
+          <p>${en.desc}</p>
+        </article>`;
+      }).join('');
+
     $('#codexStatuses').innerHTML = `
       <article class="ea-status-card is-bad" style="--s:#4ade80">
         <h5><i>⚕</i> Healing fatigue <span class="ea-status-kind">always on</span></h5>

@@ -17,12 +17,12 @@
 
 import { Registry } from '../core/registry.js';
 import { Weapons, weaponLabel } from '../content/weapons.js';
+import { Enchantments } from '../content/enchantments.js';
+import { RARITIES } from '../content/rarity.js';
 
-export const TIERS = {
-  common: { name: 'Common', weight: 62, color: '#94a3b8', cost: 1 },
-  rare: { name: 'Rare', weight: 28, color: '#38bdf8', cost: 1.85 },
-  epic: { name: 'Epic', weight: 10, color: '#c084fc', cost: 3.1 },
-};
+/* The shop and the enchantment table read the same rarity ladder, so "Rare"
+ * means one thing across the whole game rather than one thing per system. */
+export const TIERS = RARITIES;
 
 export const Upgrades = new Registry('upgrade', {
   defaults: { tier: 'common', max: 99, tags: [], baseCost: 0 },
@@ -34,6 +34,8 @@ export function emptyBuild(fighterId) {
   return {
     fighterId,
     weaponId: null,
+    enchantId: null,
+    goldMul: 1,
     maxHpMul: 1,
     damageMul: 1,
     speedMul: 1,
@@ -55,6 +57,7 @@ export function emptyBuild(fighterId) {
 /** Turn a run build into the profile the engine understands. */
 export function buildToProfile(build) {
   return {
+    enchantId: build.enchantId,
     maxHpMul: build.maxHpMul,
     damageMul: build.damageMul,
     speedMul: build.speedMul,
@@ -168,19 +171,19 @@ Upgrades.defineAll([
 
 Upgrades.defineAll([
   {
-    id: 'crit', name: 'Weak Point Sensor', tier: 'rare', max: 4,
-    desc: '+12% chance to land a critical hit for 1.8× damage.',
+    id: 'crit', name: 'Weak Point Sensor', tier: 'rare', max: 3,
+    desc: '+10% chance to land a critical hit for 1.8× damage. Caps at 40%.',
     apply(b) {
       b.crit = b.crit || { chance: 0, mult: 1.8 };
-      b.crit.chance = Math.min(0.6, b.crit.chance + 0.12);
+      b.crit.chance = Math.min(0.4, b.crit.chance + 0.1);
     },
   },
   {
-    id: 'critpower', name: 'Fracture Charge', tier: 'epic', max: 3,
-    desc: 'Critical hits deal an extra 0.6× damage.',
+    id: 'critpower', name: 'Fracture Charge', tier: 'epic', max: 2,
+    desc: 'Critical hits deal an extra 0.45× damage. Caps at 2.7×.',
     apply(b) {
       b.crit = b.crit || { chance: 0.1, mult: 1.8 };
-      b.crit.mult += 0.6;
+      b.crit.mult = Math.min(2.7, b.crit.mult + 0.45);
     },
   },
   {
@@ -210,6 +213,104 @@ Upgrades.defineAll([
   },
 ]);
 
+/* ============================================================ eccentric
+
+ * The trade-off shelf. Every one of these makes you worse at something in
+ * exchange for making you much better at something else, which is the only
+ * kind of upgrade that produces a *build* rather than a bigger number.
+ *
+ * These are also the answer to a late run having nothing to buy. A run that
+ * has maxed every stat still has all of these open, because the interesting
+ * ones are capped at one or two and there are a lot of them.
+ */
+
+Upgrades.defineAll([
+  {
+    id: 'midas', name: 'Midas Engine', tier: 'cursed', max: 1,
+    desc: 'Double gold from every fight for the rest of the run. You deal 20% less damage. Take it early or not at all.',
+    apply(b) { b.goldMul *= 2; b.damageMul *= 0.8; },
+  },
+  {
+    id: 'glasscannon', name: 'Glass Cannon', tier: 'cursed', max: 2,
+    desc: '+65% damage, −35% maximum health. Twice is a dare.',
+    apply(b) { b.damageMul *= 1.65; b.maxHpMul *= 0.65; },
+  },
+  {
+    id: 'thornfield', name: 'Thornfield', tier: 'rare', max: 1,
+    desc: 'Every wall you bounce off sprouts a vine patch behind you. They snare and chew on whoever follows you in.',
+    apply(b) { b.flags.vineWake = true; },
+  },
+  {
+    id: 'tortoise', name: 'Tortoise Shell', tier: 'rare', max: 2,
+    desc: '+55% health and −18% damage taken, but 25% slower and 20% less damage.',
+    apply(b) { b.maxHpMul *= 1.55; addResist(b, 'all', 0.18); b.speedMul *= 0.75; b.damageMul *= 0.8; },
+  },
+  {
+    id: 'hairtrigger', name: 'Hair Trigger', tier: 'rare', max: 2,
+    desc: '+40% swing speed and +25% movement, but −22% health. All tempo, no cushion.',
+    apply(b) { b.spinMul *= 1.4; b.speedMul *= 1.25; b.maxHpMul *= 0.78; },
+  },
+  {
+    id: 'lastbreath', name: 'Last Breath', tier: 'epic', max: 1,
+    desc: 'The first time you would die in a fight, you survive on 25% health instead. Once per stage.',
+    apply(b) { b.flags.lastBreath = true; },
+  },
+  {
+    id: 'vampiric', name: 'Vampiric Coil', tier: 'epic', max: 1,
+    desc: 'Heal for 35% of all damage dealt, but you no longer regenerate between stages — repairs cost double.',
+    apply(b) {
+      if (!b.perks.includes('lifesteal')) b.perks.push('lifesteal');
+      b.flags.costlyRepairs = true;
+    },
+  },
+  {
+    id: 'gambler', name: "Gambler's Purse", tier: 'cursed', max: 3,
+    desc: '+45% gold, and every enemy you face is 10% stronger. Stacks.',
+    apply(b) { b.goldMul *= 1.45; b.flags.threatBonus = (b.flags.threatBonus || 0) + 0.1; },
+  },
+  {
+    id: 'juggernaut', name: 'Juggernaut Frame', tier: 'epic', max: 1,
+    desc: '+45% size and you cannot be knocked back, but −20% swing speed. A much bigger target that does not move.',
+    apply(b) { b.radiusMul *= 1.45; b.flags.immovable = true; b.spinMul *= 0.8; },
+  },
+  {
+    id: 'featherweight', name: 'Featherweight', tier: 'rare', max: 1,
+    desc: '−25% size and +35% movement speed. Small and quick, with the shorter weapon that comes with being small.',
+    apply(b) { b.radiusMul *= 0.75; b.speedMul *= 1.35; },
+  },
+
+  /* The uncapped sink. A run that has bought everything still has this, and
+   * it doubles in price each time, so gold never simply piles up unspent but
+   * never buys a runaway build either. */
+  {
+    id: 'overclock', name: 'Overclock', tier: 'legendary', max: 99,
+    desc: '+9% damage and +9% health. No cap — but the price doubles every single time you buy it.',
+    escalating: true,
+    apply(b) { b.damageMul *= 1.09; b.maxHpMul *= 1.09; },
+  },
+]);
+
+/* ========================================================== enchantments */
+
+/* Every enchantment is purchasable, carrying its own rarity through to the
+ * shop. You hold one at a time, so buying a second is a replacement and a
+ * real decision rather than another stack. */
+for (const ench of Enchantments.all) {
+  Upgrades.define({
+    id: `ench_${ench.id}`,
+    name: `Enchant: ${ench.name}`,
+    tier: ench.rarity,
+    max: 1,
+    tags: ['enchant'],
+    enchantId: ench.id,
+    desc: `${ench.desc} Replaces whatever enchantment you are carrying.`,
+    apply(b) {
+      b.enchantId = ench.id;
+      if (ench.goldMul) b.goldMul *= ench.goldMul;
+    },
+  });
+}
+
 /* ============================================================== weapons */
 
 /* Weapon swaps are generated rather than hand-written, so adding a silhouette
@@ -230,17 +331,23 @@ for (const id of Weapons.ids) {
 /* =============================================================== offers */
 
 /** Cost of an upgrade at a given stage. Later stages charge more. */
-export function upgradeCost(def, stage) {
+export function upgradeCost(def, stage, build) {
   const tier = TIERS[def.tier];
   const base = 22 * tier.cost;
-  return Math.round((base + stage * 4 * tier.cost) / 5) * 5;
+  let cost = base + stage * 4 * tier.cost;
+  // The uncapped sink doubles per purchase, so a rich late run can always
+  // spend but can never simply buy its way out of the difficulty curve.
+  if (def.escalating && build) cost *= Math.pow(2, build.owned[def.id] || 0);
+  return Math.round(cost / 5) * 5;
 }
 
 /** Can this build still take this upgrade? */
 export function canOffer(def, build) {
   if ((build.owned[def.id] || 0) >= def.max) return false;
-  // Never offer the weapon you are already holding.
+  // Never offer the weapon you are already holding, or the enchantment
+  // already fitted — both would be a purchase that changes nothing.
   if (def.tags.includes('weapon') && build.weaponId === def.weaponId) return false;
+  if (def.tags.includes('enchant') && build.enchantId === def.enchantId) return false;
   return true;
 }
 
@@ -251,16 +358,18 @@ export function canOffer(def, build) {
 export function rollOffers(rng, build, stage, count = 3) {
   const pool = Upgrades.all.filter((d) => canOffer(d, build));
   const out = [];
-  let weaponTaken = false;
+  let weaponTaken = false, enchantTaken = false;
 
   for (let guard = 0; out.length < count && guard < 200; guard++) {
     const pick = rng.weighted(pool, (d) => {
       if (out.some((o) => o.id === d.id)) return 0;
       if (d.tags.includes('weapon')) return weaponTaken ? 0 : TIERS[d.tier].weight * 0.35;
+      if (d.tags.includes('enchant')) return enchantTaken ? 0 : TIERS[d.tier].weight * 0.7;
       return TIERS[d.tier].weight;
     });
     if (!pick || out.some((o) => o.id === pick.id)) continue;
     if (pick.tags.includes('weapon')) weaponTaken = true;
+    if (pick.tags.includes('enchant')) enchantTaken = true;
     out.push(pick);
   }
   return out;

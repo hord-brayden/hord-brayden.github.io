@@ -14,6 +14,8 @@ import { Perks, BUILD_STATS, defaultLoadout, normalizeLoadout, buildSpend, BUILD
 import { Chassis, Drives, partsLabel } from '../content/parts.js';
 import { CampaignRun, RunState, loadScores, clearScores, saveRun, loadRun, clearRun } from '../campaign/run.js';
 import { TIERS, Upgrades } from '../campaign/upgrades.js';
+import { enchantment } from '../content/enchantments.js';
+import { procLabel } from '../content/rarity.js';
 import { MODIFIERS } from '../campaign/modifiers.js';
 import { attachPreview, detachPreview, refreshPreviews } from './preview.js';
 import { statTrack, STAT_RANGE } from './stat-track.js';
@@ -363,6 +365,10 @@ export class Campaign {
             <article class="ea-offer ${o.bought ? 'is-bought' : ''} ${run.gold < o.cost ? 'is-poor' : ''}"
                      style="--ea-tier:${TIERS[o.def.tier].color}">
               <span class="ea-offer-tier">${TIERS[o.def.tier].name}</span>
+              ${(() => {
+                const en = o.def.enchantId ? enchantment(o.def.enchantId) : null;
+                return en ? `<span class="ea-offer-proc">${procLabel(en)} proc</span>` : '';
+              })()}
               <h4>${o.def.name}</h4>
               <p>${o.def.desc}</p>
               ${rows.length ? `<ul class="ea-delta">${rows.map((r) => `

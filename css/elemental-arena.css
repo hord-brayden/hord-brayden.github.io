@@ -1283,3 +1283,60 @@ body.ea-recording #stage::after {
 @media (prefers-reduced-motion: reduce) {
   .ea-hud-stat.is-up, .ea-hud-row.is-charged .ea-meter { animation: none; }
 }
+
+/* ------------------------------------------------- rarity & enchantments */
+
+/* The proc chance is the number the player is actually buying, so it gets a
+   pill of its own rather than being folded into the body copy. */
+.ea-offer-proc {
+  font-family: var(--font-mono); font-size: .6rem; font-weight: 700;
+  letter-spacing: .08em; color: var(--ea-tier);
+  border: 1px solid var(--ea-tier); border-radius: 999px;
+  padding: 1px 7px; margin-left: 6px;
+}
+
+.ea-rarity-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.ea-rarity-chip {
+  display: inline-flex; align-items: baseline; gap: 7px;
+  padding: 5px 11px; border-radius: 999px;
+  border: 1px solid var(--ea-tier);
+  background: color-mix(in srgb, var(--ea-tier) 12%, transparent);
+}
+.ea-rarity-chip b {
+  font-family: var(--font-mono); font-size: .72rem; color: var(--ea-tier);
+  text-transform: uppercase; letter-spacing: .1em;
+}
+.ea-rarity-chip em { font-style: normal; font-size: .7rem; color: var(--muted); }
+
+.ea-ench-grid {
+  display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+}
+.ea-ench-card {
+  display: grid; gap: 6px; padding: 11px 13px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ea-tier);
+  border-radius: var(--radius);
+}
+.ea-ench-card h5 {
+  margin: 0; display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  font-family: var(--font-mono); font-size: .86rem;
+}
+.ea-ench-card h5 i { font-style: normal; color: var(--ea-tier); font-size: 1rem; }
+.ea-ench-rarity {
+  font-size: .58rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ea-tier);
+}
+/* Reads as "this fires 28% of the time", which is the whole pitch. */
+.ea-ench-proc {
+  margin-left: auto;
+  font-family: var(--font-mono); font-size: .68rem; font-weight: 700;
+  color: var(--ea-tier);
+  border: 1px solid var(--ea-tier); border-radius: 999px; padding: 1px 8px;
+}
+.ea-ench-card p { margin: 0; font-size: .76rem; color: var(--muted); line-height: 1.45; }
+
+/* In the Forge inspector the card sits under the weapon card, so it needs to
+   sit flush with it rather than float in the panel. */
+.ea-inspect-body .ea-ench-card { margin-top: -2px; }

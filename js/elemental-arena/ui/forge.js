@@ -13,6 +13,8 @@
 import { Fighters, FAMILIES, uiColor } from '../content/roster.js';
 import { Weapons, weaponLabel, weaponStats } from '../content/weapons.js';
 import { weaponAbility } from '../content/weapon-abilities.js';
+import { Enchantments, enchantment } from '../content/enchantments.js';
+import { RARITIES, procLabel } from '../content/rarity.js';
 import { Perks, BUILD_STATS, defaultLoadout, normalizeLoadout, buildSpend, BUILD_BUDGET } from '../content/loadouts.js';
 import { Chassis, Drives, partsLabel } from '../content/parts.js';
 import { Modes } from '../modes/index.js';
@@ -267,7 +269,7 @@ export class Forge {
 
     const perk = Perks.get(entry.loadout.perk);
     const tweaked = buildSpend(entry.loadout) !== 0
-      || entry.loadout.perk !== 'none' || entry.loadout.weaponId
+      || entry.loadout.perk !== 'none' || entry.loadout.weaponId || entry.loadout.enchantId
       || entry.loadout.chassisId !== 'standard' || entry.loadout.driveId !== 'orbit';
 
     chip.innerHTML = `
@@ -370,6 +372,16 @@ export class Forge {
         ${weaponCard(weaponId)}
 
         <label class="ea-row">
+          <span>Enchant</span>
+          <select id="insEnchant">
+            <option value="">None</option>
+            ${Enchantments.all.map((en) => `<option value="${en.id}" ${en.id === l.enchantId ? 'selected' : ''}>${en.name} · ${RARITIES[en.rarity].name} · ${procLabel(en)}</option>`).join('')}
+          </select>
+        </label>
+
+        ${enchantCard(l.enchantId)}
+
+        <label class="ea-row">
           <span>Chassis</span>
           <select id="insChassis">
             ${Chassis.all.map((c) => `<option value="${c.id}" ${c.id === l.chassisId ? 'selected' : ''}>${c.name}</option>`).join('')}
@@ -436,6 +448,10 @@ export class Forge {
 
     $('#insWeapon', panel).addEventListener('change', (ev) => {
       l.weaponId = ev.target.value === f.weapon.id ? null : ev.target.value;
+      this.commitLoadout(entry);
+    });
+    $('#insEnchant', panel).addEventListener('change', (ev) => {
+      l.enchantId = ev.target.value || null;
       this.commitLoadout(entry);
     });
     $('#insChassis', panel).addEventListener('change', (ev) => {
@@ -530,6 +546,23 @@ export class Forge {
 
 
 /** The consultable numbers and the special, shown right under the picker. */
+/* The fitted enchantment, stated as a rarity and a real percentage. The
+ * player is choosing between "always a bit better" and "sometimes much
+ * better", so the chance has to be on screen next to the effect. */
+function enchantCard(enchantId) {
+  const en = enchantment(enchantId);
+  if (!en) return '';
+  const r = RARITIES[en.rarity];
+  return `
+    <article class="ea-ench-card" style="--ea-tier:${r.color}">
+      <h5><i>${en.glyph}</i> ${en.name}
+        <span class="ea-ench-rarity">${r.name}</span>
+        <span class="ea-ench-proc">${procLabel(en)}</span>
+      </h5>
+      <p>${en.desc}</p>
+    </article>`;
+}
+
 function weaponCard(weaponId) {
   const st = weaponStats(weaponId);
   const ab = weaponAbility(weaponId);

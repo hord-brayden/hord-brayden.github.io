@@ -27,6 +27,8 @@ import { Weapons } from '../content/weapons.js';
 import { Perks, defaultLoadout, normalizeLoadout, buildMultiplier } from '../content/loadouts.js';
 import { Chassis, Drives } from '../content/parts.js';
 import { weaponAbility } from '../content/weapon-abilities.js';
+import { enchantment } from '../content/enchantments.js';
+import { procChance } from '../content/rarity.js';
 
 export const SIM_HZ = 120;
 const SIM_DT = 1 / SIM_HZ;
@@ -176,6 +178,10 @@ export class Ball {
     this.resists = null;       // { burn: 0.3, all: 0.1, ... }
     this.ccResist = 0;         // fraction shaved off control durations
     this.crit = null;          // { chance, mult }
+    this.usedLastBreath = false;
+    this.enchant = null;       // the proc rider on this orb's weapon
+    this.enchantChance = 0;
+    this.goldMul = 1;
 
     this.dead = false;
     this.deathTime = 0;
@@ -261,6 +267,8 @@ export class Engine {
     this.hazards = [];       // potion brews, poison pools
     this.turrets = [];       // deployed by weapons like the wrench
     this.effects = [];       // transient visuals: beams, pillars, rings
+    this.pending = [];       // deferred callbacks, drained in simulation order
+    this.bonusGold = 0;      // knocked loose by procs; the campaign collects it
     this.texts = [];         // floating combat text
     this.fields = [];        // vortices and other timed force fields
 
@@ -320,9 +328,25 @@ export class Engine {
     return this;
   }
 
+  /**
+   * Fit an enchantment to an orb. `onEquip` is the permanent half — the cost
+   * that pays for the proc — and it runs once here rather than per hit.
+   */
+  equipEnchant(ball, id) {
+    const ench = enchantment(id);
+    if (!ench) return;
+    ball.enchant = ench;
+    ball.enchantChance = procChance(ench);
+    if (ench.goldMul) ball.goldMul = (ball.goldMul || 1) * ench.goldMul;
+    if (ench.onEquip) ench.onEquip(this, ball);
+  }
+
   applyPerk(ball) {
     const ability = weaponAbility(ball.weaponId);
     if (ability && ability.onSpawn) ability.onSpawn(ball, this);
+    if (!ball.enchant && ball.loadout.enchantId) {
+      this.equipEnchant(ball, ball.loadout.enchantId);
+    }
 
     const start = ball.chassis && ball.chassis.startStatus;
     if (start) this.applyStatus(ball, start.id, start.duration, { sourceId: ball.id });
@@ -351,8 +375,14 @@ export class Engine {
     if (p.ultRate) ball.ultRate = p.ultRate;
     if (p.resists) ball.resists = { ...p.resists };
     if (p.ccResist) ball.ccResist = p.ccResist;
-    if (p.crit) ball.crit = { ...p.crit };
+    if (p.crit) {
+      ball.crit = {
+        chance: Math.min(0.45, p.crit.chance || 0),
+        mult: Math.min(2.8, p.crit.mult || 1.8),
+      };
+    }
     if (p.flags) Object.assign(ball.flags, p.flags);
+    if (p.enchantId) this.equipEnchant(ball, p.enchantId);
 
     for (let i = 1; i < (p.extraWeapons || 0) + 1; i++) ball.addWeapon(this, true);
     for (const id of p.perks || []) {
@@ -456,6 +486,7 @@ export class Engine {
     this.updateProjectiles(dt);
     this.updateTurrets(dt);
     this.updateHazards(dt);
+    this.drainPending();
     this.updateFields(dt);
     this.updatePickups(dt);
     this.updateUlts(dt);
@@ -674,6 +705,14 @@ export class Engine {
           ball.element.colors.trail);
         const passive = ball.element.passive;
         if (passive && passive.onBounce) passive.onBounce(this, ball);
+        if (ball.flags.vineWake) {
+          this.spawnHazard({
+            x: ball.x, y: ball.y, radius: 54, life: 6, kind: 'vine',
+            ownerId: ball.id, teamId: ball.teamId, affects: 'enemies',
+            color: '#4f9d3a', status: 'chill', dps: ball.baseDamage * 0.18,
+          });
+          this.particles.burst('leaf', ball.x, ball.y, 8, 110, '#4f9d3a');
+        }
         this.sfx('bounce', { coreId: ball.fighterId, size: ball.radius / 40 });
         this.emit('bounce', ball);
         if (this.mode && this.mode.onBounce) this.mode.onBounce(this, ball);
@@ -910,12 +949,20 @@ export class Engine {
       crit = true;
     }
 
+    // The enchantment proc. Rolled once, before the hit resolves, so a proc
+    // that multiplies damage and a proc that fires an effect are the same
+    // roll rather than two chances at the same swing.
+    const ench = attacker.enchant;
+    const proc = !!ench && this.rng.chance(attacker.enchantChance);
+    if (proc && ench.damageMul) amount *= ench.damageMul;
+
     const dealt = this.damage(victim, amount, {
       sourceId: attacker.id,
       kind: 'weapon',
       knockback: w.heavy ? 200 : 90,
       fromX: w.tipX, fromY: w.tipY,
       pierce: w.ability ? (w.ability.pierce || 0) : 0,
+      ignoreArmor: proc && !!ench.ignoreArmor,
     });
     if (dealt <= 0) return;   // evaded
 
@@ -933,6 +980,14 @@ export class Engine {
     }
     if (w.ability && w.ability.onHit) {
       w.ability.onHit({ engine: this, attacker, victim, amount: dealt, weapon: w });
+    }
+    if (proc) {
+      this.announce(victim, ench.short || ench.name.toUpperCase(), ench.color, 0.8);
+      this.particles.burst('spark', victim.x, victim.y, 12, 230, ench.color);
+      this.sfx('proc');
+      if (ench.onProc) {
+        ench.onProc({ engine: this, attacker, victim, amount: dealt, weapon: w });
+      }
     }
     if (passive && passive.onHitExtra) passive.onHitExtra(this, attacker, victim);
 
@@ -1035,7 +1090,19 @@ export class Engine {
         kind === 'true' ? '#f0a8ff' : kind === 'ult' ? '#ffffff' : target.element.colors.dark);
     }
 
-    if (target.hp <= 0) this.kill(target, attacker);
+    if (target.hp <= 0) {
+      if (target.flags.lastBreath && !target.usedLastBreath) {
+        target.usedLastBreath = true;
+        target.hp = target.maxHp * 0.25;
+        this.announce(target, 'LAST BREATH', '#fbbf24', 1.6);
+        this.applyStatus(target, 'ccimmune', 2, { sourceId: target.id });
+        this.flash('#fbbf24', 0.25);
+        this.shake(14);
+        this.sfx('proc');
+      } else {
+        this.kill(target, attacker);
+      }
+    }
     return dealt;
   }
 
@@ -1248,6 +1315,8 @@ export class Engine {
       armAt: h.armAt || 0,
       dps: h.dps || 0,
       heal: h.heal || 0,
+      // What standing in it inflicts. Poison for a flask, chill for a vine.
+      status: h.status || 'poison',
       once: !!h.once,
       touched: null,
       dead: false,
@@ -1274,7 +1343,8 @@ export class Engine {
       if (hz.age >= hz.life || hz.dead) { this.hazards.splice(i, 1); continue; }
 
       if (this.cosmeticRng.chance(dt * 18)) {
-        this.particles.emit(hz.kind === 'potion' ? 'mote' : 'toxin',
+        this.particles.emit(
+          hz.kind === 'potion' ? 'mote' : hz.kind === 'vine' ? 'leaf' : 'toxin',
           hz.x, hz.y, hz.radius * 0.85, 1, hz.color);
       }
 
@@ -1298,7 +1368,7 @@ export class Engine {
           if (!hz.touched) hz.touched = new Set();
           if (!hz.touched.has(ball.id)) {
             hz.touched.add(ball.id);
-            this.applyStatus(ball, 'poison', 4, { power: hz.dps * 0.35, sourceId: hz.ownerId });
+            this.applyStatus(ball, hz.status, 4, { power: hz.dps * 0.35, sourceId: hz.ownerId });
           }
         }
       }
@@ -1549,6 +1619,27 @@ export class Engine {
   }
 
   /* -------------------------------------------------- visual requests */
+
+  /**
+   * Run `fn` after `delay` seconds of simulation time.
+   *
+   * Deliberately driven off the fixed timestep rather than a real timer: a
+   * delayed hit has to land on the same frame in every replay of a seed, or
+   * the match stops being reproducible from its share link.
+   */
+  schedule(delay, fn) {
+    this.pending.push({ at: this.time + delay, fn });
+  }
+
+  drainPending() {
+    if (!this.pending.length) return;
+    for (let i = this.pending.length - 1; i >= 0; i--) {
+      const job = this.pending[i];
+      if (this.time < job.at) continue;
+      this.pending.splice(i, 1);
+      job.fn();
+    }
+  }
 
   beam(from, to, color, life) {
     this.effects.push({ type: 'beam', x1: from.x, y1: from.y, x2: to.x, y2: to.y,

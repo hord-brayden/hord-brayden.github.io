@@ -12,6 +12,7 @@
 
 import { Registry } from '../core/registry.js';
 import { Chassis, Drives } from './parts.js';
+import { Enchantments } from './enchantments.js';
 import { STAT_RANGE } from '../ui/stat-track.js';
 
 export const Perks = new Registry('perk', {
@@ -73,6 +74,7 @@ export const BUILD_BUDGET = 0;
 export function defaultLoadout() {
   return {
     weaponId: null,
+    enchantId: null,
     chassisId: 'standard',
     driveId: 'orbit',
     perk: 'none',
@@ -85,6 +87,7 @@ export function normalizeLoadout(raw) {
   const out = defaultLoadout();
   if (!raw || typeof raw !== 'object') return out;
   if (typeof raw.weaponId === 'string') out.weaponId = raw.weaponId;
+  if (Enchantments.has(raw.enchantId)) out.enchantId = raw.enchantId;
   if (Chassis.has(raw.chassisId)) out.chassisId = raw.chassisId;
   if (Drives.has(raw.driveId)) out.driveId = raw.driveId;
   if (Perks.has(raw.perk)) out.perk = raw.perk;

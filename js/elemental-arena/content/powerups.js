@@ -160,6 +160,89 @@ Powerups.defineAll([
       engine.heal(ball, ball.baseMaxHp * 0.25);
     },
   },
+  /* ------------------------------------------------- the eccentric shelf
+
+   * Pickups that change how the fight goes rather than how big your numbers
+   * are. Every one of these costs you something, so grabbing one is a real
+   * decision even when it is the only pickup on the floor.
+   */
+  {
+    id: 'thornbloom',
+    name: 'Thornbloom',
+    color: '#4f9d3a',
+    glyph: '❦',
+    weight: 1.5,
+    rare: true,
+    // Vines everywhere, including under you. Whoever is better at not
+    // standing still wins the next ten seconds.
+    apply(engine, ball) {
+      for (let i = 0; i < 7; i++) {
+        engine.spawnHazard({
+          x: engine.rng.range(engine.bounds.x0, engine.bounds.x1),
+          y: engine.rng.range(engine.bounds.y0, engine.bounds.y1),
+          radius: 60, life: 10, kind: 'vine',
+          ownerId: ball.id, teamId: ball.teamId, affects: 'enemies',
+          color: '#4f9d3a', status: 'chill', dps: ball.baseDamage * 0.22,
+        });
+      }
+      engine.sfx('vine');
+    },
+  },
+  {
+    id: 'glasscannon',
+    name: 'Glass Cannon',
+    color: '#f43f5e',
+    glyph: '☠',
+    weight: 1.5,
+    rare: true,
+    desc: 'Double damage, half your remaining health.',
+    apply(engine, ball) {
+      ball.baseDamage *= 2;
+      ball.hp = Math.max(1, ball.hp * 0.5);
+      engine.particles.burst('blood', ball.x, ball.y, 24, 260, '#f43f5e');
+    },
+  },
+  {
+    id: 'hoard',
+    name: "Miser's Hoard",
+    color: '#fbbf24',
+    glyph: '❖',
+    weight: 1.2,
+    rare: true,
+    // Campaign only in practice — a sandbox fight has no purse, so this
+    // reads there as a straight damage downgrade. That is the joke.
+    apply(engine, ball) {
+      ball.goldMul = (ball.goldMul || 1) * 2;
+      ball.baseDamage *= 0.8;
+      engine.announce(ball, 'DOUBLE GOLD', '#fbbf24', 1.8);
+    },
+  },
+  {
+    id: 'swarmcall',
+    name: 'Swarm Call',
+    color: '#a855f7',
+    glyph: '⁂',
+    weight: 1.2,
+    rare: true,
+    // A third arm, paid for in health.
+    apply(engine, ball) {
+      ball.addWeapon(engine);
+      ball.maxHp *= 0.85;
+      ball.hp = Math.min(ball.hp, ball.maxHp);
+    },
+  },
+  {
+    id: 'berserk',
+    name: 'Blood Rush',
+    color: '#ef4444',
+    glyph: '⚔',
+    weight: 1.5,
+    rare: true,
+    apply(engine, ball) {
+      engine.applyStatus(ball, 'enrage', 12, { sourceId: ball.id });
+      engine.applyStatus(ball, 'bleed', 12, { power: ball.maxHp * 0.004, sourceId: ball.id });
+    },
+  },
   {
     id: 'overload',
     name: 'Elemental Overload',

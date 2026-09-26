@@ -956,6 +956,48 @@ export class Renderer {
   /* ---------------------------------------------------------- effects */
 
   /** Brews and poison pools. Drawn beneath the orbs so they read as floor. */
+  /**
+   * A vine patch. Drawn as a tangle of creeper radiating from the centre
+   * rather than a tinted disc, so it does not read as "another poison pool"
+   * at a glance — the thing it does to you is different, so it looks different.
+   */
+  drawVine(ctx, hz, r, fade) {
+    ctx.save();
+    ctx.globalAlpha = fade * 0.5;
+    ctx.fillStyle = hz.color;
+    ctx.beginPath();
+    ctx.arc(hz.x, hz.y, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalAlpha = fade * 0.95;
+    ctx.strokeStyle = hz.color;
+    ctx.lineCap = 'round';
+    // Seeded off the hazard's own position so a patch does not crawl between
+    // frames — it has to look planted, not animated.
+    const seed = (hz.x * 13.7 + hz.y * 7.3);
+    const arms = 9;
+    for (let i = 0; i < arms; i++) {
+      const a = (i / arms) * Math.PI * 2 + Math.sin(seed + i) * 0.4;
+      const len = r * (0.55 + 0.45 * Math.abs(Math.sin(seed * 0.7 + i * 2.1)));
+      ctx.lineWidth = 3.2;
+      ctx.beginPath();
+      ctx.moveTo(hz.x, hz.y);
+      // A single control point gives each tendril a lazy curl.
+      ctx.quadraticCurveTo(
+        hz.x + Math.cos(a + 0.5) * len * 0.6, hz.y + Math.sin(a + 0.5) * len * 0.6,
+        hz.x + Math.cos(a) * len, hz.y + Math.sin(a) * len);
+      ctx.stroke();
+      // A leaf at the tip.
+      ctx.lineWidth = 6.5;
+      ctx.beginPath();
+      ctx.moveTo(hz.x + Math.cos(a) * len * 0.86, hz.y + Math.sin(a) * len * 0.86);
+      ctx.lineTo(hz.x + Math.cos(a) * len, hz.y + Math.sin(a) * len);
+      ctx.stroke();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
   drawHazards(ctx) {
     for (const hz of this.engine.hazards) {
       const t = hz.age / hz.life;
@@ -963,6 +1005,7 @@ export class Renderer {
       const grow = hz.once ? 1 : Math.min(1, hz.age * 5);
       const r = hz.radius * grow;
 
+      if (hz.kind === 'vine') { this.drawVine(ctx, hz, r, fade); continue; }
       ctx.globalAlpha = fade * (hz.kind === 'potion' ? 0.5 : 0.34);
       ctx.fillStyle = hz.color;
       if (this.theme.glow) { ctx.shadowColor = hz.color; ctx.shadowBlur = 18; }

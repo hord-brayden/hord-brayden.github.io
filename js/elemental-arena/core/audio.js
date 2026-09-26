@@ -406,6 +406,19 @@ export class Audio {
         this.tone({ freq: 930, type: 'square', dur: 0.09, gain: 0.1, delay: 0.06 });
         this.tone({ freq: 1240, type: 'square', dur: 0.11, gain: 0.09, delay: 0.12 });
         break;
+      case 'proc':
+        // A short bright chime that sits above the hit it rides on, so a proc
+        // is audible as "something extra happened" rather than a louder hit.
+        if (!this._throttle('proc', 45)) return;
+        this.modal({ base: 880, partials: [{ ratio: 1, gain: 1 }, { ratio: 2.76, gain: 0.5 },
+                     { ratio: 5.4, gain: 0.22 }], dur: 0.42, gain: 0.17, strike: 0.002 });
+        break;
+      case 'vine':
+        // Wet, low, organic: rope under tension rather than anything metallic.
+        if (!this._throttle('vine', 90)) return;
+        this.noise({ dur: 0.5, gain: 0.2, filter: 'bandpass', freq: 420, q: 1.6, sweepTo: 180 });
+        this.thud({ freq: 74, dur: 0.34, gain: 0.2, drop: 1.7 });
+        break;
       case 'shrink':
         // A long low grind: something heavy starting to move.
         this.thud({ freq: 52, dur: 1.1, gain: 0.26, drop: 1.5 });
