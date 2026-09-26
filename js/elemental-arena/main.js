@@ -154,6 +154,8 @@ class App {
       ...(cfg.modeId === 'survival'
         ? { arenaW: Math.round(arenaW * 1.4), arenaH: Math.round(arenaH * 1.4) } : {}),
       timeLimit: cfg.modeId === 'territory' && !cfg.timeLimit ? 90 : cfg.timeLimit,
+      // Territory is built on a fixed tile grid, so its floor cannot move.
+      shrinkStartAt: (cfg.closingWalls && cfg.modeId !== 'territory') ? cfg.closingWallsAt : 0,
     });
     engine.on('sfx', ({ name, opts }) => this.audio.play(name, opts));
     engine.on('end', (r) => this.showResult(r));
@@ -321,12 +323,24 @@ class App {
     // Debuffs first — they are the ones you are trying to explain.
     active.sort((a, b) => (a.def.beneficial ? 1 : 0) - (b.def.beneficial ? 1 : 0));
 
-    const sig = active.map((a) => `${a.def.id}:${a.inst.stacks}:${Math.ceil(a.left)}`).join('|');
+    // Healing fatigue rides in the same drawer, because "why is it healing
+    // so much" and "why did its healing stop mattering" are the same question.
+    const eff = engine.healEfficiency(ball);
+    const fatigued = eff < 0.9;
+
+    const sig = active.map((a) => `${a.def.id}:${a.inst.stacks}:${Math.ceil(a.left)}`).join('|')
+      + (fatigued ? `|hf${Math.round(eff * 20)}` : '');
     if (sig === entry.lastSig) return;
     entry.lastSig = sig;
 
-    if (!active.length) { entry.drawer.innerHTML = ''; return; }
-    entry.drawer.innerHTML = active.map(({ def, inst, left }) => `
+    if (!active.length && !fatigued) { entry.drawer.innerHTML = ''; return; }
+    const fatigueChip = fatigued ? `
+      <span class="ea-status is-bad" style="--s:#4ade80"
+            title="Healing fatigue — this orb has already been healed for ${Math.round(ball.healReceived)} HP, so every further heal is worth ${Math.round(eff * 100)}% of its face value. Source: any orb that keeps healing. Sustain wins a fight you are already winning; it is not a substitute for landing the kill.">
+        <i class="ea-status-icon">⚕</i>
+        <b>Healing fatigue</b><u>${Math.round(eff * 100)}%</u>
+      </span>` : '';
+    entry.drawer.innerHTML = fatigueChip + active.map(({ def, inst, left }) => `
       <span class="ea-status ${def.beneficial ? 'is-good' : 'is-bad'}"
             style="--s:${def.color}"
             title="${def.name} — ${def.desc} Source: ${def.from}">
@@ -673,6 +687,11 @@ class App {
     bind('#particlesOn', 'particles', () => this.applyPresentation());
     bind('#shakeOn', 'screenShake', () => this.applyPresentation());
     bind('#showStats', 'showStats', () => this.applyPresentation());
+    bind('#closingWalls', 'closingWalls', () => {
+      $('#closingWallsRow').hidden = !this.config.closingWalls;
+    });
+    bind('#closingWallsAt', 'closingWallsAt');
+    $('#closingWallsRow').hidden = !this.config.closingWalls;
     bind('#tileSize', 'tileSize');
     bind('#territoryRespawn', 'territoryRespawn');
 
@@ -739,7 +758,16 @@ class App {
 
     // Every status says what it does AND where it comes from. "Double damage
     // when soaked" is useless without "only Water applies soaked".
-    $('#codexStatuses').innerHTML = Statuses.all.map((st) => `
+    $('#codexStatuses').innerHTML = `
+      <article class="ea-status-card is-bad" style="--s:#4ade80">
+        <h5><i>⚕</i> Healing fatigue <span class="ea-status-kind">always on</span></h5>
+        <p>Every orb's healing gets weaker the more it has already been healed. One
+        full health bar of lifetime healing cuts the next heal to half value; two bars
+        cut it to a third. It never wears off.</p>
+        <p class="ea-status-from"><strong>How you get it:</strong> automatically, by
+        healing. It exists so an orb that out-heals the damage coming in still has to
+        land the kill instead of stalling forever.</p>
+      </article>` + Statuses.all.map((st) => `
       <article class="ea-status-card ${st.beneficial ? 'is-good' : 'is-bad'}" style="--s:${st.color}">
         <h5><i>${st.icon}</i> ${st.name}
           <span class="ea-status-kind">${st.beneficial ? 'buff' : st.cc ? 'control' : 'debuff'}</span>

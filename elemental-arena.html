@@ -230,6 +230,16 @@
       </div>
 
       <h3>Match</h3>
+      <label class="ea-toggle"><input type="checkbox" id="closingWalls"> Closing walls</label>
+      <p class="ea-note">A long fight has its floor shrink inward, forcing the orbs together
+      until someone lands the finish. This is what stops two orbs that both heal from circling
+      each other forever. Territory never shrinks — its tile grid covers the whole board.</p>
+      <div class="ea-grid2" id="closingWallsRow">
+        <label class="ea-field">
+          <span>Walls start closing after</span>
+          <span class="ea-range"><input type="range" id="closingWallsAt" min="15" max="180" step="5"><output id="closingWallsAtReadout"></output></span>
+        </label>
+      </div>
       <div class="ea-grid2">
         <label class="ea-field">
           <span>Arena size</span>

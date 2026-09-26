@@ -388,10 +388,12 @@ export class CampaignRun {
       modeId: 'duel',
       seed: `${this.seed}#${this.stage}`,
       roster,
-      // No clock. A stage that runs long goes to sudden death instead, so a
-      // stalemate is still a gamble rather than a scoreboard decision.
-      timeLimit: 240,
-      suddenDeathAt: 70,
+      // No clock, and no sudden-death rule either. A stage that runs long
+      // has its walls close in, which ends a stalemate by forcing the fight
+      // rather than by declaring the next hit decisive.
+      timeLimit: 300,
+      shrinkStartAt: 42,
+      shrinkRate: 8,
       powerupsEnabled: true,
       powerupInterval: 11,
       maxPickups: 3,

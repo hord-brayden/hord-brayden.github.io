@@ -55,6 +55,12 @@ export function defaultConfig() {
     tileSize: 26,
     territoryRespawn: true,
 
+    // Closing walls. A long fight is ended by shrinking the floor rather than
+    // by a clock, which resolves attrition stalemates by forcing contact.
+    // Territory opts out — its tile grid is fixed to the full board.
+    closingWalls: true,
+    closingWallsAt: 55,
+
     // Presentation only — never read by the simulation.
     sound: true,
     volume: 0.45,
@@ -114,6 +120,7 @@ export function normalizeConfig(raw) {
   out.powerupInterval = clamp(out.powerupInterval, 1, 120);
   out.maxPickups = clamp(out.maxPickups, 1, 20);
   out.tileSize = clamp(out.tileSize, 8, 80);
+  out.closingWallsAt = clamp(out.closingWallsAt, 10, 300);
   out.volume = clamp(out.volume, 0, 1);
   out.seed = String(out.seed || randomSeedPhrase()).slice(0, 64);
 
@@ -180,7 +187,10 @@ function toWire(cfg) {
     t: cfg.themeId,
     r: cfg.roster.map((e) => [ids.indexOf(e.fighterId), e.teamId, e.count, loadoutToWire(e.loadout)]),
     a: [cfg.arenaW, cfg.arenaH],
-    n: [cfg.baseHp, cfg.baseDamage, cfg.ballRadius, cfg.ballSpeed, cfg.gameSpeed, cfg.timeLimit],
+    // Appended, never reordered: an older link simply decodes `undefined`
+    // here and falls back to the default.
+    n: [cfg.baseHp, cfg.baseDamage, cfg.ballRadius, cfg.ballSpeed, cfg.gameSpeed, cfg.timeLimit,
+        cfg.closingWallsAt, cfg.closingWalls ? 1 : 0],
     p: cfg.powerupsEnabled ? [cfg.powerupInterval, cfg.maxPickups, cfg.powerupIds] : 0,
     g: [cfg.tileSize, cfg.territoryRespawn ? 1 : 0],
   };
@@ -199,6 +209,10 @@ function fromWire(w) {
   if (Array.isArray(w.a)) { cfg.arenaW = w.a[0]; cfg.arenaH = w.a[1]; }
   if (Array.isArray(w.n)) {
     [cfg.baseHp, cfg.baseDamage, cfg.ballRadius, cfg.ballSpeed, cfg.gameSpeed, cfg.timeLimit] = w.n;
+    if (w.n.length > 6) {
+      cfg.closingWallsAt = w.n[6];
+      cfg.closingWalls = !!w.n[7];
+    }
   }
   if (w.p === 0) {
     cfg.powerupsEnabled = false;

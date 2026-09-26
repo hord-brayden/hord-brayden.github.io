@@ -406,6 +406,28 @@ export class Audio {
         this.tone({ freq: 930, type: 'square', dur: 0.09, gain: 0.1, delay: 0.06 });
         this.tone({ freq: 1240, type: 'square', dur: 0.11, gain: 0.09, delay: 0.12 });
         break;
+      case 'shrink':
+        // A long low grind: something heavy starting to move.
+        this.thud({ freq: 52, dur: 1.1, gain: 0.26, drop: 1.5 });
+        this.noise({ dur: 1.3, gain: 0.17, filter: 'lowpass', freq: 520, sweepTo: 180 });
+        this.modal({ base: 88, partials: [{ ratio: 1, gain: 1 }, { ratio: 1.58, gain: 0.45 }],
+                     dur: 1.4, gain: 0.16, strike: 0.02, noisy: 0.7 });
+        break;
+      case 'deploy':
+        if (!this._throttle('deploy', 120)) return;
+        this.modal({ base: 260, partials: [{ ratio: 1, gain: 1 }, { ratio: 1.62, gain: 0.5 },
+                                           { ratio: 2.31, gain: 0.25 }],
+                     dur: 0.4, gain: 0.26, strike: 0.008 });
+        this.thud({ freq: 90, dur: 0.22, gain: 0.18 });
+        break;
+      case 'turret':
+        if (!this._throttle('turret', 70)) return;
+        this.noise({ dur: 0.07, gain: 0.08, filter: 'bandpass', freq: 2400, q: 1.4 });
+        this.tone({ freq: 380, type: 'square', dur: 0.06, gain: 0.06, sweep: -190 });
+        break;
+      case 'whirl':
+        this.noise({ dur: 0.3, gain: 0.14, filter: 'bandpass', freq: 1600, q: 0.6, sweepTo: 3600 });
+        break;
       case 'death':
         this.thud({ freq: 70, dur: 0.5, gain: 0.22 });
         this.tone({ freq: 300, type: 'sawtooth', dur: 0.5, gain: 0.16, sweep: -260 });

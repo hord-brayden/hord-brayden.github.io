@@ -180,6 +180,7 @@ export class Ball {
     this.dead = false;
     this.deathTime = 0;
     this.damageDealt = 0;
+    this.healReceived = 0;
     this.hitsLanded = 0;
     this.parries = 0;
     this.kills = 0;
@@ -244,6 +245,9 @@ export class Ball {
 
 /* =============================================================== engine */
 
+/** Bars of lifetime healing at which an orb's healing drops to half value. */
+const HEAL_FATIGUE = 1;
+
 export class Engine {
   constructor(config) {
     this.config = config;
@@ -276,10 +280,24 @@ export class Engine {
     this.weatherUntil = 0;
     this.speedScale = config.gameSpeed || 1;
 
-    // A campaign stage that runs long ends in sudden death rather than on a
-    // timer: the next clean hit wins, so a stalemate is still a gamble.
-    this.suddenDeathAt = config.suddenDeathAt || 0;
-    this.suddenDeath = false;
+    /*
+     * The closing arena.
+     *
+     * `bounds` is the live play area; `arena` stays fixed as the board the
+     * renderer fits and the territory grid is built on. Separating the two is
+     * what lets the walls move without disturbing the camera or the tiles.
+     *
+     * This replaces a sudden-death rule. Both end a stalemate, but a closing
+     * wall ends it by making the fight happen rather than by declaring the
+     * next hit decisive — two orbs healing through each other simply run out
+     * of room to avoid one another.
+     */
+    this.bounds = { x0: 0, y0: 0, x1: this.arena.w, y1: this.arena.h };
+    this.shrinkStartAt = config.shrinkStartAt || 0;
+    this.shrinkRate = config.shrinkRate || 7;      // units per second, per side
+    this.shrinkMinSpan = config.shrinkMinSpan
+      || Math.max(170, (config.ballRadius || 40) * 4.2);
+    this.shrinking = false;
 
     this.listeners = new Map();
     this.mode = null;
@@ -448,20 +466,53 @@ export class Engine {
     this.decayScreenEffects(dt);
     this.decayTransients(dt);
 
-    if (this.suddenDeathAt && !this.suddenDeath && this.time >= this.suddenDeathAt) {
-      this.suddenDeath = true;
-      this.flash('#ff2d1f', 0.45);
-      this.shake(18);
-      this.weather('suddendeath', 9999);
-      this.sfx('suddendeath');
-      this.emit('suddendeath', this);
-    }
+    this.updateBounds(dt);
 
     if (this.mode) this.mode.update(this, dt);
     if (!this.over && this.mode) {
       const res = this.mode.checkEnd(this);
       if (res) this.finish(res);
     }
+  }
+
+  /** Close the walls once the grace period is up. */
+  updateBounds(dt) {
+    if (!this.shrinkStartAt || this.time < this.shrinkStartAt) return;
+
+    if (!this.shrinking) {
+      this.shrinking = true;
+      this.announceCentre('THE WALLS ARE CLOSING', '#ff8a3d');
+      this.flash('#ff8a3d', 0.3);
+      this.shake(12);
+      this.sfx('shrink');
+      this.emit('shrink', this);
+    }
+
+    const b = this.bounds;
+    const step = this.shrinkRate * dt;
+    // Stop once the remaining floor is only a few orb-widths across, so the
+    // fight is forced but the orbs are not crushed into a single point.
+    const spanX = b.x1 - b.x0, spanY = b.y1 - b.y0;
+    if (spanX > this.shrinkMinSpan) { b.x0 += step; b.x1 -= step; }
+    if (spanY > this.shrinkMinSpan) { b.y0 += step; b.y1 -= step; }
+
+    if (this.cosmeticRng.chance(dt * 9)) {
+      // Dust kicked off the advancing edge.
+      const edge = this.cosmeticRng.int(0, 3);
+      const x = edge === 1 ? b.x1 : edge === 3 ? b.x0 : this.cosmeticRng.range(b.x0, b.x1);
+      const y = edge === 0 ? b.y0 : edge === 2 ? b.y1 : this.cosmeticRng.range(b.y0, b.y1);
+      this.particles.spawn('dust', x, y, this.cosmeticRng.range(-30, 30),
+        this.cosmeticRng.range(-30, 30), '#c08a4a');
+    }
+  }
+
+  /** A callout pinned to the middle of the board rather than to an orb. */
+  announceCentre(text, color, life = 2.2) {
+    this.texts.push({
+      x: (this.bounds.x0 + this.bounds.x1) / 2,
+      y: (this.bounds.y0 + this.bounds.y1) / 2,
+      text, color, age: 0, life, vy: -14, vx: 0, big: true,
+    });
   }
 
   finish(result) {
@@ -578,7 +629,7 @@ export class Engine {
   /* ---------------------------------------------------------- movement */
 
   integrateBalls(dt) {
-    const { w, h } = this.arena;
+    const b = this.bounds;
     for (const ball of this.balls) {
       if (ball.dead) continue;
       ball.px = ball.x; ball.py = ball.y;
@@ -598,10 +649,17 @@ export class Engine {
 
       const r = ball.radius;
       let bounced = false;
-      if (ball.x - r < 0)      { ball.x = r;     ball.vx = Math.abs(ball.vx); bounced = true; }
-      else if (ball.x + r > w) { ball.x = w - r; ball.vx = -Math.abs(ball.vx); bounced = true; }
-      if (ball.y - r < 0)      { ball.y = r;     ball.vy = Math.abs(ball.vy); bounced = true; }
-      else if (ball.y + r > h) { ball.y = h - r; ball.vy = -Math.abs(ball.vy); bounced = true; }
+      // Walls are read from `bounds`, so a closing arena shoves an orb inward
+      // rather than letting it sit outside the live floor.
+      if (ball.x - r < b.x0)      { ball.x = b.x0 + r; ball.vx = Math.abs(ball.vx); bounced = true; }
+      else if (ball.x + r > b.x1) { ball.x = b.x1 - r; ball.vx = -Math.abs(ball.vx); bounced = true; }
+      if (ball.y - r < b.y0)      { ball.y = b.y0 + r; ball.vy = Math.abs(ball.vy); bounced = true; }
+      else if (ball.y + r > b.y1) { ball.y = b.y1 - r; ball.vy = -Math.abs(ball.vy); bounced = true; }
+
+      // When the floor is narrower than the orb, park it on the centre line
+      // instead of letting the two walls fight over it.
+      if (b.x1 - b.x0 < r * 2) ball.x = (b.x0 + b.x1) / 2;
+      if (b.y1 - b.y0 < r * 2) ball.y = (b.y0 + b.y1) / 2;
 
       if (bounced) {
         this.stats.bounces++;
@@ -947,15 +1005,6 @@ export class Engine {
     target.hp -= dealt;
     target.hitFlash = 1;
 
-    // Sudden death: past the campaign's clock, the next clean hit ends it.
-    if (this.suddenDeath && target.hp > 0
-        && (kind === 'weapon' || kind === 'projectile' || kind === 'ult')) {
-      target.hp = 0;
-      this.announce(target, 'SUDDEN DEATH', '#ff2d1f', 2);
-      this.flash('#ff2d1f', 0.5);
-      this.shake(26);
-    }
-
     if (opts.knockback) {
       const src = this.byId(sourceId);
       const fx = opts.fromX ?? (src ? src.x : target.x);
@@ -990,13 +1039,28 @@ export class Engine {
     return dealt;
   }
 
+  /**
+   * Healing effectiveness, which falls as an orb's cumulative healing grows.
+   *
+   * Without this, any orb that out-heals its opponent's damage simply cannot
+   * lose: the fight is decided in the first ten seconds and then runs until
+   * the clock. Making each successive heal worth less means sustain wins a
+   * fight it was already winning, but stops being a substitute for killing.
+   * A full bar of lifetime healing halves the next heal; two bars third it.
+   */
+  healEfficiency(ball) {
+    return 1 / (1 + ball.healReceived / (ball.maxHp * HEAL_FATIGUE));
+  }
+
   heal(ball, amount) {
     if (!ball || ball.dead || amount <= 0) return;
-    if (this.noHealing) return;   // the Sudden Death stage modifier
+    if (this.noHealing) return;   // the "Sudden Death" stage modifier
     if (ball.curseUntil && this.time < ball.curseUntil) amount *= 0.4;
+    amount *= this.healEfficiency(ball);
     const healed = Math.min(amount * ball.mods.healMul, ball.maxHp - ball.hp);
     if (healed <= 0) return;
     ball.hp += healed;
+    ball.healReceived += healed;
     if (healed > 1.5) {
       this.particles.emit('mote', ball.x, ball.y, ball.radius, 2, '#4ade80');
     }
@@ -1375,7 +1439,7 @@ export class Engine {
   }
 
   updateProjectiles(dt) {
-    const { w, h } = this.arena;
+    const b = this.bounds;
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
       p.age += dt;
@@ -1403,8 +1467,8 @@ export class Engine {
       p.y += p.vy * dt;
       p.angle = Math.atan2(p.vy, p.vx);
 
-      if (p.x < 0 || p.x > w) { p.vx *= -1; p.x = Math.max(0, Math.min(w, p.x)); }
-      if (p.y < 0 || p.y > h) { p.vy *= -1; p.y = Math.max(0, Math.min(h, p.y)); }
+      if (p.x < b.x0 || p.x > b.x1) { p.vx *= -1; p.x = Math.max(b.x0, Math.min(b.x1, p.x)); }
+      if (p.y < b.y0 || p.y > b.y1) { p.vy *= -1; p.y = Math.max(b.y0, Math.min(b.y1, p.y)); }
 
       for (const b of this.balls) {
         if (b.dead || b.teamId === p.teamId) continue;
@@ -1615,10 +1679,11 @@ export class Engine {
 
     const def = this.rng.weighted(usable, (p) => p.weight);
     const pad = 60;
+    const b = this.bounds;
     this.pickups.push({
       def,
-      x: this.rng.range(pad, this.arena.w - pad),
-      y: this.rng.range(pad, this.arena.h - pad),
+      x: this.rng.range(Math.min(b.x0 + pad, b.x1), Math.max(b.x1 - pad, b.x0)),
+      y: this.rng.range(Math.min(b.y0 + pad, b.y1), Math.max(b.y1 - pad, b.y0)),
       radius: 17, age: 0, bob: 0,
     });
   }

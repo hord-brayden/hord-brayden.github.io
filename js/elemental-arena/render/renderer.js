@@ -178,6 +178,7 @@ export class Renderer {
     this.drawEffectsBelow(ctx);
     this.drawBalls(ctx, alpha);
     this.drawEffectsAbove(ctx);
+    this.drawClosingWalls(ctx);
     this.drawTexts(ctx);
 
     ctx.restore();
@@ -494,14 +495,22 @@ export class Renderer {
    * going.
    */
   drawStatusChips(ctx, ball, x, y, r) {
-    if (!ball.statuses.size) return;
-
     const good = [], bad = [];
     for (const [id, inst] of ball.statuses) {
       const def = this.engine.statusDef(id);
       if (!def || !def.short) continue;
       (def.beneficial ? good : bad).push({ def, inst });
     }
+
+    // Healing fatigue is not a status — it is a permanent, continuous curve —
+    // but it answers the same question a status chip answers, so it reads as
+    // one. It only appears once it is actually costing the orb something.
+    const eff = this.engine.healEfficiency(ball);
+    if (eff < 0.9) {
+      bad.push({ def: { short: `HEAL ${Math.round(eff * 100)}%`, color: '#4ade80' },
+                 inst: { stacks: 1 } });
+    }
+    if (!good.length && !bad.length) return;
 
     const h = Math.max(11, Math.round(r * 0.33));
     const font = Math.max(8, Math.round(h * 0.72));
@@ -1119,6 +1128,53 @@ export class Renderer {
       ctx.fillText(t.text, t.x, t.y);
     }
     ctx.globalAlpha = 1;
+  }
+
+  /**
+   * The closing arena: everything outside the live floor is struck through,
+   * with a bright advancing edge.
+   *
+   * Drawn above the fighters on purpose — an orb caught outside the line
+   * should read as being outside it, not as standing on top of the hazard.
+   */
+  drawClosingWalls(ctx) {
+    const e = this.engine;
+    if (!e.shrinking) return;
+    const b = e.bounds;
+    const { w, h } = e.arena;
+    if (b.x0 <= 0.5 && b.y0 <= 0.5) return;
+
+    ctx.save();
+    // Dead ground.
+    ctx.fillStyle = this.theme.deadZone;
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.rect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
+    ctx.fill('evenodd');
+
+    // Hatching, so it reads as closed rather than merely shaded.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.rect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
+    ctx.clip('evenodd');
+    ctx.strokeStyle = this.theme.deadHatch;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let d = -h; d < w + h; d += 14) { ctx.moveTo(d, 0); ctx.lineTo(d + h, h); }
+    ctx.stroke();
+    ctx.restore();
+
+    // The advancing edge, pulsing so it reads as moving.
+    const pulse = 0.65 + Math.sin(e.time * 7) * 0.35;
+    ctx.globalAlpha = pulse;
+    ctx.strokeStyle = this.theme.wallEdge;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
+    ctx.globalAlpha = pulse * 0.4;
+    ctx.lineWidth = 12;
+    ctx.strokeRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
+    ctx.restore();
   }
 
   /** Full-screen tint while an ultimate's weather is running. */
