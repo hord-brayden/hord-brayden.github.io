@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Faraday</title>
+<meta name="description" content="A sealed-browser consent audit. A synthetic visitor says no, every tag on your site runs for real, nothing reaches a vendor, and you see exactly who tried to collect anyway.">
+<meta property="og:title" content="Faraday">
+<meta property="og:description" content="Your banner says no. Prove it.">
+<meta property="og:image" content="https://hord-brayden.github.io/img/faraday-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="color-scheme" content="light dark">
+<link rel="canonical" href="https://hord-brayden.github.io/faraday.html">
+<meta property="og:url" content="https://hord-brayden.github.io/faraday.html">
+<!-- Same anonymous visit stats as the rest of the site (see privacy.html) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MKKD62VLDH"></script>
+<script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-MKKD62VLDH');</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ffd83d'/%3E%3Crect x='5' y='5' width='22' height='22' rx='5' fill='none' stroke='%23141210' stroke-width='2.6'/%3E%3Cpath d='M12.3 5.5v21M19.7 5.5v21M5.5 12.3h21M5.5 19.7h21' stroke='%23141210' stroke-width='1.4' stroke-opacity='.6'/%3E%3Ccircle cx='16' cy='16' r='3.4' fill='%23141210'/%3E%3C/svg%3E">
+<link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/faraday.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="cage-mark" viewBox="0 0 32 32">
+      <rect x="3" y="3" width="26" height="26" rx="7" fill="none" stroke="currentColor" stroke-width="2.6"/>
+      <path d="M11.7 3.5v25M20.3 3.5v25M3.5 11.7h25M3.5 20.3h25" stroke="currentColor" stroke-width="1.6" stroke-opacity=".6"/>
+      <circle cx="16" cy="16" r="3.6" fill="currentColor"/>
+    </symbol>
+  </defs>
+</svg>
+<div class="wrap">
+  <nav class="crumb" aria-label="Breadcrumb"><a href="index.html">hord.brayden</a><span aria-hidden="true">/</span><a href="index.html#tools">Tools</a><span aria-hidden="true">/</span><b>Faraday</b></nav>
+  <header class="bar">
+    <span class="logo" aria-hidden="true"><svg><use href="#cage-mark"/></svg></span>
+    <b>Faraday</b>
+    <nav aria-label="Faraday pages">
+      <a href="faraday.html" aria-current="page">Product</a>
+      <a href="faraday-brief.html">Partner brief</a>
+      <a href="faraday-brand.html">Brand</a>
+    </nav>
+  </header>
+
+  <section class="hero" aria-labelledby="h-hero">
+    <div class="stack">
+      <p class="label">Sealed-browser consent audit · closed beta</p>
+      <h1 id="h-hero">Your banner says <span class="strike">no.</span> <mark>Prove&nbsp;it.</mark></h1>
+      <p class="lede">Faraday sends a made-up visitor through your site and has her reject tracking. Every tag runs for real inside a sealed browser. Nothing reaches a vendor. Then you see exactly which tags tried to collect her data anyway.</p>
+      <div class="cta">
+        <a class="btnx primary" href="#access">Request beta access <span aria-hidden="true">→</span></a>
+        <a class="btnx ghost" href="#how">See how it works</a>
+      </div>
+      <div class="proof"><span>Runs before real traffic</span><span>0 requests reach vendors</span><span>Fails the build on a regression</span></div>
+    </div>
+    <div class="cage-wrap">
+      <div class="sticker" style="--r:12deg">Closed beta<small>by invite</small></div>
+      <div class="sticker green">0 vendor hits<small>by design</small></div>
+      <div class="cage-panel">
+        <canvas id="cage" role="img" aria-label="Animation: a checkout page sits inside a copper cage. The visitor rejected all tracking. Analytics and the social pixel stay quiet. An ad tag and a fourth-party script keep firing requests, and the cage wall catches every one."></canvas>
+        <div class="cage-hud" aria-hidden="true">
+          <span>caught at wall <b id="caught">12</b></span>
+          <span class="zero">reached a vendor <b>0</b></span>
+          <span>consent <b>reject all</b></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="ticker" aria-label="Findings from a demo run">
+    <div class="ticker-track">
+      <span><b>✕ BLOCKED</b> AdNet beacon before any consent choice <i>→ 204</i></span>
+      <span><b>✕ BLOCKED</b> card number to stats-cdn.test as base64 <i>→ 1×1 gif</i></span>
+      <span><b>✕ CAUGHT</b> MetricsCo wrote _mx_id to localStorage without analytics consent</span>
+      <span><b>✕ BLOCKED</b> card digits hex-encoded into a dns-prefetch hostname</span>
+      <span><b>✕ CAUGHT</b> cdn-jslib.test reads the payment field "card"</span>
+      <span><b>✕ BLOCKED</b> ad tag ignored Global Privacy Control <i>→ 204</i></span>
+      <span><b>✕ CAUGHT</b> visitor re-identified in a clean session after withdrawal</span>
+      <span><b>✕ CAUGHT</b> ChatWidget opened a WebSocket without functional consent</span>
+    </div>
+  </div>
+
+  <section aria-labelledby="h-nums" style="margin-top:96px">
+    <div class="sech">
+      <div><p class="label eyebrow">One run, the demo shop</p><h2 id="h-nums">Everything fires. <em>Nothing</em> gets out.</h2></div>
+      <p>From one full audit of the bundled demo shop, which has five deliberately planted violations. Tags were fetched once from a cache. Vendor endpoints recorded zero hits.</p>
+    </div>
+    <div class="nums">
+      <div><span class="label">Sessions</span><strong>16</strong><p>Two regions, four consent states, plus withdrawal and chaos runs</p></div>
+      <div><span class="label">Tag fetches</span><strong>80</strong><p>Real tag code, fetched once without cookies or referrer</p></div>
+      <div class="zero"><span class="label">Reached a vendor</span><strong>0</strong><p>Every outbound request was caught and answered locally</p></div>
+      <div class="hot"><span class="label">Planted violations</span><strong>5/5</strong><p>All five caught, including a skimmer hidden in a fourth-party dependency</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-foolia">
+    <div class="idwrap">
+      <div class="stack" style="gap:20px">
+        <p class="label eyebrow">The test persona</p>
+        <h2 id="h-foolia" style="font-size:clamp(34px,5vw,60px);font-weight:800">Meet Foolia. <em>She doesn't exist.</em></h2>
+        <p class="lede">Foolia is the visitor in every run. Her name, email, phone and card number are fabricated, and each value is a canary tied to that run. If any of it shows up in an outbound payload, Faraday finds it, whether it's sent raw, URL-encoded, base64, hex or hashed.</p>
+        <div class="finding">Foolia withdrew consent. AdNet recognized her anyway.<small>Re-identified in a clean session and re-linked to her old profile.</small></div>
+        <div class="finding">Foolia said no. MetricsCo kept her ID.<small>_mx_id written to localStorage without analytics consent. The network tab looked clean.</small></div>
+        <p class="muted" style="font-size:13px">Both are real findings from the demo shop run.</p>
+      </div>
+      <div style="display:grid;justify-items:center">
+        <div class="idcard" aria-label="Synthetic persona card for Foolia">
+          <div class="idcard-top"><span>Synthetic visitor</span><span>FD-132370</span></div>
+          <div class="idcard-body">
+            <div class="idcard-photo" aria-hidden="true">
+              <svg viewBox="0 0 120 160">
+                <rect width="120" height="160" fill="#141210"/>
+                <g stroke="#c4713a" stroke-opacity=".35" stroke-width="1"><path d="M0 20h120M0 40h120M0 60h120M0 80h120M0 100h120M0 120h120M0 140h120M20 0v160M40 0v160M60 0v160M80 0v160M100 0v160"/></g>
+                <path d="M14 160c4-34 22-50 46-50s42 16 46 50z" fill="#ffd83d" stroke="#141210" stroke-width="3"/>
+                <circle cx="60" cy="66" r="28" fill="#ffd83d" stroke="#141210" stroke-width="3"/>
+                <rect x="46" y="60" width="8" height="8" fill="#141210"/><rect x="66" y="60" width="8" height="8" fill="#141210"/>
+                <rect x="50" y="78" width="20" height="4" fill="#141210"/>
+                <path d="M30 52c4-22 20-30 30-30s28 6 32 30c-12-8-22-10-32-10s-22 2-30 10z" fill="#141210"/>
+                <g fill="#f3eee3" opacity=".08"><rect y="10" width="120" height="3"/><rect y="50" width="120" height="3"/><rect y="90" width="120" height="3"/><rect y="130" width="120" height="3"/></g>
+              </svg>
+            </div>
+            <dl>
+              <dt>Name</dt><dd class="name">Foolia</dd>
+              <dt>Email</dt><dd class="nw">cr-132370@canary.test</dd>
+              <dt>Phone</dt><dd>+1 555 0100</dd>
+              <dt>Card</dt><dd>4000 0068 3184 8808</dd>
+              <dt>Born</dt><dd>1970-01-01</dd>
+              <dt>Consent</dt><dd>Reject all · GPC on</dd>
+              <dt>Region</dt><dd>EU-DE, US-CA</dd>
+            </dl>
+          </div>
+          <div class="idcard-foot"><span class="barcode" aria-hidden="true"></span><code>canary · traceable</code></div>
+          <div class="stamp" aria-hidden="true">Synthetic<small>not a real person</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" aria-labelledby="h-how">
+    <div class="sech">
+      <div><p class="label eyebrow">How a run works</p><h2 id="h-how">Five steps. The first one is a lock.</h2></div>
+      <p>Faraday won't start a run against any domain until written permission for that domain is on record.</p>
+    </div>
+    <ol class="pipe">
+      <li><b>Authorize</b><span class="muted">Record written permission for the domain. Without it, the run doesn't start.</span></li>
+      <li><b>Create Foolia</b><span class="muted">Fabricate a persona with canary values. Real personal data is rejected.</span></li>
+      <li><b>Seal the browser</b><span class="muted">DNS is disabled. Tags load for real, and every outbound request is caught at the wall.</span></li>
+      <li><b>Run the matrix</b><span class="muted">Consent choice × region × GPC × journey, recorded so any run can be replayed exactly.</span></li>
+      <li><b>Report and gate</b><span class="muted">An HTML and JSON report with evidence. A new violation fails the build.</span></li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="h-matrix">
+    <div class="sech">
+      <div><p class="label eyebrow">Consent as a test matrix</p><h2 id="h-matrix">"Reject all" isn't a single test.</h2></div>
+      <p>Findings per cell from the demo run. Saying no in Germany produced as many findings as saying yes, because the planted tags ignore the choice.</p>
+    </div>
+    <div class="matrix-wrap">
+      <div class="matrix">
+        <table>
+          <thead><tr><th scope="col">Consent choice</th><th scope="col">EU-DE</th><th scope="col">US-CA</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">No choice made</th><td class="heat-2">22<small>findings</small></td><td class="heat-1">20<small>findings</small></td></tr>
+            <tr><th scope="row">Accept all</th><td class="heat-4">26<small>findings</small></td><td class="heat-2">22<small>findings</small></td></tr>
+            <tr><th scope="row">Analytics only</th><td class="heat-4">26<small>findings</small></td><td class="heat-2">22<small>findings</small></td></tr>
+            <tr><th scope="row">Reject all</th><td class="heat-4">26<small>findings</small></td><td class="heat-3">24<small>findings</small></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <p class="label">What the run caught</p>
+        <div class="finding">AdNet sends data before the visitor chooses<small>pre-consent egress</small></div>
+        <div class="finding">AdNet ignores Global Privacy Control<small>gpc-ignored</small></div>
+        <div class="finding">MetricsCo writes IDs to IndexedDB without consent<small>storage-without-consent</small></div>
+        <div class="finding">AdNet re-identifies Foolia after withdrawal<small>reidentified-in-clean-session</small></div>
+        <div class="finding">Card number sent to an unknown host via a fourth-party script<small>payment-data-exfiltration</small></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-caps">
+    <div class="sech">
+      <div><p class="label eyebrow">Datasheet</p><h2 id="h-caps">What it checks</h2></div>
+      <p>Each row is labeled with its real status. Prototype and roadmap rows aren't for sale yet.</p>
+    </div>
+    <div class="tablewrap">
+      <table class="caps">
+        <thead><tr><th scope="col">Capability</th><th scope="col">What it shows</th><th scope="col">Status</th></tr></thead>
+        <tbody>
+          <tr><td>Consent test matrix</td><td>Consent choice × region × GPC × journey, each run compared against what that consent allows</td><td><span class="st ship">Shipping</span></td></tr>
+          <tr><td>Storage-layer audit</td><td>IDs written to cookies, localStorage or IndexedDB, attributed to the script that wrote them</td><td><span class="st ship">Shipping</span></td></tr>
+          <tr><td>Canary PII and skimmer detection</td><td>Synthetic email, phone and card values found in any payload: raw, URL-encoded, base64, hex, SHA-256, SHA-1, MD5</td><td><span class="st ship">Shipping</span></td></tr>
+          <tr><td>Payment-field watch</td><td>Third-party scripts that read or listen to card fields, with the full load chain</td><td><span class="st ship">Shipping</span></td></tr>
+          <tr><td>Withdrawal testing</td><td>Traffic after consent is revoked, re-linking to old profiles, and re-identification compared against a control persona</td><td><span class="st ship">Shipping</span></td></tr>
+          <tr><td>Consent chaos tests</td><td>Consent manager down or slow, corrupted consent state, consent flipped mid-journey, vendor failure</td><td><span class="st ship">Shipping</span></td></tr>
+          <tr><td>Dark-pattern score</td><td>Accept vs. reject size, clicks needed and time cost of refusing, tied to enforcement precedent</td><td><span class="st ship">Shipping</span></td></tr>
+          <tr><td>Tag tree and drift</td><td>Script fingerprints and load chain, with an alert when they change without a deploy</td><td><span class="st ship">Shipping</span></td></tr>
+          <tr><td>Exfiltration channels</td><td>Content-Security and Permissions policies checked against observed traffic, plus DNS, WebSocket and WebRTC leak paths</td><td><span class="st ship">Shipping</span></td></tr>
+          <tr><td>Inference risk score</td><td>What a vendor could work out about the visitor from the outbound data</td><td><span class="st proto">Prototype</span></td></tr>
+          <tr><td>Server-side tags</td><td>The server-side leg of tag and conversion pipelines</td><td><span class="st road">Roadmap</span></td></tr>
+          <tr><td>Cross-site view</td><td>Whether a partner's ad stack recognizes a persona that opted out somewhere else</td><td><span class="st road">Roadmap · legal review</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-specs">
+    <div class="sech"><div><p class="label eyebrow">Under the hood</p><h2 id="h-specs">A CLI that fails the build</h2></div><p>It runs on your machine or in your CI pipeline. Reports stay with you.</p></div>
+    <div class="grid2">
+      <div class="term">
+        <div class="term-top"><i></i><i></i><i></i><span>faraday audit --all</span></div>
+<pre><span class="t-dim">$</span> faraday audit -c run.json --all --fail-on high
+<span class="t-ok">✓</span> authorization  shop.test <span class="t-dim">(SOW §3, on record)</span>
+<span class="t-ok">✓</span> persona        foolia <span class="t-dim">· synthetic · canary cr-132370</span>
+<span class="t-ok">✓</span> sandbox        DNS sealed <span class="t-dim">·</span> 80 tag fetches <span class="t-dim">·</span> <span class="t-ok">egress 0</span>
+<span class="t-cu">▸</span> matrix         16 sessions <span class="t-dim">· replayable</span>
+<span class="t-bad">✕ critical  64</span>  card number → stats-cdn.test <span class="t-dim">(base64)</span>
+<span class="t-bad">✕ high      81</span>  AdNet beacon before consent choice
+<span class="t-warn">! medium    43</span>  hashed email → AdNet <span class="t-dim">(with consent)</span>
+<span class="t-dim">· low       17</span>
+<span class="t-dim">→</span> out/demo/full-audit.html
+<span class="t-bad">exit 1</span> <span class="t-dim">(--fail-on high)</span></pre>
+      </div>
+      <div class="card">
+        <p class="label">Technical specs</p>
+        <dl class="spec">
+          <dt>Runtime</dt><dd>Node 20+, with a headless browser engine</dd>
+          <dt>Interface</dt><dd><code>audit</code>, <code>diff</code>, <code>drift</code>, <code>verify-replay</code></dd>
+          <dt>CI</dt><dd>Sample workflow included. The run exits non-zero on <code>--fail-on</code></dd>
+          <dt>Outputs</dt><dd>JSON artifact and an HTML report with evidence for each finding</dd>
+          <dt>Replay</dt><dd>Seeded randomness and a frozen clock: record once, replay twice, diff</dd>
+          <dt>Data</dt><dd>Synthetic personas only. Real personal data is rejected at the gate</dd>
+          <dt>Tests</dt><dd>40 unit and 7 integration tests</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section class="limits" aria-label="Safety and limits">
+    <div>
+      <h3>How it stays safe</h3>
+      <ul class="clean">
+        <li>Runs only against domains with written authorization on record.</li>
+        <li>The browser can't open a connection on its own. Every byte goes through one boundary, and outbound requests to vendors are answered locally.</li>
+        <li>Personas are fabricated. Every canary value traces back to the run that created it.</li>
+        <li>The browser stays on the authorized property. Cross-site mode is deliberately not built.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>What it isn't</h3>
+      <p>A finding shows what one browser did under one consent choice at one moment. It's evidence for a review, not a legal opinion or a certificate of compliance. Region is emulated by timezone, locale and location, so sites that target by IP need a proxy. Every engagement starts with a check that the consent-banner clicks actually land, because a misconfigured run produces a clean report that means nothing.</p>
+    </div>
+  </section>
+
+  <section class="dark-block" id="access" aria-labelledby="h-access">
+    <div class="stack" style="gap:18px">
+      <p class="label">Closed beta</p>
+      <h2 id="h-access">One property. 30 days. <span>A report you can act on.</span></h2>
+      <p>Faraday is in closed beta with a small group of privacy, legal and marketing-tech teams. Send me a LinkedIn message with a line about the property you'd test. Pilots run on sites you own or are contracted to audit.</p>
+      <div class="cta"><a class="btnx primary" href="https://www.linkedin.com/in/brayden-hord" target="_blank" rel="noopener">Request access on LinkedIn ↗</a><a class="btnx ghost" href="faraday-brief.html">Partner brief</a></div>
+    </div>
+    <ul class="clean">
+      <li><b>Week 1:</b> authorization, consent-banner setup, recording check</li>
+      <li><b>Week 2:</b> full consent matrix, withdrawal and chaos runs</li>
+      <li><b>Week 3:</b> walkthrough of findings, organized by vendor</li>
+      <li><b>Week 4:</b> CI gate live, re-run to confirm the fixes</li>
+    </ul>
+  </section>
+
+  <p class="foot">Faraday · closed beta · a working name · <a href="index.html">Back to hord.brayden</a> · <a href="pixel-lab.html">Pixel Lab</a> · <a href="faraday-brief.html">Partner brief</a> · <a href="faraday-brand.html">Brand</a> · <a href="privacy.html">Privacy</a></p>
+</div>
+<script src="js/faraday.js"></script>
+</body>
+</html>

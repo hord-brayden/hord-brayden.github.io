@@ -22,6 +22,12 @@ cheap to host, fast to load, and trivial to inspect.
   creatives, with a targeting injector, snapshots and compare (private beta).
   Splash page only; the extension's code is not in this repo. The panels on
   the page are drawn in HTML in the extension's layout, not screenshots.
+- **`faraday.html`**, **`faraday-brief.html`**, **`faraday-brand.html`**:
+  Faraday, a sealed-browser consent audit (closed beta): the product page, a
+  partner brief for web-governance platforms, and the brand sheet. Shared
+  styles in `css/faraday.css`; the cage animation in `js/faraday.js`
+  (respects reduced motion). Share image at `img/faraday-card.png`, source
+  `img/faraday-card.svg`.
 - **`elemental-arena.html`**: Elemental Arena, a bouncing-orb battle game.
   Deterministic simulation, nineteen fighter templates, three modes, a
   roguelite campaign, synthesized audio, match recording, every match

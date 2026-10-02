@@ -1253,7 +1253,7 @@ input:checked + .slider:before { transform: translateX(16px); background-color: 
 
 .tool-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 18px;
 }
 @media (max-width: 900px) { .tool-grid { grid-template-columns: 1fr; gap: 14px; } }
