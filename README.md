@@ -32,6 +32,9 @@ cheap to host, fast to load, and trivial to inspect.
   Deterministic simulation, nineteen fighter templates, three modes, a
   roguelite campaign, synthesized audio, match recording, every match
   reproducible from a seed. Source under `js/elemental-arena/`.
+- **External games** (separate repos, linked from the Play menu and the
+  personal-projects tile): Panzer Oberfeldwebel, Panzer Kommandant, and Hull
+  Cutter (in progress), each on Cloudflare Pages.
 - **`playground.html`**: the toy shelf. Game of Life background controls,
   reaction-timer teaser, password generator (`crypto.getRandomValues()` with
   rejection sampling), Fisher-Yates array shuffle, side-by-side `Math.random`

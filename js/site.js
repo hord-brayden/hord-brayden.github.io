@@ -87,10 +87,14 @@
         { group: 'Tools', items: [
           { href: 'pixel-lab.html',     label: 'Pixel Lab',     note: 'ad pixel testing, Chrome' },
           { href: 'bid-inspector.html', label: 'Bid Inspector', note: 'header bidding, Chrome' },
+          { href: 'faraday.html',       label: 'Faraday',       note: 'consent audit, closed beta' },
           { href: 'https://github.com/hord-brayden/lidless', label: 'Lidless', note: 'macOS, open source', external: true }
         ]},
         { group: 'Play', items: [
           { href: 'elemental-arena.html', label: 'Elemental Arena', note: 'the orb battle game' },
+          { href: 'https://panzer-oberfeldwebel.pages.dev/', label: 'Panzer Oberfeldwebel', note: 'squad tactics, all custom art', external: true },
+          { href: 'https://panzerkommandant.pages.dev/',     label: 'Panzer Kommandant',    note: 'operational wargame', external: true },
+          { href: 'https://hullcutter.pages.dev/',           label: 'Hull Cutter',          note: 'space boarding, in progress', external: true },
           { href: 'playground.html',      label: 'Playground',      note: 'RNG and crypto toys' },
           { href: 'testing-kit.html',     label: 'RNG testing kit', note: 'NIST-style tests' },
           { href: 'f1-timer.html',        label: 'Reaction timer',  note: 'F1 lights' }
